@@ -168,7 +168,13 @@ namespace Aethiumian.AI.Nodes
                 if ((result.Status == ExecutionStatus.Completed || !IsIrreversible(action))
                     && IsGoalSatisfied(goal, body, swept))
                 { EndMovement(true, goal); return; }
-                if (result.Status == ExecutionStatus.Completed) routeIndex++;
+                if (result.Status == ExecutionStatus.Completed)
+                {
+                    routeIndex++;
+                    ReceiveRoute(goal, anchor, body);
+                    if (IsComplete) return;
+                    PrepareNextAction(goal, anchor, body);
+                }
                 // Planning can overlap execution, but a second physical action never ticks here.
                 RequestNextRoute(goal, anchor, body);
             }
@@ -210,7 +216,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Returns a route reconnected to actual physics; performs no executor or lease mutation.</summary>
         protected abstract bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected);
         /// <summary>Prepares one route action after its predecessor was cancelled or completed.</summary>
-        protected abstract ActionPreparation PrepareExecutor(NavigationRouteSegment segment, NavigationGoalRegion goal, Bounds body, MovementExecutor reusable, out MovementExecutor prepared);
+        protected abstract ActionPreparation PrepareExecutor(NavigationRouteSegment segment, Bounds body, MovementExecutor reusable, out MovementExecutor prepared);
         /// <summary>Confirms the entire objective, including ability-specific support requirements.</summary>
         protected abstract bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept);
         /// <summary>Authorizes recovery after a normal physical failure; never ends the node itself.</summary>

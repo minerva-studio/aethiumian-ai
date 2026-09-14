@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Aethiumian.AI.Navigation;
 using NUnit.Framework;
 using UnityEngine;
@@ -61,6 +62,50 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         }
 
         [Test]
+        public void DirectedCompositeContours_IgnoreInnerDownwardTopAndPreserveMirror()
+        {
+            foreach (bool mirrored in new[] { false, true })
+            {
+                NavigationWorldSnapshot world = DirectedCompositeWorld(mirrored);
+                float x = mirrored ? -0.5f : 0.5f;
+                Assert.That(world.TryGetSupportBelow(new Vector2(x, 15.99f), out NavigationSupport support), Is.True);
+                Assert.That(support.Surface, Is.EqualTo(new NavigationSurfaceId(17, 9)));
+                Assert.That(support.Position.y, Is.EqualTo(15f).Within(0.0001f));
+
+                List<NavigationSupportCandidate> candidates = new();
+                world.CollectSupportCandidates(new Rect(x - 0.75f, 14.9f, 1.5f, 1.2f), new Vector2(0.5f, 1f), candidates);
+                for (int index = 0; index < candidates.Count; index++)
+                    Assert.That(candidates[index].Support.Position.y, Is.Not.EqualTo(15.9687f).Within(0.0001f));
+
+                List<NavigationSurfaceCrossing> crossings = new();
+                world.CollectOneWayCrossings(new Vector2(x, 15.99f), new Vector2(x, 15.5f), 0.5f, crossings);
+                Assert.That(crossings, Is.Empty);
+            }
+        }
+
+        [Test]
+        public void DirectedCompositeContours_RetainSameSourceLowerPlanningCandidate()
+        {
+            NavigationWorldSnapshot world = DirectedCompositeWorld(false);
+            Vector2 lowerAnchor = new(3f, 9f);
+            Assert.That(world.CanStandAt(lowerAnchor, new Vector2(0.5f, 1f), out bool isOneWay), Is.True);
+            Assert.That(isOneWay, Is.True);
+
+            List<NavigationSupportCandidate> candidates = new();
+            world.CollectSupportCandidates(new Rect(2.25f, 8.5f, 1.5f, 1f), new Vector2(0.5f, 1f), candidates);
+            bool foundLower = false;
+            for (int index = 0; index < candidates.Count; index++)
+            {
+                NavigationSupport support = candidates[index].Support;
+                if (support.Surface == new NavigationSurfaceId(17, 10)
+                    && Mathf.Abs(support.Position.y - 9f) <= 0.0001f)
+                    foundLower = true;
+            }
+
+            Assert.That(foundLower, Is.True);
+        }
+
+        [Test]
         public void SlopeAndCurves_AreEvaluatedAtExactX()
         {
             NavigationShapeData slope = new(1, 0, NavigationShapeType.Polygon,
@@ -117,6 +162,23 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         private static NavigationShapeData Platform(int id, float y)
             => new(id, 0, NavigationShapeType.Edge, new[] { new Vector2(-5f, y), new Vector2(5f, y) },
                 0f, NavigationSurfaceKind.OneWay, true, Vector2.up);
+
+        private static NavigationWorldSnapshot DirectedCompositeWorld(bool mirrored)
+        {
+            float sign = mirrored ? -1f : 1f;
+            float MirrorX(float x) => mirrored ? -x : x;
+            Vector2 Point(float x, float y) => new(MirrorX(x), y);
+            return World(
+                new NavigationShapeData(17, 7, NavigationShapeType.Edge,
+                    new[] { Point(-4f, 12f), Point(4f, 12f), Point(4f, 16f), Point(-4f, 16f), Point(-4f, 12f) },
+                    0f, NavigationSurfaceKind.OneWay, true, Vector2.up, directedNormalSign: sign),
+                new NavigationShapeData(17, 9, NavigationShapeType.Edge,
+                    new[] { Point(-1f, 15f), Point(-1f, 15.9687f), Point(1f, 15.9687f), Point(1f, 15f), Point(-1f, 15f) },
+                    0f, NavigationSurfaceKind.OneWay, true, Vector2.up, directedNormalSign: sign),
+                new NavigationShapeData(17, 10, NavigationShapeType.Edge,
+                    new[] { Point(-4f, 7f), Point(4f, 7f), Point(4f, 9f), Point(-4f, 9f), Point(-4f, 7f) },
+                    0f, NavigationSurfaceKind.OneWay, true, Vector2.up, directedNormalSign: sign));
+        }
 
         private static NavigationShapeData Box(int id, float left, float bottom, float right, float top)
             => new(id, 0, NavigationShapeType.Polygon,

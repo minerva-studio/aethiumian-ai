@@ -64,7 +64,7 @@ namespace Aethiumian.AI.Tests.Navigation
             body.linearVelocity = new Vector2(0f, 3f);
             int walkCallbacks = 0;
             using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f, () => walkCallbacks++);
-            executor.BeginGroundMove(new Vector2(0f, -0.5f), new Vector2(2f, -0.5f));
+            executor.SetGroundMove(new Vector2(0f, -0.5f), new Vector2(2f, -0.5f));
 
             Assert.AreEqual(new Vector2(0f, 3f), body.linearVelocity);
 
@@ -86,14 +86,14 @@ namespace Aethiumian.AI.Tests.Navigation
             ContactFilter2D includedFilter = new NavigationPhysicsLayers(NavigationPhysicsTestLayers.DefaultMask, 0).CreateTerrainFilter();
             using (var executor = new GroundTraversalExecutor(body, collider, includedFilter, 4f, 1f))
             {
-                executor.BeginGroundMove(anchor, anchor + Vector2.right * 2f);
+                executor.SetGroundMove(anchor, anchor + Vector2.right * 2f);
                 Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
             }
 
             body.linearVelocity = Vector2.zero;
             ContactFilter2D excludedFilter = new NavigationPhysicsLayers(NavigationPhysicsTestLayers.GeometryMask, 0).CreateTerrainFilter();
             using var excludedExecutor = new GroundTraversalExecutor(body, collider, excludedFilter, 4f, 1f);
-            excludedExecutor.BeginGroundMove(anchor, anchor + Vector2.right * 2f);
+            excludedExecutor.SetGroundMove(anchor, anchor + Vector2.right * 2f);
             ExecutionResult blockedResult = excludedExecutor.Tick(Time.fixedDeltaTime);
             Assert.That(blockedResult.Status, Is.EqualTo(ExecutionStatus.Failed));
             Assert.That(blockedResult.FailureReason, Is.EqualTo(ExecutionFailureReason.Obstructed));
@@ -108,7 +108,7 @@ namespace Aethiumian.AI.Tests.Navigation
             Physics2D.SyncTransforms();
             Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
             using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f);
-            executor.BeginGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.005f);
+            executor.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.005f);
 
             Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Completed));
             Assert.AreEqual(Vector2.zero, body.linearVelocity);
@@ -122,7 +122,7 @@ namespace Aethiumian.AI.Tests.Navigation
             Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
             float connectorDistance = 0.03f;
             using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f);
-            executor.BeginGroundMove(groundAnchor, groundAnchor + Vector2.right * connectorDistance);
+            executor.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * connectorDistance);
 
             Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Completed));
             Assert.AreEqual(Vector2.zero, body.linearVelocity);
@@ -137,11 +137,11 @@ namespace Aethiumian.AI.Tests.Navigation
             Physics2D.SyncTransforms();
             Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
             using var within = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 0f, 0.5f);
-            within.BeginGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.2f);
+            within.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.2f);
             Assert.That(within.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Completed));
 
             using var outside = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 0f, 0.5f);
-            outside.BeginGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.201f);
+            outside.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.201f);
             Assert.That(outside.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
         }
 
@@ -423,7 +423,7 @@ namespace Aethiumian.AI.Tests.Navigation
             Physics2D.SyncTransforms();
             using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 2f, 1f);
             Vector2 start = NavigationBodyGeometry.GetGroundAnchor(collider);
-            executor.BeginGroundMove(start, start + Vector2.right * 1f);
+            executor.SetGroundMove(start, start + Vector2.right * 1f);
 
             ExecutionResult blockedResult = executor.Tick(Time.fixedDeltaTime);
             Assert.That(blockedResult.Status, Is.EqualTo(ExecutionStatus.Failed));
@@ -447,7 +447,7 @@ namespace Aethiumian.AI.Tests.Navigation
             Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
             Assert.That(Physics2D.GetIgnoreCollision(collider, platform), Is.True);
 
-            executor.BeginGroundMove(new Vector2(0f, -0.5f), new Vector2(1f, -0.5f));
+            executor.SetGroundMove(new Vector2(0f, -0.5f), new Vector2(1f, -0.5f));
 
             Assert.That(Physics2D.GetIgnoreCollision(collider, platform), Is.False);
         }

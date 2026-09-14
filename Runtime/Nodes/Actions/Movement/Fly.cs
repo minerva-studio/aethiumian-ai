@@ -64,12 +64,11 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, NavigationGoalRegion goal,
-            Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
         {
             if (segment is not FlyRouteSegment) throw new InvalidOperationException("Fly requires an aerial route action.");
             var flight = reusable as FlyTraversalExecutor ?? CreateExecutor();
-            flight.BeginWaypoint(body.center, segment.End, GetPrincipalSteeringDirection(segment.End - (Vector2)body.center),
+            flight.SetWaypoint(body.center, segment.End,
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
             prepared = flight;
             return ActionPreparation.Ready;
@@ -136,18 +135,8 @@ namespace Aethiumian.AI.Nodes
             filter.SetLayerMask(filter.layerMask.value
                 & ~RigidBody.excludeLayers.value
                 & ~Collider.excludeLayers.value);
-            return new FlyTraversalExecutor(RigidBody, Collider, FinalSpeed, Flexibility, filter, NavigationColliders);
-        }
-
-        private static Vector2 GetPrincipalSteeringDirection(Vector2 displacement)
-        {
-            if (displacement.sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon)
-                return Vector2.zero;
-
-            if (Mathf.Abs(displacement.x) >= Mathf.Abs(displacement.y))
-                return new Vector2(Mathf.Sign(displacement.x), 0f);
-
-            return new Vector2(0f, Mathf.Sign(displacement.y));
+            return new FlyTraversalExecutor(RigidBody, Collider, FinalSpeed, Flexibility, filter,
+                NavigationColliders, MaximumIdleDuration);
         }
 
         protected override Vector2Int GetWanderLocation(Vector2 center)

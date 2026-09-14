@@ -77,7 +77,7 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, NavigationGoalRegion goal, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
         {
             prepared = null;
             if (segment is not JumpRouteSegment jump)

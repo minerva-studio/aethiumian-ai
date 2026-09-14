@@ -105,6 +105,9 @@ namespace Aethiumian.AI.Navigation
                 return ExecutionResult.Running;
             }
 
+            if (body.linearVelocityY > 0f)
+                return ExecutionResult.Running;
+
             if (Mathf.Abs(supportPoint.y - trajectory.LandingPosition.y) > GroundTraversalEndpointPolicy.VerticalSupportTolerance)
             {
                 return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
@@ -115,13 +118,13 @@ namespace Aethiumian.AI.Navigation
                 awaitingEndpointContactResolution = false;
                 return IsLandingAtEndpoint(currentAnchor, fixedDeltaTime)
                     ? ExecutionResult.Completed
-                    : ExecutionResult.Failure(ExecutionFailureReason.InvalidExecution);
+                    : ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
             }
 
             if (Mathf.Abs(currentAnchor.x - trajectory.LandingPosition.x) > GetHorizontalLandingTolerance(fixedDeltaTime))
             {
-                progress = RecordLandingProgress(Mathf.Abs(currentAnchor.x - trajectory.LandingPosition.x)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
-                return ExecutionResult.Running;
+                // Flight is over and support is established; no steering remains to repair the landing.
+                return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
             }
 
             return ExecutionResult.Completed;

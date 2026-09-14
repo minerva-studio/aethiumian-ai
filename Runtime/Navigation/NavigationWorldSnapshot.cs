@@ -418,7 +418,7 @@ namespace Aethiumian.AI.Navigation
                     break;
                 case NavigationShapeType.Edge:
                     for (int index = 1; index < shape.Vertices.Length; index++)
-                        if (TryGetSegmentSurface(shape.Vertices[index - 1], shape.Vertices[index], x, out float edgeY, out Vector2 edgeNormal)
+                        if (TryGetSegmentSurface(shape.Vertices[index - 1], shape.Vertices[index], x, out float edgeY, out Vector2 edgeNormal, polygonSign: shape.DirectedNormalSign, orientUp: shape.DirectedNormalSign == 0f)
                             && edgeY <= maxSurfaceY + Epsilon
                             && (!supportedOnly || IsAllowedSupport(shape, edgeNormal))
                             && (!found || edgeY > y)) { y = edgeY; normal = edgeNormal; found = true; }

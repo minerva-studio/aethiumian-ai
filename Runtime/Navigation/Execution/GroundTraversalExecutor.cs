@@ -51,8 +51,7 @@ namespace Aethiumian.AI.Navigation
         private bool hasPreviousJumpAnchor;
         private bool fallReleased;
         private bool awaitingEndpointContactResolution;
-        private float bestRemainingDistance;
-        private float lowestGroundAnchorY;
+        private float bestProgress;
         private bool hasProgressBaseline;
 
 
@@ -115,8 +114,25 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Reports this step's physical progress without exposing watchdog policy to nodes.</summary>
         protected override ProgressObservation ObserveProgress() => progress;
 
-        /// <summary>Begins one ground movement action without writing physics state.</summary>
-        public void BeginGroundMove(Vector2 start, Vector2 end) => BeginAction(ActionKind.GroundMove, start, end);
+        /// <summary>
+        /// Sets a ground segment without writing physics. Same-direction, same-level updates
+        /// preserve progress and idle timing; other actions start a new execution lifetime.
+        /// </summary>
+        public void SetGroundMove(Vector2 start, Vector2 end)
+        {
+            ThrowIfDisposed();
+            Validate.Finite(start, nameof(start));
+            Validate.Finite(end, nameof(end));
+            if (IsExecuting && currentAction == ActionKind.GroundMove
+                && (actionEnd.x - actionStart.x) * (end.x - start.x) > 0f
+                && Mathf.Abs(start.y - actionStart.y) <= VerticalSupportTolerance
+                && Mathf.Abs(end.y - actionEnd.y) <= VerticalSupportTolerance)
+            {
+                actionEnd = end;
+                return;
+            }
+            BeginAction(ActionKind.GroundMove, start, end);
+        }
 
         /// <summary>Begins one ballistic jump action from its freshly solved trajectory.</summary>
         public void BeginJump(JumpTrajectorySolution trajectory) => BeginJump(trajectory, null);
@@ -169,8 +185,7 @@ namespace Aethiumian.AI.Navigation
             jumpLaunched = false;
             fallReleased = false;
             awaitingEndpointContactResolution = false;
-            bestRemainingDistance = 0f;
-            lowestGroundAnchorY = 0f;
+            bestProgress = 0f;
             hasProgressBaseline = false;
             progress = ProgressObservation.NotMonitored;
         }
@@ -215,7 +230,7 @@ namespace Aethiumian.AI.Navigation
         {
             float currentX = GetGroundAnchor().x;
             float displacement = actionEnd.x - currentX;
-            progress = RecordHorizontalProgress(Mathf.Abs(displacement)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+            progress = RecordProgress(Mathf.Sign(actionEnd.x - actionStart.x) * currentX) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
             float plannedDisplacement = actionEnd.x - actionStart.x;
             float completionDistance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(speed, deltaTime);
             // Ground planner support snapping deliberately permits a contact-gap-sized
@@ -281,11 +296,14 @@ namespace Aethiumian.AI.Navigation
             bool hasSupport = TryGetGroundSupport(out RaycastHit2D support);
             if (!hasSupport)
             {
-                progress = RecordHorizontalProgress(Mathf.Abs(actionEnd.x - currentAnchor.x)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+                progress = RecordProgress(-Mathf.Abs(actionEnd.x - currentAnchor.x)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
                 ExecutionResult crossingResult = ConsumeEndpointCrossing(currentAnchor);
                 previousJumpAnchor = currentAnchor;
                 return crossingResult;
             }
+
+            if (body.linearVelocityY > 0f)
+                return ExecutionResult.Running;
 
             if (Mathf.Abs(support.point.y - actionEnd.y) > VerticalSupportTolerance)
             {
@@ -297,15 +315,15 @@ namespace Aethiumian.AI.Navigation
                 awaitingEndpointContactResolution = false;
                 bool stable = IsLandingAtEndpoint(currentAnchor, deltaTime);
                 previousJumpAnchor = currentAnchor;
-                return stable ? ExecutionResult.Completed : ExecutionResult.Failure(ExecutionFailureReason.InvalidExecution);
+                return stable ? ExecutionResult.Completed : ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
             }
 
             bool reachedLanding = Mathf.Abs(currentAnchor.x - actionEnd.x) <= GetJumpHorizontalCompletionTolerance(deltaTime)
                 || hasPreviousJumpAnchor && CrossedLanding(previousJumpAnchor, currentAnchor, actionEnd)
                 || IsWithinLandingDrift(currentAnchor, actionEnd, deltaTime);
-            progress = RecordHorizontalProgress(Mathf.Abs(actionEnd.x - currentAnchor.x)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+            progress = RecordProgress(-Mathf.Abs(actionEnd.x - currentAnchor.x)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
             previousJumpAnchor = currentAnchor;
-            return reachedLanding ? ExecutionResult.Completed : ExecutionResult.Running;
+            return reachedLanding ? ExecutionResult.Completed : ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
         }
 
         private ExecutionResult TickFall(float deltaTime)
@@ -314,7 +332,7 @@ namespace Aethiumian.AI.Navigation
             {
                 Vector2 currentAnchor = GetGroundAnchor();
                 float displacement = ledgeExit.x - currentAnchor.x;
-                progress = RecordHorizontalProgress(Mathf.Abs(displacement)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+                progress = RecordProgress(-Mathf.Abs(displacement)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
                 float ledgeExitTolerance = GroundTraversalEndpointPolicy.GetHorizontalTransitionTolerance(speed, deltaTime);
                 if (Mathf.Abs(displacement) > ledgeExitTolerance)
                 {
@@ -339,13 +357,16 @@ namespace Aethiumian.AI.Navigation
             }
 
             Vector2 anchor = GetGroundAnchor();
-            progress = RecordVerticalProgress(anchor.y) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+            progress = RecordProgress(-anchor.y) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
             if (!TryGetGroundSupport(out RaycastHit2D support))
             {
                 ExecutionResult crossingResult = ConsumeEndpointCrossing(anchor);
                 previousJumpAnchor = anchor;
                 return crossingResult;
             }
+
+            if (body.linearVelocityY > 0f)
+                return ExecutionResult.Running;
 
             if (Mathf.Abs(support.point.y - actionEnd.y) > VerticalSupportTolerance)
             {
@@ -357,13 +378,13 @@ namespace Aethiumian.AI.Navigation
                 awaitingEndpointContactResolution = false;
                 bool stable = IsLandingAtEndpoint(anchor, deltaTime);
                 previousJumpAnchor = anchor;
-                return stable ? ExecutionResult.Completed : ExecutionResult.Failure(ExecutionFailureReason.InvalidExecution);
+                return stable ? ExecutionResult.Completed : ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
             }
 
             previousJumpAnchor = anchor;
             return IsLandingAtEndpoint(anchor, deltaTime)
                 ? ExecutionResult.Completed
-                : ExecutionResult.Running;
+                : ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
         }
 
         private ExecutionResult TickDropThrough(float deltaTime)
@@ -372,7 +393,7 @@ namespace Aethiumian.AI.Navigation
             oneWayPlatformLease.Tick();
 
             Vector2 anchor = GetGroundAnchor();
-            progress = RecordVerticalProgress(anchor.y) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+            progress = RecordProgress(-anchor.y) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
             if (!TryGetGroundSupport(out RaycastHit2D support))
             {
                 if (anchor.y > actionEnd.y + VerticalSupportTolerance)
@@ -449,35 +470,16 @@ namespace Aethiumian.AI.Navigation
             => Mathf.Abs(anchor.x - actionEnd.x)
                 <= GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(speed, deltaTime);
 
-        private bool RecordHorizontalProgress(float remainingDistance)
+        private bool RecordProgress(float value)
         {
             if (!hasProgressBaseline)
             {
-                bestRemainingDistance = remainingDistance;
+                bestProgress = value;
                 hasProgressBaseline = true;
                 return false;
             }
-
-            if (remainingDistance >= bestRemainingDistance - NavigationWorldQueries.GeometryEpsilon)
-                return false;
-
-            bestRemainingDistance = remainingDistance;
-            return true;
-        }
-
-        private bool RecordVerticalProgress(float anchorY)
-        {
-            if (!hasProgressBaseline)
-            {
-                lowestGroundAnchorY = anchorY;
-                hasProgressBaseline = true;
-                return false;
-            }
-
-            if (anchorY >= lowestGroundAnchorY - NavigationWorldQueries.GeometryEpsilon)
-                return false;
-
-            lowestGroundAnchorY = anchorY;
+            if (value <= bestProgress + NavigationWorldQueries.GeometryEpsilon) return false;
+            bestProgress = value;
             return true;
         }
 
@@ -494,8 +496,7 @@ namespace Aethiumian.AI.Navigation
             previousJumpAnchor = default;
             hasPreviousJumpAnchor = false;
             awaitingEndpointContactResolution = false;
-            bestRemainingDistance = 0f;
-            lowestGroundAnchorY = 0f;
+            bestProgress = 0f;
             hasProgressBaseline = false;
             progress = ProgressObservation.NotMonitored;
             oneWayPlatformLease = null;

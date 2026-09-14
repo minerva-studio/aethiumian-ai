@@ -50,12 +50,16 @@ Simple and Smart both obtain actions from `NavigationRoute`:
 
 At most one `NavigationPlanningRequest` is held by one Movement execution. It contains the operation/result receipt, captured start and goal, purpose, committed predecessor, and cancellation resource. The owner detaches it before cancellation and disposal. Background planning never invokes an executor or Unity callback directly; result adoption is performed by the Movement fixed-step loop.
 
+A moving target is coalesced through the single in-flight request. After completion, executable results retain their original goal snapshot; their endpoint need not satisfy the latest target. Position changes beyond geometry epsilon permit another request. A negative result for an old target cannot terminate the current goal.
+
+`PrepareExecutor` receives a segment and body, not a goal. `Waiting` and `Unavailable` leave the previous executor untouched. Same-direction Ground updates and Fly waypoint updates preserve velocity and idle timing. Ground reconnection combines contiguous straight, same-level segments without crossing other action kinds.
+
 ## Executor progression
 
 The capability prepares or reuses one executor. `MovementExecutor.IsExecuting` is the action-lifetime predicate.
 
 1. Connect the next segment from the actual physics anchor.
-2. Prepare the executor, cancelling/detaching a previous action before replacement.
+2. Prepare or update the executor; publish the replacement route only after preparation succeeds.
 3. Tick once with `Time.fixedDeltaTime`.
 4. Keep the executor active for `Running`; release terminal action resources for `Completed` or `Failed`.
 5. Evaluate the overall goal and either continue, recover, or finish.
@@ -66,7 +70,7 @@ The capability prepares or reuses one executor. `MovementExecutor.IsExecuting` i
 | `Jump` | `BallisticJumpExecutor` / `TimedForceExecutor` | Real contact, launch interval, physical flight, and landing-bound completion |
 | `Fly` | `FlyTraversalExecutor` | Waypoint completion, dynamic reconnection, clearance, and height limits |
 
-Jump preparation returns `Waiting` without real contact or before the launch interval. Irreversible Jump/Fall/DropThrough actions are allowed to finish before a replacement route is adopted.
+Jump preparation returns `Waiting` without real contact or before the launch interval. Once flight/descent has ended and non-ascending landing support is established, an endpoint mismatch returns `UnexpectedSupport` instead of waiting for a trajectory that can no longer correct it. Irreversible Jump/Fall/DropThrough actions are allowed to finish before a replacement route is adopted.
 
 ## Recovery and terminal states
 
@@ -77,7 +81,7 @@ Recovery remains at the Movement owner:
 - exact `NoResult`, `SearchExhausted`, and `BudgetReached` planner outcomes retain their distinction;
 - stale or cancelled requests are released before fresh planning;
 - physical failure is handled before Retreat finalization, so cleanup cannot turn a failure into success;
-- reversible action replacement is deferred until the old executor is detached;
+- reversible updates preserve the executing action when possible; only a Ready preparation publishes replacement route state;
 - no-progress route continuation is capped at three attempts.
 
 `IsGoalSatisfied` is the overall completion predicate. `Finish` applies capability-specific final effects, then `CompleteAction` cancels the execution token and releases the action, request, route, lease, and executor resources.

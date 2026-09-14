@@ -61,11 +61,24 @@ namespace Aethiumian.AI.Navigation
             int segmentIndex = 0;
             while (segmentIndex < route.Count && route.Segments[segmentIndex] is GroundRouteSegment ground)
             {
-                Vector2 delta = ground.End - ground.Start;
+                // Consume a validated straight run as one physical action. Never merge across
+                // a turn, level change, or an irreversible traversal boundary.
+                Vector2 end = ground.End;
+                float direction = Mathf.Sign(end.x - ground.Start.x);
+                while (Mathf.Abs(end.y - ground.Start.y) <= NavigationWorldQueries.GeometryEpsilon
+                    && segmentIndex + 1 < route.Count
+                    && route.Segments[segmentIndex + 1] is GroundRouteSegment followingGround
+                    && direction * (followingGround.End.x - followingGround.Start.x) > 0f
+                    && Mathf.Abs(followingGround.End.y - ground.Start.y) <= NavigationWorldQueries.GeometryEpsilon)
+                {
+                    end = followingGround.End;
+                    segmentIndex++;
+                }
+                Vector2 delta = end - ground.Start;
                 float length = delta.magnitude;
                 if (length <= NavigationWorldQueries.GeometryEpsilon)
                 {
-                    if (!IsWithinDistance(snappedStart, ground.End, executionHorizontalCompletionTolerance))
+                    if (!IsWithinDistance(snappedStart, end, executionHorizontalCompletionTolerance))
                         return false;
                     segmentIndex++;
                     continue;
@@ -83,10 +96,10 @@ namespace Aethiumian.AI.Navigation
                     // The immutable world already proved the original segment. Only the
                     // bridge before its start is new geometry; do not rescan the entire tail.
                     Vector2 connectionEnd = ReferenceEquals(world, route.GoalRegion.Snapshot)
-                        ? (projectedDistance < 0f ? ground.Start : snappedStart) : ground.End;
+                        ? (projectedDistance < 0f ? ground.Start : snappedStart) : end;
                     if (!TryValidateGroundConnection(world, snappedStart, connectionEnd, bodySize,
                         supportSnapDistance, groundContactTolerance)) return false;
-                    return BuildReconnectedGroundRoute(route, segmentIndex, snappedStart, ground.End,
+                    return BuildReconnectedGroundRoute(route, segmentIndex, snappedStart, end,
                         out reconnectedRoute);
                 }
 

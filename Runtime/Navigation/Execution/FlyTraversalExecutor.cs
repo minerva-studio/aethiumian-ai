@@ -16,22 +16,21 @@ namespace Aethiumian.AI.Navigation
         private readonly float flexibility;
         private readonly ContactFilter2D collisionFilter;
         private readonly RaycastHit2D[] castHits = new RaycastHit2D[MaximumCastHits];
-        private Vector2 previousSteeringDirection;
-        private bool hasPreviousSteeringDirection;
         private Vector2 steeringTarget;
-        private Vector2? preferredDirection;
-        private bool completesWhenPassingWaypoint;
         private Vector2 waypointStart;
         private float completionDistance;
+        private float bestRemainingDistance;
 
         /// <summary>Creates an aerial executor with explicit physics and locomotion inputs.</summary>
+        /// <param name="maximumIdleDuration">Fixed-waypoint no-progress timeout; zero disables monitoring.</param>
         public FlyTraversalExecutor(
             Rigidbody2D body,
             Collider2D bodyCollider,
             float speed,
             float flexibility,
             ContactFilter2D collisionFilter,
-            IReadOnlyList<Collider2D> navigationColliders = null)
+            IReadOnlyList<Collider2D> navigationColliders = null,
+            float maximumIdleDuration = 0f) : base(maximumIdleDuration)
         {
             if (!body) throw new ArgumentNullException(nameof(body));
             if (!bodyCollider) throw new ArgumentNullException(nameof(bodyCollider));
@@ -46,49 +45,27 @@ namespace Aethiumian.AI.Navigation
             this.navigationColliders = navigationColliders ?? new[] { bodyCollider };
         }
 
-        /// <summary>Starts or updates the current steering action without resetting smoothing history.</summary>
-        public void SetSteeringTarget(Vector2 steeringTarget, Vector2? preferredDirection = null)
-        {
-            ThrowIfDisposed();
-            Validate.Finite(steeringTarget, nameof(steeringTarget));
-            if (preferredDirection.HasValue)
-            {
-                Validate.Finite(preferredDirection.Value, nameof(preferredDirection));
-            }
-
-            if (!IsExecuting)
-            {
-                BeginExecution();
-            }
-
-            this.steeringTarget = steeringTarget;
-            this.preferredDirection = preferredDirection;
-            completesWhenPassingWaypoint = false;
-            completionDistance = StepCompletionDistance;
-        }
-
         /// <summary>
-        /// Prepares a route waypoint. Reaching its tolerance or passing the endpoint plane ends
-        /// the action; collision failure takes precedence over passing. Reuse retains steering
-        /// smoothing and velocity, while the supplied start remains fixed for this action.
+        /// Sets the current waypoint without writing velocity. Updating an executing waypoint
+        /// preserves idle time and adjusts only the distance baseline for the changed target.
         /// </summary>
-        public void BeginWaypoint(
-            Vector2 start,
-            Vector2 target,
-            Vector2 preferredDirection,
-            float completionDistance)
+        public void SetWaypoint(Vector2 start, Vector2 end, float completionDistance)
         {
             ThrowIfDisposed();
             Validate.Finite(start, nameof(start));
-            Validate.Finite(target, nameof(target));
-            Validate.Finite(preferredDirection, nameof(preferredDirection));
+            Validate.Finite(end, nameof(end));
             Validate.NonNegativeFinite(completionDistance, nameof(completionDistance));
-            BeginExecution();
+            Vector2 center = NavigationBodyGeometry.GetCenterAnchor(navigationColliders);
+            if (IsExecuting)
+                bestRemainingDistance += Vector2.Distance(end, center) - Vector2.Distance(steeringTarget, center);
+            else
+            {
+                BeginExecution();
+                bestRemainingDistance = Vector2.Distance(end, center);
+            }
             waypointStart = start;
-            steeringTarget = target;
-            this.preferredDirection = preferredDirection;
+            steeringTarget = end;
             this.completionDistance = completionDistance;
-            completesWhenPassingWaypoint = true;
         }
 
         /// <summary>Steers with the current smoothing history; collision sliding remains a valid running step.</summary>
@@ -98,29 +75,11 @@ namespace Aethiumian.AI.Navigation
             float remainingDistance = displacement.magnitude;
             if (remainingDistance <= completionDistance)
             {
-                hasPreviousSteeringDirection = false;
                 return ExecutionResult.Completed;
             }
 
             float stoppingSpeed = remainingDistance / fixedDeltaTime;
-            bool usePreferredDirection = preferredDirection.HasValue
-                && preferredDirection.Value.sqrMagnitude > NavigationWorldQueries.GeometryEpsilon
-                && Vector2.Dot(preferredDirection.Value, displacement) > 0f;
-            Vector2 desiredDirection = usePreferredDirection
-                ? preferredDirection.Value.normalized
-                : displacement / remainingDistance;
-            if (usePreferredDirection && (!hasPreviousSteeringDirection
-                || Vector2.Dot(previousSteeringDirection, desiredDirection) < 0.999f))
-            {
-                float forwardSpeed = Mathf.Max(0f, Vector2.Dot(body.linearVelocity, desiredDirection));
-                body.linearVelocity = desiredDirection * forwardSpeed;
-                previousSteeringDirection = desiredDirection;
-                hasPreviousSteeringDirection = true;
-            }
-            else if (!usePreferredDirection)
-            {
-                hasPreviousSteeringDirection = false;
-            }
+            Vector2 desiredDirection = displacement / remainingDistance;
 
             Vector2 targetVelocity = desiredDirection * Mathf.Min(speed, stoppingSpeed);
             Vector2 nextVelocity = Vector2.Lerp(body.linearVelocity, targetVelocity, flexibility);
@@ -128,17 +87,32 @@ namespace Aethiumian.AI.Navigation
             // No legal velocity is a failure of this action, not a completed waypoint.
             // The node chooses whether to replan or finish; no retry counter lives here.
             if (blocked) return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
-            if (completesWhenPassingWaypoint)
-            {
-                Vector2 segment = steeringTarget - waypointStart;
-                Vector2 center = NavigationBodyGeometry.GetCenterAnchor(navigationColliders);
-                if (segment.sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon
-                    || Vector2.Dot(center - waypointStart, segment) >= segment.sqrMagnitude)
-                    return ExecutionResult.Completed;
-            }
+            Vector2 segment = steeringTarget - waypointStart;
+            Vector2 center = NavigationBodyGeometry.GetCenterAnchor(navigationColliders);
+            if (segment.sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon
+                || Vector2.Dot(center - waypointStart, segment) >= segment.sqrMagnitude)
+                return ExecutionResult.Completed;
             return ExecutionResult.Running;
         }
 
+
+        protected override ProgressObservation ObserveProgress()
+        {
+            float remaining = Vector2.Distance(steeringTarget,
+                NavigationBodyGeometry.GetCenterAnchor(navigationColliders));
+            if (remaining < bestRemainingDistance - NavigationWorldQueries.GeometryEpsilon)
+            {
+                bestRemainingDistance = remaining;
+                return ProgressObservation.Advanced;
+            }
+            return ProgressObservation.Waiting;
+        }
+
+        protected override void ResetProgressBaselineCore()
+        {
+            bestRemainingDistance = Vector2.Distance(steeringTarget,
+                NavigationBodyGeometry.GetCenterAnchor(navigationColliders));
+        }
 
         private Vector2 ClampToCollision(Vector2 velocity, float fixedDeltaTime, out bool blocked)
         {
@@ -203,9 +177,6 @@ namespace Aethiumian.AI.Navigation
                 throw new ArgumentOutOfRangeException(parameterName, value, "Flexibility must be finite and within [0, 1].");
             }
         }
-
-        private static float StepCompletionDistance
-            => Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon;
 
     }
 }

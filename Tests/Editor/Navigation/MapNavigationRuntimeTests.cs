@@ -271,79 +271,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(otherSnappedLowerCenter.y, Is.EqualTo(5.999982f).Within(0.0001f));
         }
 
-        /// <summary>Verifies repeated ground requests reuse snapshot-owned validated jump geometry.</summary>
-        [Test]
-        public void RepeatedGroundProfileReusesJumpGeometry()
-        {
-            using MapNavigationRuntime runtime = CreateRuntime();
-            runtime.PublishWorld(CreateOpenWorld());
-
-            NavigationPlanningOperation first = runtime.PlanJumpAsync(
-                new Vector2(0.5f, 1f), Goal(new Vector2(3.5f, 1f)), JumpParameters);
-            WaitForCompletion(first);
-            Assert.That(first.IsCompleted, Is.True);
-
-            NavigationPlanningOperation second = runtime.PlanJumpAsync(
-                new Vector2(0.5f, 1f), Goal(new Vector2(2.5f, 1f)), JumpParameters);
-            WaitForCompletion(second);
-            Assert.That(second.IsCompleted, Is.True);
-            Assert.That(second.Result, Is.Not.Null,
-                "Cached trajectories must still be rescored for the new goal.");
-        }
-
-        /// <summary>Verifies trajectory validation is not reused for a different launch offset in one support cell.</summary>
-        [Test]
-        public void DifferentLaunchOffsetDoesNotReuseCachedTrajectory()
-        {
-            using MapNavigationRuntime runtime = CreateRuntime();
-            runtime.PublishWorld(CreateOpenWorld());
-
-            NavigationPlanningOperation first = runtime.PlanJumpAsync(
-                new Vector2(0.25f, 1f), Goal(new Vector2(3.5f, 1f)), JumpParameters);
-            Complete(runtime, first);
-            NavigationPlanningOperation second = runtime.PlanJumpAsync(
-                new Vector2(0.75f, 1f), Goal(new Vector2(2.5f, 1f)), JumpParameters);
-            Complete(runtime, second);
-
-            Assert.That(second.Result, Is.Not.Null,
-                "A changed launch offset must still produce a valid route after revalidating trajectory geometry.");
-        }
-
-        /// <summary>Verifies Smart and Simple Walk reuse goal-independent local ground topology.</summary>
-        [Test]
-        public void WalkModesReuseLocalGroundTopologyAcrossGoals()
-        {
-            using MapNavigationRuntime runtime = CreateRuntime();
-            runtime.PublishWorld(CreateOpenWorld());
-            Vector2 start = new(0.5f, 1f);
-
-            NavigationPlanningOperation smart = runtime.PlanWalkAsync(start, Goal(new Vector2(3.5f, 1f)), WalkParameters);
-            Complete(runtime, smart);
-            NavigationPlanningOperation simple = runtime.PlanWalkAsync(start, Goal(new Vector2(4.5f, 1f)), WalkParameters,
-                NavigationPlanningExtent.NextAction);
-            Complete(runtime, simple);
-
-            Assert.That(simple.Result, Is.Not.Null,
-                "A topology cache hit must still produce a route for the new goal.");
-        }
-
-        /// <summary>Verifies Walk policy filtering does not split the shared jump landing topology.</summary>
-        [Test]
-        public void WalkAndJumpShareLandingTopology()
-        {
-            using MapNavigationRuntime runtime = CreateRuntime();
-            runtime.PublishWorld(CreateOpenWorld());
-            Vector2 start = new(0.5f, 1f);
-
-            NavigationPlanningOperation jump = runtime.PlanJumpAsync(start, Goal(new Vector2(3.5f, 1f)), JumpParameters);
-            Complete(runtime, jump);
-            NavigationPlanningOperation walk = runtime.PlanWalkAsync(start, Goal(new Vector2(5.5f, 1f)), WalkParameters,
-                NavigationPlanningExtent.NextAction);
-            Complete(runtime, walk);
-
-            Assert.That(walk.Result, Is.Not.Null);
-        }
-
         /// <summary>Verifies NextAction planning returns one local executable action for Walk, Jump, and Fly.</summary>
         [Test]
         public void NextActionPlanningReturnsOneLocalActionForWalkJumpAndFly()
@@ -408,28 +335,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route, Is.Not.Null);
         }
 
-        /// <summary>Verifies cached local topology prevents repeating a completed fall-column scan.</summary>
-        [Test]
-        public void RepeatedWalkSupportReusesFallScan()
-        {
-            List<Vector2Int> solids = new();
-            for (int x = 0; x < 5; x++) solids.Add(new Vector2Int(x, 0));
-            solids.Add(new Vector2Int(1, 3));
-            using MapNavigationRuntime runtime = CreateRuntime();
-            runtime.PublishWorld(new TestNavigationWorld(new RectInt(0, 0, 5, 5), solids, Array.Empty<Vector2Int>()));
-            Vector2 start = new(1.5f, 4f);
-
-            NavigationPlanningOperation first = runtime.PlanWalkAsync(start, Goal(new Vector2(4.5f, 1f)), WalkParameters,
-                NavigationPlanningExtent.NextAction);
-            Complete(runtime, first);
-            NavigationPlanningOperation second = runtime.PlanWalkAsync(start, Goal(new Vector2(0.5f, 1f)), WalkParameters,
-                NavigationPlanningExtent.NextAction);
-            Complete(runtime, second);
-
-            Assert.That(first.Result, Is.Not.Null);
-            Assert.That(second.Result, Is.Not.Null);
-        }
-
         /// <summary>Verifies an executable prefix never enters the failure cache.</summary>
         [Test]
         public void HorizonNullDoesNotMemoFailure()
@@ -458,7 +363,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
         /// <summary>Verifies an executable prefix is not negative-cached as an exhausted request.</summary>
         [Test]
-        public void FailedRequestWithSameSnapshotAndRegionIsDeduplicated()
+        public void ExecutablePrefixWithSameSnapshotAndRegionIsNotNegativeCached()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             runtime.PublishWorld(CreateBlockedWorld());

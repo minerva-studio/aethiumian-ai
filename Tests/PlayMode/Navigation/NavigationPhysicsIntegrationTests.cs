@@ -183,7 +183,7 @@ namespace Aethiumian.AI.Tests.Navigation
                 switch (segment)
                 {
                     case GroundRouteSegment ground:
-                        executor.BeginGroundMove(ground.Start, ground.End);
+                        executor.SetGroundMove(ground.Start, ground.End);
                         break;
                     case JumpRouteSegment jump:
                         Assert.That(JumpTrajectory.TrySolve(new JumpTrajectoryInput(
@@ -215,7 +215,12 @@ namespace Aethiumian.AI.Tests.Navigation
 
                 Assert.That(completed, Is.EqualTo(ExecutionStatus.Completed),
                     $"Route segment {stepIndex} ({segment.GetType().Name}) did not complete; "
-                    + $"position={body.position}, velocity={body.linearVelocity}, "
+                    + $"position=({body.position.x:F6}, {body.position.y:F6}), "
+                    + $"velocity=({body.linearVelocity.x:F6}, {body.linearVelocity.y:F6}), "
+                    + $"anchor=({NavigationBodyGeometry.GetGroundAnchor(collider).x:F6}, "
+                    + $"{NavigationBodyGeometry.GetGroundAnchor(collider).y:F6}), "
+                    + $"supportSurfaceY={GetSupportSurfaceY(collider):F6}, "
+                    + $"contactOffset={Physics2D.defaultContactOffset:F6}, "
                     + $"grounded={body.IsTouchingLayers(NavigationPhysicsTestLayers.TerrainMask)}, segment={segment.Start}->{segment.End}.");
             }
 

@@ -18,23 +18,48 @@ namespace Aethiumian.AI.Nodes
             => previous != null && ReferenceEquals(previous.Snapshot, latest.Snapshot)
                 && previous.IsReusableFor(latest, Mathf.Max(NavigationRuntime.CellSize, latest.ArrivalErrorBound));
 
+        // Position changes do not invalidate in-flight work. Semantic changes do.
+        private static bool CompatibleGoal(NavigationGoalRegion previous, NavigationGoalRegion latest)
+        {
+            if (previous == null || !ReferenceEquals(previous.Snapshot, latest.Snapshot)) return false;
+            NavigationGoalKey first = previous.GoalKey;
+            NavigationGoalKey second = latest.GoalKey;
+            return first.Geometry == second.Geometry && first.DistanceMetric == second.DistanceMetric
+                && first.RequiresLineOfSight == second.RequiresLineOfSight
+                && first.ArrivalTolerance.Equals(second.ArrivalTolerance)
+                && first.RetreatDistance.Equals(second.RetreatDistance)
+                && first.SnapshotCellSize.Equals(second.SnapshotCellSize)
+                && first.TargetBounds.size.Equals(second.TargetBounds.size);
+        }
+
+        private static bool SamePlanningTarget(NavigationGoalRegion previous, NavigationGoalRegion latest)
+            => CompatibleGoal(previous, latest)
+                && ((Vector2)(previous.Center - latest.Center)).sqrMagnitude
+                    <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
+
         private void ReceiveRoute(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
         {
             if (request == null) return;
-            if (!SameGoal(request.GoalRegion, goal)) { CancelRequest(); return; }
+            if (!CompatibleGoal(request.GoalRegion, goal)) { CancelRequest(); return; }
             if (!request.Operation.IsCompleted) return;
             // A completed request remains its own candidate/terminal receipt. Release its
             // cancellation resource now, but retain the immutable result until hand-off.
             request.Release(false);
             if (request.Operation.IsCancelled) { CancelRequest(); return; }
             if (request.Operation.Exception != null) throw request.Operation.Exception;
-            if (IsIrreversible(ActiveSegment)) return;
 
+            NavigationRouteSegment active = ActiveSegment;
+            bool followsActive = active != null && ReferenceEquals(request.CommittedSegment, active);
+            if (active != null && request.CommittedSegment != null && !followsActive)
+            { RejectRoute(goal); return; }
             NavigationPlanResult result = request.Operation.PlanResult;
             NavigationRoute candidate = result.Route;
             if (candidate == null || candidate.Count == 0)
             {
-                if (ActiveSegment != null) return;
+                // A negative receipt describes its exact target, not a nearby or newer one.
+                if (!request.GoalRegion.GoalKey.Equals(goal.GoalKey)) { RejectRoute(goal); return; }
+                if (followsActive) return;
+                if (active != null) { RejectRoute(goal); return; }
                 CancelRequest();
                 if (IsGoalSatisfied(goal, body, false)) { EndMovement(true, goal); return; }
                 if (route != null && routeIndex < route.Count) return;
@@ -45,21 +70,41 @@ namespace Aethiumian.AI.Nodes
                 else EndMovement(false, goal);
                 return;
             }
-            if (!TryConnectRoute(candidate, body, out NavigationRoute connected)
-                || connected == null || connected.Count == 0 || !RouteAllowed(goal, anchor, connected))
+
+            if (IsIrreversible(active))
             {
-                // A continuation from an upcoming endpoint may not connect yet. Keep the
-                // current physical action and inspect the same result once it has finished.
-                if (ActiveSegment != null && request.CommittedSegment != null) return;
-                CancelRequest();
-                if (ActiveSegment == null && !AllowRetry()) EndMovement(false, goal);
+                if (!followsActive || !RouteAllowed(goal, request.Start, candidate))
+                    RejectRoute(goal);
                 return;
             }
-            executor?.Cancel();
-            route = connected;
-            routeIndex = 0;
+            if (!TryConnectRoute(candidate, body, out NavigationRoute connected)
+                || connected == null || connected.Count == 0)
+            {
+                // Only a still-useful continuation of this exact action may wait for contact.
+                if (followsActive && RouteAllowed(goal, request.Start, candidate)) return;
+                RejectRoute(goal);
+                return;
+            }
+            if (!RouteAllowed(goal, anchor, connected)) { RejectRoute(goal); return; }
+            if (active != null)
+            {
+                ActionPreparation preparation = PrepareRoute(connected, body);
+                if (preparation == ActionPreparation.Waiting) return;
+                if (preparation == ActionPreparation.Unavailable) { RejectRoute(goal); return; }
+            }
+            else
+            {
+                route = connected;
+                routeIndex = 0;
+            }
             previousCenter = null;
             CancelRequest();
+        }
+
+        private void RejectRoute(NavigationGoalRegion goal)
+        {
+            CancelRequest();
+            if (ActiveSegment == null && !AllowRetry()) EndMovement(false, goal);
         }
 
         private bool PrepareNextAction(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
@@ -76,10 +121,7 @@ namespace Aethiumian.AI.Nodes
                 if (!AllowRetry()) EndMovement(false, goal);
                 return false;
             }
-            route = connected;
-            routeIndex = 0;
-            ActionPreparation preparation = PrepareExecutor(route.Segments[0], goal, body, executor,
-                out MovementExecutor prepared);
+            ActionPreparation preparation = PrepareRoute(connected, body);
             if (preparation == ActionPreparation.Waiting) return false;
             if (preparation == ActionPreparation.Unavailable)
             {
@@ -88,21 +130,29 @@ namespace Aethiumian.AI.Nodes
                 else if (!AllowRetry()) EndMovement(false, goal);
                 return false;
             }
+            return true;
+        }
+
+        // Only Ready may mutate the executor. Publish its route after successful preparation
+        // so a deferred or rejected replacement never describes the old execution.
+        private ActionPreparation PrepareRoute(NavigationRoute connected, Bounds body)
+        {
+            ActionPreparation result = PrepareExecutor(connected.Segments[0], body, executor, out MovementExecutor prepared);
+            if (result != ActionPreparation.Ready) return result;
             if (prepared == null || !prepared.IsExecuting)
                 throw new InvalidOperationException("Ready acquisition must supply an executing executor.");
-            if (!ReferenceEquals(executor, prepared))
-            {
-                executor?.Dispose();
-                executor = prepared;
-            }
-            return true;
+            if (!ReferenceEquals(executor, prepared)) executor?.Dispose();
+            executor = prepared;
+            route = connected;
+            routeIndex = 0;
+            return ActionPreparation.Ready;
         }
 
         private void RequestNextRoute(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
         {
             if (request != null || IsComplete) return;
             NavigationRouteSegment action = ActiveSegment;
-            bool changed = route != null && !SameGoal(route.GoalRegion, goal);
+            bool changed = route != null && !SamePlanningTarget(route.GoalRegion, goal);
             if (!changed && route != null && routeIndex < route.Count)
             {
                 if (action == null || routeIndex + 1 < route.Count) return;

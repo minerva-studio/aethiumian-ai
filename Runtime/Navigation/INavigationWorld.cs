@@ -129,6 +129,10 @@ namespace Aethiumian.AI.Navigation
         public bool HasSupport { get; }
         public Vector2 OneWayDirection { get; }
         public float OneWayCosHalfArc { get; }
+        /// <summary>
+        /// Zero denotes an undirected edge. A nonzero sign preserves the captured edge's
+        /// right-hand normal, including orientation changes from mirrored transforms.
+        /// </summary>
         public float DirectedNormalSign { get; }
 
         public NavigationShapeData(int sourceId, int featureId, NavigationShapeType shapeType,

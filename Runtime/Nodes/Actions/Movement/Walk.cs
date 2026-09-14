@@ -80,7 +80,7 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, NavigationGoalRegion goal, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
         {
             prepared = null;
             var groundExecutor = reusable as GroundTraversalExecutor;
@@ -91,11 +91,11 @@ namespace Aethiumian.AI.Nodes
                 return groundExecutor = new GroundTraversalExecutor(RigidBody, Collider, NavigationRuntime.CreateTerrainFilter(),
                     NewFixedSpeed, accelerateRate, DoWalkCallback, DoJumpCallback, NavigationColliders, MaximumIdleDuration);
             }
-            UpdateSpriteFacing(segment.End);
             switch (segment)
             {
                 case GroundRouteSegment ground:
-                    GetExecutor().BeginGroundMove(NavigationGroundAnchor, ground.End);
+                    GetExecutor().SetGroundMove(NavigationGroundAnchor, ground.End);
+                    UpdateSpriteFacing(segment.End);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case JumpRouteSegment jump:
@@ -122,19 +122,21 @@ namespace Aethiumian.AI.Nodes
                         Time.fixedDeltaTime);
                     if (!JumpTrajectory.TrySolve(input, 512, jump.MinimumApexHeight, out JumpTrajectorySolution trajectory))
                         return ActionPreparation.Unavailable;
-                    GetExecutor();
                     if (!OneWayPlatformCollisionLease.TryCreateForSegment(Collider, jump, navigation, out OneWayPlatformCollisionLease lease))
                         return ActionPreparation.Unavailable;
-                    try { groundExecutor.BeginJump(trajectory, lease); }
+                    try { GetExecutor().BeginJump(trajectory, lease); }
                     catch { lease?.Dispose(); throw; }
+                    UpdateSpriteFacing(segment.End);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case FallRouteSegment fall:
                     GetExecutor().BeginFall(fall.Start, fall.LedgeExit, fall.End);
+                    UpdateSpriteFacing(segment.End);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case DropThroughRouteSegment dropThrough:
                     GetExecutor().BeginDropThrough(dropThrough.Start, dropThrough.End);
+                    UpdateSpriteFacing(segment.End);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 default:
