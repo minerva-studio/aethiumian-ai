@@ -181,7 +181,8 @@ namespace Aethiumian.AI.Nodes
                     routeIndex++;
                     ReceiveRoute(goal, anchor, body);
                     if (IsComplete) return;
-                    PrepareNextAction(goal, anchor, body);
+                    if (!PrepareNextAction(goal, anchor, body) && !IsComplete)
+                        RigidBody.linearVelocity = Vector2.zero;
                 }
                 // Planning can overlap execution, but a second physical action never ticks here.
                 RequestNextRoute(goal, anchor, body);
@@ -231,6 +232,12 @@ namespace Aethiumian.AI.Nodes
         protected abstract bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body);
         /// <summary>Applies final physics effects. Failure may arrive before a target was available.</summary>
         protected abstract void Finish(bool success, NavigationGoalRegion goal);
+        // /// <summary>
+        // /// Applies capability-specific effects when a traversal completes but no successor is ready.
+        // /// Called once for that completion, while the node remains active, after route acquisition
+        // /// and before requesting further planning. The default implementation leaves physics unchanged.
+        // /// </summary>
+        // protected virtual void OnTraversalCompletedWithoutSuccessor() { }
 
         private void EndMovement(bool success, NavigationGoalRegion goal)
         {

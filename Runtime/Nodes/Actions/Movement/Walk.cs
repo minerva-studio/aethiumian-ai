@@ -70,6 +70,9 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
+        // protected override void OnTraversalCompletedWithoutSuccessor()
+        //     => StopHorizontalVelocity();
+
         protected override void Finish(bool success, NavigationGoalRegion goal)
         {
             StopHorizontalVelocity();

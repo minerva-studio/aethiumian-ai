@@ -24,7 +24,7 @@ namespace Aethiumian.AI.Tests.Navigation
         }
 
         [UnityTest]
-        public IEnumerator MovingTargetInvalidatesPendingPlanAndRequestsFreshGoal()
+        public IEnumerator MovingTargetKeepsPendingPlanUntilItCompletes()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             using RuntimeContextScope context = new(runtime);
@@ -42,9 +42,12 @@ namespace Aethiumian.AI.Tests.Navigation
                 yield return new WaitForFixedUpdate();
             }
 
-            Assert.That(ControlledWalk.Requests.Count, Is.GreaterThan(1));
-            Assert.That(first.Operation.IsCompleted, Is.True);
-            Assert.That(first.Operation.IsCancelled, Is.True);
+            // Position changes are coalesced into the next goal sample; they do not
+            // invalidate an already-owned planning operation.
+            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(1));
+            Assert.That(first.Operation.IsCompleted, Is.False);
+            Assert.That(first.Operation.IsCancelled, Is.False);
+            Assert.That(first.Goal.Center.x, Is.EqualTo(56.5f).Within(0.001f));
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
 
