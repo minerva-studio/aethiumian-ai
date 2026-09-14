@@ -1,15 +1,16 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
-    /// <summary>Provides package-only AI and physics wiring for movement-node runtime tests.</summary>
+    /// <summary>
+    /// Provides package-only AI and physics wiring for movement-node runtime tests.
+    /// </summary>
     public abstract class MovementNodePackageFixture
     {
         protected const float BodyWidth = 0.8f;
@@ -95,37 +96,6 @@ namespace Aethiumian.AI.Tests.Navigation
             collider.size = new Vector2(width, 0.5f);
             Physics2D.SyncTransforms();
             return ground;
-        }
-
-        protected static NavigationWorldSnapshot CreateOpenWorld()
-        {
-            RectInt bounds = new(-100, -100, 200, 200);
-            return NavigationWorldSnapshot.Create(
-                Vector2.zero,
-                1f,
-                bounds,
-                Array.Empty<NavigationShapeData>(),
-                new[] { new NavigationRegionData(bounds, 0) });
-        }
-
-        protected static NavigationWorldSnapshot CreateGroundWorld(float y = 0f)
-        {
-            RectInt bounds = new(-100, -100, 200, 200);
-            NavigationShapeData ground = new(
-                1,
-                0,
-                NavigationShapeType.Edge,
-                new[] { new Vector2(-20f, y), new Vector2(100f, y) },
-                0f,
-                NavigationSurfaceKind.OneWay,
-                true,
-                Vector2.up);
-            return NavigationWorldSnapshot.Create(
-                Vector2.zero,
-                1f,
-                bounds,
-                new[] { ground },
-                new[] { new NavigationRegionData(bounds, 0) });
         }
 
         protected static IEnumerator WaitForTreeCreated(MovementHarness harness)

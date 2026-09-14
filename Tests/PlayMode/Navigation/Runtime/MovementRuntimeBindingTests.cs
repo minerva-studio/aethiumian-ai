@@ -1,14 +1,12 @@
-using System;
 using System.Collections;
 using System.Text.RegularExpressions;
-using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>
     /// Verifies package RuntimeContext binding before movement executor initialization.

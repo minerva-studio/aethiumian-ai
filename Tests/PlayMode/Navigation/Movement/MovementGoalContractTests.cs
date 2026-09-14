@@ -2,13 +2,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Aethiumian.AI.Nodes;
-using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>Verifies movement goal completion against package-owned runtime contracts.</summary>
     public sealed class MovementGoalContractTests : MovementNodePackageFixture

@@ -6,7 +6,6 @@ using UnityEngine;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>
-    /// Author: Codex
     /// Registers user-local Preferences for the Aethiumian AI editor.
     /// </summary>
     internal static class AIEditorPreferenceProvider

@@ -4,7 +4,6 @@ using UnityEngine;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>
-    /// Author: Codex
     /// Applies consistent title content to Aethiumian AI editor windows.
     /// </summary>
     internal static class AIEditorTitleContent

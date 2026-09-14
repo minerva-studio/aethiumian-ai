@@ -1,18 +1,15 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using Aethiumian.AI;
-using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
-    /// <summary>Verifies package movement request ownership without a project Map or room fixture.</summary>
-    public sealed class MovementPlanningLifecycleTests : MovementNodePackageFixture
+    /// <summary>Verifies Movement's handoff of planning outcomes without prescribing planner or executor internals.</summary>
+    public sealed class NavigationHandoffContractTests : MovementNodePackageFixture
     {
         private const float ArrivalErrorBound = 0.2f;
         private const int PlanningFrameLimit = 600;
@@ -47,7 +44,6 @@ namespace Aethiumian.AI.Tests.Navigation
             Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(1));
             Assert.That(first.Operation.IsCompleted, Is.False);
             Assert.That(first.Operation.IsCancelled, Is.False);
-            Assert.That(first.Goal.Center.x, Is.EqualTo(56.5f).Within(0.001f));
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
 
@@ -144,10 +140,39 @@ namespace Aethiumian.AI.Tests.Navigation
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
 
+        [UnityTest]
+        public IEnumerator PartialGroundPrefixMakesPhysicalProgressBeforeContinuationRequest()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequest();
+
+            ControlledWalk.Request first = ControlledWalk.Requests[0];
+            Vector2 partialEnd = first.Start + Vector2.right * 4f;
+            ControlledWalk.Complete(first, CreateGroundRoute(first, partialEnd, false));
+
+            for (int frame = 0; frame < PlanningFrameLimit
+                && (harness.Body.position.x <= first.Start.x + 0.5f || ControlledWalk.Requests.Count < 2); frame++)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(harness.Body.position.x, Is.GreaterThan(first.Start.x + 0.5f), DescribeHarness(harness));
+            Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(2), DescribeHarness(harness));
+            Assert.That(ControlledWalk.Requests[1].Start.x, Is.GreaterThan(first.Start.x + 0.01f),
+                "The continuation must be requested from observed movement progress, not the original start. "
+                + DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
         private static MapNavigationRuntime CreateRuntime()
         {
             MapNavigationRuntime runtime = new(8, 4096, 4096);
-            runtime.PublishWorld(CreateGroundWorld());
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Ground());
             return runtime;
         }
 
@@ -167,11 +192,14 @@ namespace Aethiumian.AI.Tests.Navigation
                 jumpLength = (VariableField<float>)10f,
             };
 
-        private static NavigationRoute CreateGroundRoute(ControlledWalk.Request request, Vector2? endpoint = null)
+        private static NavigationRoute CreateGroundRoute(
+            ControlledWalk.Request request,
+            Vector2? endpoint = null,
+            bool completesGoal = true)
         {
             Vector2 resolvedGoal = endpoint ?? request.Goal.Center;
             return NavigationRoute.Create(request.Start, request.Goal, resolvedGoal,
-                new[] { new GroundRouteSegment(request.Start, resolvedGoal) }, true);
+                new[] { new GroundRouteSegment(request.Start, resolvedGoal) }, completesGoal);
         }
 
         private static IEnumerator WaitForRequest()

@@ -1,7 +1,5 @@
 using System.Collections;
-using Aethiumian.AI;
 using Aethiumian.AI.Diagnostics;
-using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Navigation.Diagnostics;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
@@ -9,7 +7,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>Verifies package-owned replan diagnostics with a local runtime and physics fixture.</summary>
     public sealed class MovementReplanDiagnosticsTests : MovementNodePackageFixture
@@ -61,7 +59,7 @@ namespace Aethiumian.AI.Tests.Navigation
                 new NavigationPhysicsLayers(
                     NavigationPhysicsTestLayers.GeometryMask,
                     NavigationPhysicsTestLayers.PlatformMask));
-            runtime.PublishWorld(CreateGroundWorld(1f));
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Ground(1f));
             using RuntimeContextScope context = new(runtime);
             CreateGround(1f);
             MovementHarness harness = CreateHarness(MovementStart, CreateSmartWalk(MovementStart + Vector2.right * 4f), canMove: false);
@@ -89,7 +87,7 @@ namespace Aethiumian.AI.Tests.Navigation
         private static MapNavigationRuntime CreateRuntime()
         {
             MapNavigationRuntime runtime = new(8, 4096, 4096);
-            runtime.PublishWorld(CreateGroundWorld());
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Ground());
             return runtime;
         }
 

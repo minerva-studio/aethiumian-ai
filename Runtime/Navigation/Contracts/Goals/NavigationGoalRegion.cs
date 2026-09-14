@@ -70,7 +70,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Returns the lower-center acceptance bounds for the supplied body width.</summary>
         public Bounds GetLowerCenterAcceptanceBounds(float bodyWidth)
         {
-            ValidateGroundWalkBodyWidth(bodyWidth);
+            Validate.NonNegativeFinite(bodyWidth, nameof(bodyWidth));
             return new Bounds(new Vector3(request.TargetBounds.center.x, request.TargetBounds.min.y, 0f), new Vector3(request.TargetBounds.size.x + bodyWidth + ArrivalErrorBound * 2f, cellSize * 2f, 0f));
         }
 
@@ -357,11 +357,6 @@ namespace Aethiumian.AI.Navigation
             distance = Mathf.Min(distance, DistanceBetweenSegments(start, end, topRight, topLeft));
             distance = Mathf.Min(distance, DistanceBetweenSegments(start, end, topLeft, bottomLeft));
             return distance;
-        }
-
-        private static void ValidateGroundWalkBodyWidth(float bodyWidth)
-        {
-            Validate.NonNegativeFinite(bodyWidth, nameof(bodyWidth));
         }
 
         private static float DistanceToSegmentBoundsMetric(Vector2 start, Vector2 end,

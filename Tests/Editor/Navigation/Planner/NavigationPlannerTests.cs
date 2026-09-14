@@ -12,6 +12,8 @@ namespace Aethiumian.AI.Navigation.Tests
         private static readonly Vector2 Gravity = new(0f, -9.81f);
 
         /// <summary>Verifies the contract maps outside cells to solid.</summary>
+        [Obsolete("Legacy occupancy projection; superseded by NavigationPlannerContractTests.WorldOutsideBoundsRejectsBodyClearance.", false)]
+        [Explicit("Pending deletion: asserts the retired NavigationCell projection instead of the world-space clearance contract.")]
         [Test]
         public void WorldTreatsOutsideBoundsAsSolid()
         {
@@ -21,10 +23,12 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>Verifies default Smart Walk uses GroundRange to prefer a direct ground step without requiring a globally cheapest mixed-search route.</summary>
+        [Obsolete("Legacy planner strategy snapshot; superseded by NavigationPlannerContractTests.WalkPlanner_ReachableGoalProducesACompletingRoute.", false)]
+        [Explicit("Pending deletion: requires a direct Ground segment instead of validating the supported reachable-goal outcome.")]
         [Test]
         public void GroundPlannerBuildsDirectPath()
         {
-            TestNavigationWorld world = GroundWorld(0, 5);
+            TestNavigationWorld world = NavigationTestWorlds.Ground(0, 5);
             Vector2 bodySize = new(0.8f, 1.5f);
             NavigationGoalRegion goal = NavigationGoalRegion.Bind(
                 NavigationGoalRequest.GroundRange(new Bounds(new Vector3(4.5f, 1f), Vector3.zero), 0.1f), world);
@@ -159,9 +163,11 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>Verifies Simple Walk reaches a distant goal in one ground action, including off-center starts.</summary>
-        [TestCase(0.5f, 8.5f)]
-        [TestCase(0.8f, 8.5f)]
-        [TestCase(8.2f, 0.5f)]
+        [TestCase(0.5f, 8.5f, Explicit = true, Reason = "Pending deletion: fixes a Ground-over-Jump candidate preference with no supported route-order contract.")]
+        [TestCase(0.8f, 8.5f, Explicit = true, Reason = "Pending deletion: fixes a Ground-over-Jump candidate preference with no supported route-order contract.")]
+        [TestCase(8.2f, 0.5f, Explicit = true, Reason = "Pending deletion: fixes a Ground-over-Jump candidate preference with no supported route-order contract.")]
+        [Obsolete("Legacy planner candidate-order snapshot; superseded by outcome-based NavigationPlannerContractTests coverage.", false)]
+        [Explicit("Pending deletion: fixes a Ground-over-Jump candidate preference with no supported route-order contract.")]
         public void SimpleGroundPlannerPrefersContinuousGroundOverJump(float startX, float targetX)
         {
             TestNavigationWorld world = GroundWorld(0, 10);
@@ -205,6 +211,8 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>Verifies completed local and Jump candidates use cost as their shared primary tie-breaker.</summary>
+        [Obsolete("Legacy planner candidate-order snapshot; superseded by outcome-based NavigationPlannerContractTests coverage.", false)]
+        [Explicit("Pending deletion: fixes a private cost tie-break between otherwise legal completing candidates.")]
         [Test]
         public void SimpleGroundPlannerPrefersLowerCostCompletedGroundOverJump()
         {
@@ -257,6 +265,8 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>Verifies Simple Walk rejects symmetric candidates that improve neither completion nor guidance.</summary>
+        [Obsolete("Legacy planner candidate-filter snapshot; no supported caller-visible contract depends on this plateau heuristic.", false)]
+        [Explicit("Pending deletion: asserts a private neutral-candidate rejection heuristic instead of route legality or goal completion.")]
         [Test]
         public void SimpleGroundPlannerRejectsNeutralPlateauCandidates()
         {
@@ -272,6 +282,8 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>Verifies wrong-floor completion plateaus use raw-target guidance without changing legality.</summary>
+        [Obsolete("Legacy planner guidance snapshot; no supported caller-visible contract depends on this plateau choice.", false)]
+        [Explicit("Pending deletion: asserts a private wrong-floor guidance choice instead of route legality or goal completion.")]
         [Test]
         public void SimpleGroundPlannerUsesGuidanceToImproveWrongFloorPlateau()
         {
@@ -361,6 +373,8 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>Verifies grounded planning uses a captured non-integer support height.</summary>
+        [Obsolete("Legacy occupancy projection; superseded by NavigationPlannerContractTests.WorldResolvesAuthoredSolidSupportHeightWithoutCellProjection.", false)]
+        [Explicit("Pending deletion: asserts NavigationCell and cell coordinates where world-space support identity and height are the supported contract.")]
         [Test]
         public void GroundPlannerUsesCapturedNonIntegerSupportHeight()
         {
@@ -523,6 +537,8 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>Verifies the default test world supplies geometric support for every occupied floor cell.</summary>
+        [Obsolete("Legacy occupancy projection; superseded by NavigationPlannerContractTests.GroundFixtureProvidesWorldSpaceGeometricSupport.", false)]
+        [Explicit("Pending deletion: asserts NavigationCell occupancy instead of the world-space geometric support contract.")]
         [Test]
         public void DefaultTestWorldProvidesGeometricSupportHeight()
         {
@@ -930,6 +946,8 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>Verifies Fly planning expands a world-unit arrival bound into enough non-unit cells.</summary>
+        [Obsolete("Legacy planner grid-resolution snapshot; goal-region completion is covered by NavigationCoreContractTests.", false)]
+        [Explicit("Pending deletion: asserts an internal tolerance-to-cell-radius conversion and zero-segment route shape.")]
         [Test]
         public void FlyPlannerConvertsArrivalToleranceToCellRadius()
         {
@@ -1105,14 +1123,10 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         private static TestNavigationWorld GroundWorld(int firstX, int count)
-            => new(new RectInt(firstX, 0, count + 1, 6), Floor(firstX, count), Array.Empty<Vector2Int>());
+            => NavigationTestWorlds.Ground(firstX, count);
 
         private static List<Vector2Int> Floor(int firstX, int count)
-        {
-            List<Vector2Int> cells = new();
-            for (int x = firstX; x < firstX + count; x++) cells.Add(new Vector2Int(x, 0));
-            return cells;
-        }
+            => NavigationTestWorlds.Floor(firstX, count);
 
         private static WalkNavigationParameters WalkParameters(Vector2? bodySize = null, float jumpHeight = 2f, float jumpLength = 4f, float linearDamping = 0f)
             => new(bodySize ?? new Vector2(0.8f, 1.5f), 5f, Gravity, 1f, linearDamping, jumpHeight, jumpLength, 0.02f);

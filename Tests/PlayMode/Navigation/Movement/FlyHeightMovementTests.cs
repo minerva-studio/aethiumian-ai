@@ -1,15 +1,13 @@
 using System;
 using System.Collections;
 using System.Threading;
-using Aethiumian.AI;
-using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
     public sealed class FlyHeightMovementTests : MovementNodePackageFixture
     {
@@ -216,7 +214,7 @@ namespace Aethiumian.AI.Tests.Navigation
 
         /// <summary>Observes existing protected boundaries without replacing goal selection or execution.</summary>
         [Serializable]
-        public sealed class HeightQueryFly : global::Aethiumian.AI.Nodes.Fly
+        public sealed class HeightQueryFly : Fly
         {
             public int WanderSelections { get; private set; }
             public Vector2Int SelectedWander { get; private set; }

@@ -1,14 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
-using Aethiumian.AI.Navigation;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>
-    /// Author: Codex
     /// Verifies fixed-step physics and collision cleanup for ground traversal execution.
     /// </summary>
     public sealed class GroundTraversalExecutorTests

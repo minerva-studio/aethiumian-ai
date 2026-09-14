@@ -2,15 +2,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
-using Aethiumian.AI.Navigation;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>
-    /// Author: Codex
     /// Verifies the real fixed-step physics boundary shared by navigation planning and execution.
     /// </summary>
     public sealed class NavigationPhysicsIntegrationTests
@@ -52,6 +50,8 @@ namespace Aethiumian.AI.Tests.Navigation
         }
 
         /// <summary>Verifies custom terrain filtering controls physical support and traversal launch.</summary>
+        [Obsolete("Legacy physics-fixture placement; superseded by BallisticExecutorContractTests.UsesSuppliedSupportFilter.", false)]
+        [Explicit("Pending deletion: support-filter launch coverage belongs to the direct Ballistic executor fixture; the integration fixture keeps only bridge and differential physics signals.")]
         [TestCase(true)]
         [TestCase(false)]
         public void BallisticTraversal_UsesSuppliedSupportFilter(bool includeSupport)
@@ -78,6 +78,8 @@ namespace Aethiumian.AI.Tests.Navigation
         }
 
         /// <summary>Verifies the shared damped trajectory matches a real Rigidbody2D at every fixed tick.</summary>
+        [Obsolete("Legacy mixed physics fixture; superseded by BallisticExecutorDifferentialTests.MatchesRealRigidbodyFlight.", false)]
+        [Explicit("Pending deletion: analytical-vs-Rigidbody recurrence belongs to the direct Executor differential fixture; Integration retains only the planner-to-executor bridge.")]
         [UnityTest]
         public IEnumerator DampedBallisticExecutor_MatchesRealRigidbodyFlight()
         {

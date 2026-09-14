@@ -8,7 +8,6 @@ using UnityEngine;
 namespace Aethiumian.AI.Editor.Tests.Inspector
 {
     /// <summary>
-    /// Author: Codex
     /// Verifies that AI runtime inspector windows bind to individual AI instances.
     /// </summary>
     public sealed class AIInspectorMultiInstanceTests

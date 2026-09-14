@@ -1,12 +1,12 @@
-using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
 using NUnit.Framework;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Tests.Navigation
+namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>Verifies fixed-step physics behavior for aerial and bounded maneuver executors.</summary>
     public sealed class FlyAndTimedMovementExecutorTests
@@ -21,7 +21,7 @@ namespace Aethiumian.AI.Tests.Navigation
             {
                 if (createdObjects[index])
                 {
-                    Object.Destroy(createdObjects[index]);
+                    UnityEngine.Object.Destroy(createdObjects[index]);
                 }
             }
 
@@ -64,7 +64,7 @@ namespace Aethiumian.AI.Tests.Navigation
         public IEnumerator FlyTick_IsTheOnlyVelocityWriteAndMovesThroughPhysics()
         {
             Rigidbody2D body = CreateBody("fly-body", Vector2.zero, out Collider2D bodyCollider);
-            ContactFilter2D filter = new ContactFilter2D().NoFilter();
+            ContactFilter2D filter = ContactFilter2D.noFilter;
             var executor = new FlyTraversalExecutor(body, bodyCollider, 4f, 0.05f, filter);
             Vector2 steeringTarget = new Vector2(2f, 0f);
 
@@ -92,7 +92,7 @@ namespace Aethiumian.AI.Tests.Navigation
                 bodyCollider,
                 4f,
                 0.1f,
-                new ContactFilter2D().NoFilter());
+                ContactFilter2D.noFilter);
 
             executor.SetWaypoint(NavigationBodyGeometry.GetCenterAnchor(bodyCollider), new Vector2(0.005f, 0f),
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
@@ -115,7 +115,7 @@ namespace Aethiumian.AI.Tests.Navigation
                 bodyCollider,
                 4f,
                 0.1f,
-                new ContactFilter2D().NoFilter());
+                ContactFilter2D.noFilter);
             Vector2 center = NavigationBodyGeometry.GetCenterAnchor(bodyCollider);
 
             executor.SetWaypoint(center, center + Vector2.right * 0.005f,
@@ -136,7 +136,7 @@ namespace Aethiumian.AI.Tests.Navigation
                 bodyCollider,
                 4f,
                 0.5f,
-                new ContactFilter2D().NoFilter());
+                ContactFilter2D.noFilter);
 
             executor.SetWaypoint(NavigationBodyGeometry.GetCenterAnchor(bodyCollider), new Vector2(2f, 0f),
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
@@ -151,6 +151,8 @@ namespace Aethiumian.AI.Tests.Navigation
         }
 
         /// <summary>Verifies the shared visibility query observes a circular body and an L-shaped terrain corner.</summary>
+        [Obsolete("Legacy visibility-query placement; superseded by NavigationVisibilityQueryTests.LShapedCornerBlocksAndThenReleasesSight.", false)]
+        [Explicit("Pending deletion: geometry-only visibility coverage belongs to the world-query fixture, not the Fly executor fixture.")]
         [Test]
         public void TargetVisibilityQuery_LShapedCornerBlocksAndThenReleasesSight()
         {
@@ -184,6 +186,8 @@ namespace Aethiumian.AI.Tests.Navigation
         }
 
         /// <summary>Verifies visibility range uses the selected existing DistanceTo geometry contract.</summary>
+        [Obsolete("Legacy visibility-query placement; superseded by NavigationVisibilityQueryTests.UsesSelectedDistanceMeasurement.", false)]
+        [Explicit("Pending deletion: distance-measurement coverage belongs to the world-query fixture, not the Fly executor fixture.")]
         [Test]
         public void TargetVisibilityQuery_UsesSelectedDistanceMeasurement()
         {
@@ -225,9 +229,7 @@ namespace Aethiumian.AI.Tests.Navigation
         {
             Rigidbody2D body = CreateBody("invalid-flexibility-body", Vector2.zero, out Collider2D bodyCollider);
 
-            Assert.That(() =>
-                new FlyTraversalExecutor(body, bodyCollider, 4f, 1.01f, new ContactFilter2D().NoFilter()),
-                Throws.InstanceOf<System.ArgumentException>());
+            Assert.That(() => new FlyTraversalExecutor(body, bodyCollider, 4f, 1.01f, ContactFilter2D.noFilter), Throws.InstanceOf<System.ArgumentException>());
         }
 
         /// <summary>Verifies that a bounded force maneuver writes once per active Tick and not during construction.</summary>
