@@ -86,7 +86,7 @@ attempt before the tick ends, but never a second physical execution.
 
 Every permitted fixed tick reads the current target once. Trace and Retreat use the current `tracing` object; FixedDestination uses `destination`; Wander lazily selects one nullable point after world readiness and permission, and clears it on restart. The capability then implements `BuildGoal` and binds the resulting request to the action's captured immutable `INavigationWorld`.
 
-`NavigationGoalRegion` is the authoritative goal geometry and identity. It contains the target bounds, metric, tolerance, world snapshot, and request identity used to decide whether a result is still adoptable. Target motion may invalidate a pending result; it cannot make a stale result bypass current-goal validation.
+`NavigationGoalRegion` is the authoritative goal geometry and identity. It contains the target bounds, metric, tolerance, world snapshot, and request identity used to decide whether a result is still adoptable. `Movement` keeps two non-persisted histories with separate owners: `intentGoal` is the accepted planning intention used for semantic and Trace invalidation, while `progressGoal` and its anchor describe the retry and swept-motion sample. Request and route regions are historical delivery data; they are not additional target authorities. A capability may invalidate compatible Trace motion through `ShouldInvalidateTraceTarget`; the base action owns cancellation and handoff. Updating a progress sample must not overwrite the accepted intention.
 
 ## Action acquisition
 
@@ -111,7 +111,7 @@ an action. The owner detaches request references before cancellation and disposa
 Background planning never invokes an executor or Unity callback directly; result adoption
 is performed by the Movement fixed-step loop.
 
-A moving target is coalesced through the primary planning request; an optional local attempt does not create a second target authority. After completion, executable results retain their original goal snapshot; their endpoint need not satisfy the latest target. Position changes beyond geometry epsilon permit another request. A negative result for an old target cannot terminate the current goal.
+A moving target is coalesced through the primary planning request; an optional local attempt does not create a second target authority. After completion, executable results retain their original goal snapshot; their endpoint need not satisfy the latest target. Position changes beyond geometry epsilon permit another request. For Trace Walk and Jump, a target that moves from one clear side of the body to the other invalidates old intent before result selection, stops a Ground executor once, and restarts the normal Smart flow. Fly retains its existing dynamic reconnection policy. Neutral-band motion and ordinary route detours remain reusable. A negative result for an old target cannot terminate the current goal.
 
 `PrepareExecutor` receives a segment and body, not a goal. `Waiting` and `Unavailable` leave the previous executor untouched. Same-direction Ground updates and Fly waypoint updates preserve velocity and idle timing. Ground reconnection combines contiguous straight, same-level segments without crossing other action kinds.
 
@@ -125,15 +125,15 @@ The capability prepares or reuses one executor. `MovementExecutor.IsExecuting` i
 4. Keep the executor active for `Running`; release terminal action resources for `Completed` or `Failed`.
 5. Evaluate the overall goal and either continue, recover, or finish.
 
-When an executor reports `Completed`, `Movement` advances the segment, clears its action replacement policy, and performs one new candidate-selection boundary without a second executor tick. If the node has not completed and no successor is ready, it clears the rigidbody velocity once and then lets `MaintainPlanning` request work. This is not repeated from the per-tick `ActiveSegment == null` wait path. For a partial Ground route or committed fallback whose final segment has just completed without an active successor, the next request starts from that segment's logical endpoint. The endpoint is a consumed planning boundary, not a physics teleport: route adoption still reconnects from the real body anchor and validates support and clearance.
+When an executor reports `Completed`, `Movement` advances the segment and performs one new candidate-selection boundary without a second executor tick. If the node has not completed and no successor is ready, it clears the rigidbody velocity once and then lets `MaintainPlanning` request work. This is not repeated from the per-tick `ActiveSegment == null` wait path. For any partial route, including a committed fallback whose final segment has just completed without an active successor, the next request starts from that segment's logical endpoint. The endpoint is a consumed planning boundary, not a physics teleport: route adoption still reconnects from the real body anchor and validates support and clearance.
 
 The response budget advances only on permitted fixed steps with a pending Smart request
 and no executable action. World readiness, movement-permission pauses, and active actions
-do not advance it. Once a fallback action is committed, its segment remains the physical
-writer through its normal completion or failure boundary; an early Smart receipt is retained
-but cannot reverse it. A replacement Smart request starts from the fallback segment's logical
-endpoint, then every eventual adoption still reconnects and validates from the actual physics
-position. A logical endpoint never authorizes teleportation.
+do not advance it. A ready Smart receipt may replace a committed fallback Ground or Fly
+action immediately; only Jump, Fall, and DropThrough retain their physical non-replacement
+boundary. A replacement Smart request starts from the predecessor's logical endpoint when
+that is the consumed planning boundary, then every eventual adoption still reconnects and
+validates from the actual physics position. A logical endpoint never authorizes teleportation.
 
 For `Walk`, a Jump candidate whose logical start remains within the completed Ground action's horizontal completion range and vertical support tolerance may be accepted as a continuation. This proximity check only admits the candidate to preparation; the Jump is then re-solved from the real grounded anchor through `GroundJumpSolver`, including support, surface, height, clearance, and landing checks. OneWay collision leases are rebuilt from that actual trajectory. Fall and DropThrough retain their existing strict continuation tolerance because they do not use this grounded re-solve path. Waiting for a successor never locks the body velocity across frames.
 

@@ -32,6 +32,9 @@ namespace Aethiumian.AI.Nodes
             anchor = new Vector2(body.center.x, body.min.y);
             return CreateGoal(target, NavigationGoalGeometry.Proximity);
         }
+
+        protected override bool ShouldInvalidateTraceTarget(NavigationGoalRegion previous, NavigationGoalRegion current, Bounds body) => HasSignificantTargetSideChange(previous, current, body);
+
         protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
             operation = null;
@@ -39,6 +42,7 @@ namespace Aethiumian.AI.Nodes
             operation = NavigationRuntime.PlanJumpAsync(start, goal.Request, new JumpNavigationParameters(NavigationBodySize, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), extent, cancellation, purpose);
             return true;
         }
+
         protected override bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected)
         {
             connected = null;
@@ -52,12 +56,13 @@ namespace Aethiumian.AI.Nodes
             connected = candidate;
             return true;
         }
-        protected override bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept)
-            => goal.IsComplete(body.center, body.size) && RigidBody.linearVelocity.y <= 0f
-                && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _);
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body)
-            => reason == ExecutionFailureReason.Obstructed;
+
+        protected override bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept) => goal.IsComplete(body.center, body.size) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _);
+
+        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body) => reason == ExecutionFailureReason.Obstructed;
+
         protected override void Finish(bool success, NavigationGoalRegion goal) { }
+
         public override bool EditorCheck(BehaviourTreeData tree)
         {
             if (jumpHeight.IsConstant && jumpHeight < 0f)

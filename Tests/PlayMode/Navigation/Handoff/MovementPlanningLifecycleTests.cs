@@ -50,6 +50,38 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         [UnityTest]
+        public IEnumerator TraceTargetSideChangeCancelsStaleIntentBeforeReceiptSelection()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(1);
+
+            ControlledWalk.Request first = ControlledWalk.Requests[0];
+            ControlledWalk.Complete(first, CreateGroundRoute(first, new Vector2(35.5f, 1f), false));
+            yield return WaitForRequestCount(2);
+            ControlledWalk.Request staleContinuation = ControlledWalk.Requests[1];
+
+            target.transform.position = new Vector2(20f, 1f);
+            Physics2D.SyncTransforms();
+            yield return WaitForRequestCount(3);
+
+            Assert.That(staleContinuation.Operation.IsCancelled, Is.True, DescribeHarness(harness));
+            Assert.That(ControlledWalk.Requests[2].Goal.Center.x, Is.EqualTo(20f).Within(0.001f), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+
+            // The retained historical route must not keep invalidating the fresh intent.
+            for (int frame = 0; frame < 5; frame++)
+                yield return new WaitForFixedUpdate();
+            Assert.That(ControlledWalk.Requests.Count, Is.LessThanOrEqualTo(4), DescribeRequests());
+            Assert.That(ControlledWalk.Requests[2].Operation.IsCancelled, Is.False, DescribeRequests());
+        }
+
+        [UnityTest]
         public IEnumerator ExactNoPathCompletesAsFailure()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
@@ -119,9 +151,8 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return WaitForRequest();
 
             ControlledWalk.Request first = ControlledWalk.Requests[0];
-            NavigationRoute lateRoute = CreateGroundRoute(first, new Vector2(36.5f, 1f));
-            Assert.That(first.Operation.TryPrepareCompletion(
-                NavigationPlanResult.ResultProduced(lateRoute), out bool wasCancelled), Is.True);
+            NavigationRoute lateRoute = CreateGroundRoute(first, new Vector2(36.5f, 1f), completesGoal: false);
+            Assert.That(first.Operation.TryPrepareCompletion(NavigationPlanResult.ResultProduced(lateRoute), out bool wasCancelled), Is.True);
             Assert.That(wasCancelled, Is.False);
             BehaviourTree tree = harness.AI.BehaviourTree;
             ControlledWalk movement = (ControlledWalk)tree.Head;
@@ -186,8 +217,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(fallback.Operation.IsCompleted, Is.True);
             Assert.That(fallback.Operation.IsCancelled, Is.False);
-            Assert.That(smart.Operation.IsCompleted, Is.False,
-                "A missing local action must not turn the still-running Smart request into NoPath.");
+            Assert.That(smart.Operation.IsCompleted, Is.False, "A missing local action must not turn the still-running Smart request into NoPath.");
             Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(2), DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
         }
@@ -214,8 +244,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(smart.Operation.IsCancelled, Is.False);
             Assert.That(fallback.Operation.IsCompleted, Is.True);
             Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(smart.Goal.Center.x).Within(0.25f),
-                "A fallback result published in the same fixed tick must not replace Smart.");
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(smart.Goal.Center.x).Within(0.25f), "A fallback result published in the same fixed tick must not replace Smart.");
             Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(2), DescribeHarness(harness));
             if (ControlledWalk.Requests.Count >= 3)
             {
@@ -227,7 +256,7 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator CommittedFallbackCancelsOldSmartAndRestartsFromEndpointWithoutOscillation()
+        public IEnumerator SmartResultReplacesCommittedFallbackAfterPhysicalReconnect()
         {
             using MapNavigationRuntime runtime = CreateRuntime(1f);
             using RuntimeContextScope context = new(runtime);
@@ -241,22 +270,22 @@ namespace Aethiumian.AI.Navigation.Tests
             ControlledWalk.Request fallback = ControlledWalk.Requests[1];
             Vector2 fallbackEndpoint = new(32.5f, 1f);
             ControlledWalk.Complete(fallback, CreateGroundRoute(fallback, fallbackEndpoint, false));
-            yield return WaitForRequestCount(3);
+            yield return new WaitForFixedUpdate();
 
-            ControlledWalk.Request restartedSmart = ControlledWalk.Requests[2];
-            Assert.That(smart.Operation.IsCancelled, Is.True);
-            Assert.That(fallback.Operation.IsCancelled, Is.False);
-            Assert.That(restartedSmart.Extent, Is.EqualTo(NavigationPlanningExtent.Route));
-            Assert.That(restartedSmart.Purpose, Is.EqualTo(NavigationPlanningPurpose.EndpointContinuation));
-            Assert.That(restartedSmart.Start.x, Is.EqualTo(fallbackEndpoint.x).Within(0.25f), DescribeHarness(harness));
-
-            ControlledWalk.Complete(restartedSmart, CreateGroundRoute(restartedSmart, new Vector2(40.5f, 1f), false));
             ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            Assert.That(smart.Operation.IsCancelled, Is.False);
+            Assert.That(fallback.Operation.IsCancelled, Is.False);
+            Assert.That(movement.ActiveSegment, Is.Not.Null, DescribeHarness(harness));
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(fallbackEndpoint.x).Within(0.25f), DescribeHarness(harness));
+            Assert.That(harness.Source.WalkCount, Is.GreaterThan(0), DescribeHarness(harness));
+
+            // Smart is allowed to interrupt a reversible Simple fallback before that action
+            // reaches its endpoint.
+            ControlledWalk.Complete(smart, CreateGroundRoute(smart, new Vector2(40.5f, 1f), false));
             yield return new WaitForFixedUpdate();
 
             Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(fallbackEndpoint.x).Within(0.25f),
-                "A completed Smart receipt must not replace a still-executing committed fallback.");
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(40.5f).Within(0.25f), "A ready Smart result must replace a committed fallback once the route reconnects to the real body.");
             Assert.That(harness.Source.WalkCount, Is.GreaterThan(0), DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
@@ -301,6 +330,11 @@ namespace Aethiumian.AI.Navigation.Tests
                 ControlledWalk.Request fallback = ControlledWalk.Requests[1 + index * 2];
                 ControlledWalk.Complete(fallback, CreateGroundRoute(
                     fallback, new Vector2(endpoints[index], 1f), false));
+                // A committed fallback does not cancel Smart. Resolve that Smart request as a
+                // terminal miss so this test can exercise endpoint continuation and backoff.
+                yield return new WaitForFixedUpdate();
+                ControlledWalk.Request smart = ControlledWalk.Requests[index * 2];
+                ControlledWalk.Complete(smart, null);
                 yield return WaitForRequestCount(3 + index * 2);
 
                 ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;

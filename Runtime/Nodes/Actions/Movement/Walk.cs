@@ -36,6 +36,8 @@ namespace Aethiumian.AI.Nodes
             return CreateGoal(target, NavigationGoalGeometry.GroundRange);
         }
 
+        protected override bool ShouldInvalidateTraceTarget(NavigationGoalRegion previous, NavigationGoalRegion current, Bounds body) => HasSignificantTargetSideChange(previous, current, body);
+
         protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
             operation = NavigationRuntime.PlanWalkAsync(start, goal.Request, CreateNavigationParameters(), extent, cancellation, purpose);
