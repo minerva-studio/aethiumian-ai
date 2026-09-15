@@ -61,7 +61,7 @@ namespace Aethiumian.AI.Navigation
             return CreateInternal(start, goalRegion, resolvedGoal, segments, true);
         }
 
-        /// <summary>Creates a route that represents an executable prefix or best-effort result.</summary>
+        /// <summary>Creates one prefix or best-effort planning result; it is not a streaming route update.</summary>
         public static NavigationRoute Partial(Vector2 start, NavigationGoalRegion goalRegion, Vector2 resolvedGoal,
             IEnumerable<NavigationRouteSegment> segments)
         {

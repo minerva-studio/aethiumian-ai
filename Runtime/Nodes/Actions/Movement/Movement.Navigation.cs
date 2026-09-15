@@ -11,6 +11,8 @@ namespace Aethiumian.AI.Nodes
 {
     public abstract partial class Movement
     {
+        private enum CandidateSource { ExistingRoute, PrimaryRequest, LocalFallback }
+
         private static bool IsIrreversible(NavigationRouteSegment segment)
             => segment is JumpRouteSegment or FallRouteSegment or DropThroughRouteSegment;
 
@@ -37,160 +39,254 @@ namespace Aethiumian.AI.Nodes
                 && ((Vector2)(previous.Center - latest.Center)).sqrMagnitude
                     <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
 
-        private void ReceiveRoute(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
+        private bool CanReplaceActiveAction
         {
-            if (request == null) return;
-            if (!CompatibleGoal(request.GoalRegion, goal)) { CancelRequest(); return; }
-            if (!request.Operation.IsCompleted) return;
-            // A completed request remains its own candidate/terminal receipt. Release its
-            // cancellation resource now, but retain the immutable result until hand-off.
-            request.Release(false);
-            if (request.Operation.IsCancelled) { CancelRequest(); return; }
-            if (request.Operation.Exception != null) throw request.Operation.Exception;
+            get
+            {
+                NavigationRouteSegment active = ActiveSegment;
+                return active == null || (replacementPolicy == ActionReplacementPolicy.Normal && !IsIrreversible(active));
+            }
+        }
+
+        private void ValidatePlanningContext(NavigationGoalRegion goal)
+        {
+            if (request != null && !CompatibleGoal(request.GoalRegion, goal))
+            {
+                CancelPlanningRequests();
+                replacementPolicy = ActionReplacementPolicy.Normal;
+                ResetSmartFallbackBackoff();
+                return;
+            }
+            if (fallbackRequest != null && !CompatibleGoal(fallbackRequest.GoalRegion, goal))
+                CancelFallbackRequest();
+        }
+
+        /// <summary>Arbitrates completed candidates in one fixed-step owner entry point.</summary>
+        private void TryAcquireAction(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
+        {
+            if (TryHandlePrimaryResult(goal, anchor, body) || IsComplete) return;
+            if (TryHandleExistingRoute(goal, anchor, body) || IsComplete) return;
+            if (ActiveSegment == null) TryHandleFallbackResult(goal, anchor, body);
+        }
+
+        private bool TryHandlePrimaryResult(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
+        {
+            NavigationPlanningRequest primary = request;
+            if (primary == null || !primary.Operation.IsCompleted) return false;
+            primary.Release(false);
+            if (primary.Operation.IsCancelled)
+            {
+                CancelPrimaryRequest();
+                return false;
+            }
+            if (primary.Operation.Exception != null) throw primary.Operation.Exception;
 
             NavigationRouteSegment active = ActiveSegment;
-            bool followsActive = active != null && ReferenceEquals(request.CommittedSegment, active);
-            if (active != null && request.CommittedSegment != null && !followsActive)
-            { RejectRoute(goal); return; }
-            NavigationPlanResult result = request.Operation.PlanResult;
+            bool followsActive = active != null && ReferenceEquals(primary.CommittedSegment, active);
+            if (active != null && primary.CommittedSegment != null && !followsActive)
+            {
+                RejectPrimaryCandidate(goal);
+                return true;
+            }
+
+            NavigationPlanResult result = primary.Operation.PlanResult;
             NavigationRoute candidate = result.Route;
             if (candidate == null || candidate.Count == 0)
             {
-                // A negative receipt describes its exact target, not a nearby or newer one.
-                if (!request.GoalRegion.GoalKey.Equals(goal.GoalKey)) { RejectRoute(goal); return; }
-                if (followsActive) return;
-                if (active != null) { RejectRoute(goal); return; }
-                CancelRequest();
-                if (IsGoalSatisfied(goal, body, false)) { EndMovement(true, goal); return; }
-                if (route != null && routeIndex < route.Count) return;
+                if (!primary.GoalRegion.GoalKey.Equals(goal.GoalKey))
+                {
+                    CancelPlanningRequests();
+                    return false;
+                }
+                if (followsActive) return true;
+                if (active != null)
+                {
+                    RejectPrimaryCandidate(goal);
+                    return true;
+                }
+
+                CancelPrimaryRequest();
+                if (IsGoalSatisfied(goal, body, false)) { EndMovement(true, goal); return true; }
+                if (route != null && routeIndex < route.Count) return false;
                 if (result.Termination == NavigationPlanTermination.BudgetReached)
                 {
                     if (!AllowRetry()) EndMovement(false, goal);
                 }
                 else EndMovement(false, goal);
-                return;
+                return true;
             }
 
-            if (IsIrreversible(active))
-            {
-                if (!followsActive || !RouteAllowed(goal, request.Start, candidate))
-                    RejectRoute(goal);
-                return;
-            }
-            if (!TryConnectRoute(candidate, body, out NavigationRoute connected)
-                || connected == null || connected.Count == 0)
-            {
-                // Only a still-useful continuation of this exact action may wait for contact.
-                if (followsActive && RouteAllowed(goal, request.Start, candidate)) return;
-                RejectRoute(goal);
-                return;
-            }
-            if (!RouteAllowed(goal, anchor, connected)) { RejectRoute(goal); return; }
-            if (active != null)
-            {
-                ActionPreparation preparation = PrepareRoute(connected, body);
-                if (preparation == ActionPreparation.Waiting) return;
-                if (preparation == ActionPreparation.Unavailable) { RejectRoute(goal); return; }
-            }
-            else
-            {
-                route = connected;
-                routeIndex = 0;
-            }
-            previousCenter = null;
-            CancelRequest();
-        }
-
-        private void RejectRoute(NavigationGoalRegion goal)
-        {
-            CancelRequest();
-            if (ActiveSegment == null && !AllowRetry()) EndMovement(false, goal);
-        }
-
-        private bool PrepareNextAction(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
-        {
-            if (route == null || routeIndex >= route.Count) return false;
-            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(
-                route.Segments[routeIndex].Start, route.GoalRegion, route.ResolvedGoal,
-                GetRouteSegments(route, routeIndex), route.SearchComplete);
-            if (!TryConnectRoute(remaining, body, out NavigationRoute connected)
-                || connected == null || connected.Count == 0 || !RouteAllowed(goal, anchor, connected))
-            {
-                route = null;
-                routeIndex = 0;
-                if (!AllowRetry()) EndMovement(false, goal);
-                return false;
-            }
-            ActionPreparation preparation = PrepareRoute(connected, body);
-            if (preparation == ActionPreparation.Waiting) return false;
-            if (preparation == ActionPreparation.Unavailable)
-            {
-                route = null;
-                if (IsGoalSatisfied(goal, body, false)) EndMovement(true, goal);
-                else if (!AllowRetry()) EndMovement(false, goal);
-                return false;
-            }
+            ActionPreparation preparation = TryAdoptRoute(candidate, CandidateSource.PrimaryRequest, goal, anchor, body);
+            if (preparation == ActionPreparation.Unavailable) RejectPrimaryCandidate(goal);
+            // Ready and Waiting both consume this selection boundary. Waiting retains the
+            // completed Smart candidate instead of letting a lower-priority local candidate win.
             return true;
         }
 
-        // Only Ready may mutate the executor. Publish its route after successful preparation
-        // so a deferred or rejected replacement never describes the old execution.
-        private ActionPreparation PrepareRoute(NavigationRoute connected, Bounds body)
+        private bool TryHandleExistingRoute(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
         {
-            ActionPreparation result = PrepareExecutor(connected.Segments[0], body, executor, out MovementExecutor prepared);
-            if (result != ActionPreparation.Ready) return result;
+            if (ActiveSegment != null || route == null || routeIndex >= route.Count) return false;
+            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(
+                route.Segments[routeIndex].Start, route.GoalRegion, route.ResolvedGoal,
+                GetRouteSegments(route, routeIndex), route.SearchComplete);
+            ActionPreparation preparation = TryAdoptRoute(remaining, CandidateSource.ExistingRoute, goal, anchor, body);
+            if (preparation != ActionPreparation.Unavailable) return true;
+
+            route = null;
+            routeIndex = 0;
+            if (!AllowRetry()) EndMovement(false, goal);
+            return true;
+        }
+
+        private bool TryHandleFallbackResult(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
+        {
+            NavigationPlanningRequest local = fallbackRequest;
+            if (local == null || !local.Operation.IsCompleted) return false;
+            local.Release(false);
+            if (local.Operation.IsCancelled) { CancelFallbackRequest(); return true; }
+            if (local.Operation.Exception != null) throw local.Operation.Exception;
+
+            NavigationRoute candidate = local.Operation.PlanResult.Route;
+            if (candidate == null || candidate.Count == 0)
+            {
+                // A local miss is never a global Smart terminal result.
+                CancelFallbackRequest();
+                return true;
+            }
+
+            ActionPreparation preparation = TryAdoptRoute(candidate, CandidateSource.LocalFallback, goal, anchor, body);
+            if (preparation == ActionPreparation.Unavailable) CancelFallbackRequest();
+            // Waiting retains this local candidate. A later Smart receipt still wins at the
+            // next selection boundary because primary processing happens first.
+            return true;
+        }
+
+        /// <summary>Reconnects, validates, prepares, and only then commits a route candidate.</summary>
+        private ActionPreparation TryAdoptRoute(NavigationRoute candidate, CandidateSource source,
+            NavigationGoalRegion goal, Vector2 anchor, Bounds body)
+        {
+            if (!CanReplaceActiveAction) return ActionPreparation.Waiting;
+            if (!TryConnectRoute(candidate, body, out NavigationRoute connected)
+                || connected == null || connected.Count == 0
+                || !RouteAllowed(goal, anchor, connected)) return ActionPreparation.Unavailable;
+
+            ActionPreparation preparation = PrepareExecutor(connected.Segments[0], body, executor, out MovementExecutor prepared);
+            if (preparation != ActionPreparation.Ready) return preparation;
             if (prepared == null || !prepared.IsExecuting)
                 throw new InvalidOperationException("Ready acquisition must supply an executing executor.");
+
             if (!ReferenceEquals(executor, prepared)) executor?.Dispose();
             executor = prepared;
             route = connected;
             routeIndex = 0;
+            replacementPolicy = source == CandidateSource.LocalFallback
+                ? ActionReplacementPolicy.AfterCompletion
+                : ActionReplacementPolicy.Normal;
+            OnRouteAdopted(source);
             return ActionPreparation.Ready;
         }
 
-        private void RequestNextRoute(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
+        private void OnRouteAdopted(CandidateSource source)
         {
-            if (request != null || IsComplete) return;
+            switch (source)
+            {
+                case CandidateSource.PrimaryRequest:
+                    if (path == PathMode.Smart) ResetSmartFallbackBackoff();
+                    CancelFallbackRequest();
+                    CancelPrimaryRequest();
+                    break;
+                case CandidateSource.LocalFallback:
+                    CancelFallbackRequest();
+                    CancelPrimaryRequest();
+                    fallbackBackoffLevel = Math.Min(fallbackBackoffLevel + 1, 2);
+                    break;
+            }
+        }
+
+        /// <summary>Maintains request ownership only; route adoption is exclusive to <see cref="TryAcquireAction"/>.</summary>
+        private void MaintainPlanning(NavigationGoalRegion goal, Vector2 anchor, Bounds body,
+            bool advanceResponseBudget, NavigationRouteSegment completedFallbackAction = null)
+        {
+            if (IsComplete) return;
+            bool submittedPrimary = EnsurePrimaryRequest(goal, anchor, body, completedFallbackAction);
+            if (submittedPrimary || !advanceResponseBudget || path != PathMode.Smart
+                || ActiveSegment != null || request == null || request.Operation.IsCompleted || fallbackRequest != null)
+                return;
+
+            if (request.AdvanceFallbackBudget(CurrentSmartWaitThreshold))
+                SubmitFallbackRequest(goal, anchor);
+        }
+
+        private int CurrentSmartWaitThreshold
+            => fallbackBackoffLevel == 0 ? 4 : fallbackBackoffLevel == 1 ? 8 : 16;
+
+        private bool EnsurePrimaryRequest(NavigationGoalRegion goal, Vector2 anchor, Bounds body,
+            NavigationRouteSegment completedFallbackAction)
+        {
+            if (request != null) return false;
             NavigationRouteSegment action = ActiveSegment;
             bool changed = route != null && !SamePlanningTarget(route.GoalRegion, goal);
-            if (!changed && route != null && routeIndex < route.Count)
+            if (action == null && route != null && routeIndex < route.Count) return false;
+            if (action != null && replacementPolicy != ActionReplacementPolicy.AfterCompletion
+                && !changed && routeIndex + 1 < route.Count) return false;
+
+            if (action != null && replacementPolicy != ActionReplacementPolicy.AfterCompletion
+                && !changed && route != null && routeIndex < route.Count)
             {
-                if (action == null || routeIndex + 1 < route.Count) return;
                 Vector2 endpointCenter = route.ResolvedGoal + (Vector2)body.center - anchor;
-                if (route.SearchComplete && goal.IsComplete(endpointCenter, body.size)) return;
+                if (route.SearchComplete && goal.IsComplete(endpointCenter, body.size)) return false;
             }
 
-            NavigationRouteSegment predecessor = null;
-            if (action != null && (!changed || IsIrreversible(action)))
+            NavigationRouteSegment predecessor = completedFallbackAction;
+            if (predecessor == null && action != null
+                && (replacementPolicy == ActionReplacementPolicy.AfterCompletion || !changed || IsIrreversible(action)))
             {
                 predecessor = action;
             }
-            else if (action == null
-                && !changed
-                && route != null
-                && !route.SearchComplete
-                && route.Count > 0
-                && routeIndex == route.Count
+            else if (predecessor == null && action == null && !changed && route != null && !route.SearchComplete
+                && route.Count > 0 && routeIndex == route.Count
                 && route.Segments[route.Count - 1] is GroundRouteSegment completedGround)
             {
-                // Completion may consume a short Ground segment without physical movement.
-                // Continue from its endpoint; adoption still reconnects from the real body.
                 predecessor = completedGround;
             }
+
             Vector2 start = predecessor != null ? predecessor.End : anchor;
-            var purpose = predecessor != null
+            NavigationPlanningPurpose purpose = predecessor != null
                 ? NavigationPlanningPurpose.EndpointContinuation
                 : NavigationPlanningPurpose.InitialRoute;
+            if (!TryCreatePlanningRequest(start, goal, PlanningExtent, purpose, predecessor, out NavigationPlanningRequest created))
+                return false;
+            request = created;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (purpose == NavigationPlanningPurpose.InitialRoute) MovementReplanDiagnostics.RecordInitialPlan();
+#endif
+            return true;
+        }
+
+        private void SubmitFallbackRequest(NavigationGoalRegion goal, Vector2 anchor)
+        {
+            if (fallbackRequest != null || request == null) return;
+            if (TryCreatePlanningRequest(anchor, goal, NavigationPlanningExtent.NextAction,
+                NavigationPlanningPurpose.InitialRoute, null, out NavigationPlanningRequest created))
+                fallbackRequest = created;
+        }
+
+        private bool TryCreatePlanningRequest(Vector2 start, NavigationGoalRegion goal,
+            NavigationPlanningExtent extent, NavigationPlanningPurpose purpose,
+            NavigationRouteSegment predecessor, out NavigationPlanningRequest created)
+        {
+            created = null;
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(ExecutionCancellation);
             try
             {
-                if (!TryRequestRoute(start, goal, purpose, cancellation.Token, out NavigationPlanningOperation operation))
-                { cancellation.Dispose(); return; }
+                if (!TryRequestRoute(start, goal, extent, purpose, cancellation.Token, out NavigationPlanningOperation operation))
+                {
+                    cancellation.Dispose();
+                    return false;
+                }
                 if (operation == null) throw new InvalidOperationException("Route request returned no operation.");
-                request = new NavigationPlanningRequest(operation, start, goal, purpose, predecessor, cancellation);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                if (purpose == NavigationPlanningPurpose.InitialRoute) MovementReplanDiagnostics.RecordInitialPlan();
-#endif
+                created = new NavigationPlanningRequest(operation, start, goal, purpose, predecessor, cancellation);
+                return true;
             }
             catch
             {
@@ -198,6 +294,19 @@ namespace Aethiumian.AI.Nodes
                 cancellation.Dispose();
                 throw;
             }
+        }
+
+        private void CompleteCurrentAction()
+        {
+            routeIndex++;
+            replacementPolicy = ActionReplacementPolicy.Normal;
+        }
+
+        private void RejectPrimaryCandidate(NavigationGoalRegion goal)
+        {
+            CancelFallbackRequest();
+            CancelPrimaryRequest();
+            if (ActiveSegment == null && !AllowRetry()) EndMovement(false, goal);
         }
 
         private bool RouteAllowed(NavigationGoalRegion goal, Vector2 anchor, NavigationRoute candidate)
@@ -209,10 +318,12 @@ namespace Aethiumian.AI.Nodes
             for (int i = 0; i < result.Length; i++) result[i] = candidate.Segments[i].End;
             return result;
         }
+
         protected static IEnumerable<NavigationRouteSegment> GetRouteSegments(NavigationRoute candidate, int first)
         {
             for (int i = first; i < candidate.Count; i++) yield return candidate.Segments[i];
         }
+
         protected static bool IsWithinContinuationTolerance(Vector2 first, Vector2 second)
             => Vector2.Distance(first, second) <= NavigationWorldQueries.SupportSnapDistance + NavigationWorldQueries.GeometryEpsilon;
 
@@ -231,14 +342,28 @@ namespace Aethiumian.AI.Nodes
                 MovementReplanDiagnostics.RecordAnchorMove();
 #endif
         }
-        private bool AllowRetry()
+
+        private bool AllowRetry() => ++retries <= MaximumNoProgressAttempts;
+
+        private void ResetSmartFallbackBackoff() => fallbackBackoffLevel = 0;
+
+        private void CancelPlanningRequests()
         {
-            return ++retries <= MaximumNoProgressAttempts;
+            CancelFallbackRequest();
+            CancelPrimaryRequest();
         }
-        private void CancelRequest()
+
+        private void CancelPrimaryRequest()
         {
             NavigationPlanningRequest previous = request;
             request = null;
+            previous?.Release(true);
+        }
+
+        private void CancelFallbackRequest()
+        {
+            NavigationPlanningRequest previous = fallbackRequest;
+            fallbackRequest = null;
             previous?.Release(true);
         }
     }

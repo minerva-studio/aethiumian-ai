@@ -32,15 +32,11 @@ namespace Aethiumian.AI.Nodes
             anchor = new Vector2(body.center.x, body.min.y);
             return CreateGoal(target, NavigationGoalGeometry.Proximity);
         }
-        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal,
-            NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
             operation = null;
-            if (purpose == NavigationPlanningPurpose.InitialRoute
-                && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _)) return false;
-            operation = NavigationRuntime.PlanJumpAsync(start, goal.Request,
-                new JumpNavigationParameters(NavigationBodySize, Physics2D.gravity, RigidBody.gravityScale,
-                    RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), PlanningExtent, cancellation, purpose);
+            if (purpose == NavigationPlanningPurpose.InitialRoute && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _)) return false;
+            operation = NavigationRuntime.PlanJumpAsync(start, goal.Request, new JumpNavigationParameters(NavigationBodySize, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), extent, cancellation, purpose);
             return true;
         }
         protected override bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected)

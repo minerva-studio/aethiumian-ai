@@ -36,11 +36,9 @@ namespace Aethiumian.AI.Nodes
             return CreateGoal(target, NavigationGoalGeometry.GroundRange);
         }
 
-        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal,
-            NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
-            operation = NavigationRuntime.PlanWalkAsync(start, goal.Request, CreateNavigationParameters(),
-                PlanningExtent, cancellation, purpose);
+            operation = NavigationRuntime.PlanWalkAsync(start, goal.Request, CreateNavigationParameters(), extent, cancellation, purpose);
             return true;
         }
 

@@ -39,11 +39,12 @@ namespace Aethiumian.AI.Navigation.Tests
                 yield return new WaitForFixedUpdate();
             }
 
-            // Position changes are coalesced into the next goal sample; they do not
-            // invalidate an already-owned planning operation.
-            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(1));
+            // Position changes do not invalidate the owned Smart operation. The timed
+            // fallback is still submitted once, but target motion must not duplicate it.
+            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(2));
             Assert.That(first.Operation.IsCompleted, Is.False);
             Assert.That(first.Operation.IsCancelled, Is.False);
+            Assert.That(ControlledWalk.Requests[1].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
 
@@ -140,10 +141,216 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
 
-        private static MapNavigationRuntime CreateRuntime()
+        [UnityTest]
+        public IEnumerator SmartWaitsFourFixedTicksThenRequestsOneNextActionFallback()
         {
-            MapNavigationRuntime runtime = new(8, 4096, 4096);
-            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Ground());
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(1);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            Assert.That(smart.Extent, Is.EqualTo(NavigationPlanningExtent.Route));
+            for (int tick = 0; tick < 3; tick++)
+            {
+                yield return new WaitForFixedUpdate();
+                Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(1), DescribeHarness(harness));
+            }
+
+            yield return new WaitForFixedUpdate();
+            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(2), DescribeHarness(harness));
+            Assert.That(ControlledWalk.Requests[1].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
+            Assert.That(smart.Operation.IsCompleted, Is.False);
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator SimpleFallbackNoResultKeepsOriginalSmartRequestAlive()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Request fallback = ControlledWalk.Requests[1];
+            ControlledWalk.Complete(fallback, null);
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(fallback.Operation.IsCompleted, Is.True);
+            Assert.That(fallback.Operation.IsCancelled, Is.False);
+            Assert.That(smart.Operation.IsCompleted, Is.False,
+                "A missing local action must not turn the still-running Smart request into NoPath.");
+            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(2), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator SmartResultWinsWhenPublishedWithFallback()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Request fallback = ControlledWalk.Requests[1];
+            NavigationRoute smartRoute = CreateGroundRoute(smart, new Vector2(36.5f, 1f), false);
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            ControlledWalk.Complete(smart, smartRoute);
+            ControlledWalk.Complete(fallback, CreateGroundRoute(fallback, new Vector2(32.5f, 1f), false));
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(smart.Operation.IsCancelled, Is.False);
+            Assert.That(fallback.Operation.IsCompleted, Is.True);
+            Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(36.5f).Within(0.25f),
+                "A fallback result published in the same fixed tick must not replace Smart.");
+            Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(2), DescribeHarness(harness));
+            if (ControlledWalk.Requests.Count >= 3)
+            {
+                Assert.That(ControlledWalk.Requests[2].Extent, Is.EqualTo(NavigationPlanningExtent.Route));
+                Assert.That(ControlledWalk.Requests[2].Purpose, Is.EqualTo(NavigationPlanningPurpose.EndpointContinuation));
+            }
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+            Assert.That(harness.Source.WalkCount, Is.GreaterThan(0), DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator CommittedFallbackCancelsOldSmartAndRestartsFromEndpointWithoutOscillation()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Request fallback = ControlledWalk.Requests[1];
+            Vector2 fallbackEndpoint = new(32.5f, 1f);
+            ControlledWalk.Complete(fallback, CreateGroundRoute(fallback, fallbackEndpoint, false));
+            yield return WaitForRequestCount(3);
+
+            ControlledWalk.Request restartedSmart = ControlledWalk.Requests[2];
+            Assert.That(smart.Operation.IsCancelled, Is.True);
+            Assert.That(fallback.Operation.IsCancelled, Is.False);
+            Assert.That(restartedSmart.Extent, Is.EqualTo(NavigationPlanningExtent.Route));
+            Assert.That(restartedSmart.Purpose, Is.EqualTo(NavigationPlanningPurpose.EndpointContinuation));
+            Assert.That(restartedSmart.Start.x, Is.EqualTo(fallbackEndpoint.x).Within(0.25f), DescribeHarness(harness));
+
+            ControlledWalk.Complete(restartedSmart, CreateGroundRoute(restartedSmart, new Vector2(40.5f, 1f), false));
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(fallbackEndpoint.x).Within(0.25f),
+                "A completed Smart receipt must not replace a still-executing committed fallback.");
+            Assert.That(harness.Source.WalkCount, Is.GreaterThan(0), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator PausedMovementDoesNotAccumulateSmartFallbackTicks()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target), canMove: false);
+            yield return WaitForTreeCreated(harness);
+
+            for (int tick = 0; tick < 12; tick++) yield return new WaitForFixedUpdate();
+            Assert.That(ControlledWalk.Requests, Is.Empty, DescribeHarness(harness));
+
+            harness.Source.CanMove = true;
+            yield return WaitForRequestCount(1);
+            for (int tick = 0; tick < 3; tick++)
+            {
+                yield return new WaitForFixedUpdate();
+                Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(1), DescribeHarness(harness));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator SmartFallbackBackoffEscalatesToEightAndSixteenTicks()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(2);
+
+            int[] thresholds = { 8, 16 };
+            float[] endpoints = { 32.5f, 34.5f };
+            for (int index = 0; index < thresholds.Length; index++)
+            {
+                ControlledWalk.Request fallback = ControlledWalk.Requests[1 + index * 2];
+                ControlledWalk.Complete(fallback, CreateGroundRoute(
+                    fallback, new Vector2(endpoints[index], 1f), false));
+                yield return WaitForRequestCount(3 + index * 2);
+
+                ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+                int frame = 0;
+                while (movement.ActiveSegment != null && frame++ < 300)
+                    yield return new WaitForFixedUpdate();
+                Assert.That(movement.ActiveSegment, Is.Null, DescribeHarness(harness));
+
+                int requestCountBeforeThreshold = ControlledWalk.Requests.Count;
+                for (int tick = 0; tick < thresholds[index] - 1; tick++)
+                {
+                    yield return new WaitForFixedUpdate();
+                    Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(requestCountBeforeThreshold),
+                        DescribeHarness(harness));
+                }
+
+                yield return new WaitForFixedUpdate();
+                Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(requestCountBeforeThreshold + 1),
+                    DescribeHarness(harness));
+                Assert.That(ControlledWalk.Requests[^1].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator EndingMovementCancelsSmartAndFallbackRequests()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Request fallback = ControlledWalk.Requests[1];
+            Assert.That(harness.AI.BehaviourTree.End(), Is.True, DescribeHarness(harness));
+            Assert.That(smart.Operation.IsCancelled, Is.True);
+            Assert.That(fallback.Operation.IsCancelled, Is.True);
+        }
+
+        private static MapNavigationRuntime CreateRuntime(float groundY = 0f)
+        {
+            MapNavigationRuntime runtime = new(
+                8,
+                4096,
+                4096,
+                new NavigationPhysicsLayers(
+                    NavigationPhysicsTestLayers.GeometryMask,
+                    NavigationPhysicsTestLayers.PlatformMask));
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Ground(groundY));
             return runtime;
         }
 
@@ -169,8 +376,9 @@ namespace Aethiumian.AI.Navigation.Tests
             bool completesGoal = true)
         {
             Vector2 resolvedGoal = endpoint ?? request.Goal.Center;
-            return NavigationRoute.Create(request.Start, request.Goal, resolvedGoal,
-                new[] { new GroundRouteSegment(request.Start, resolvedGoal) }, completesGoal);
+            Vector2 logicalStart = new(request.Start.x, resolvedGoal.y);
+            return NavigationRoute.Create(logicalStart, request.Goal, resolvedGoal,
+                new[] { new GroundRouteSegment(logicalStart, resolvedGoal) }, completesGoal);
         }
 
         private static IEnumerator WaitForRequest()
@@ -187,12 +395,17 @@ namespace Aethiumian.AI.Navigation.Tests
                 internal NavigationPlanningOperation Operation { get; }
                 internal Vector2 Start { get; }
                 internal NavigationGoalRegion Goal { get; }
+                internal NavigationPlanningExtent Extent { get; }
+                internal NavigationPlanningPurpose Purpose { get; }
 
-                internal Request(NavigationPlanningOperation operation, Vector2 start, NavigationGoalRegion goal)
+                internal Request(NavigationPlanningOperation operation, Vector2 start, NavigationGoalRegion goal,
+                    NavigationPlanningExtent extent, NavigationPlanningPurpose purpose)
                 {
                     Operation = operation;
                     Start = start;
                     Goal = goal;
+                    Extent = extent;
+                    Purpose = purpose;
                 }
             }
 
@@ -210,15 +423,38 @@ namespace Aethiumian.AI.Navigation.Tests
             protected override bool TryRequestRoute(
                 Vector2 start,
                 NavigationGoalRegion goal,
+                NavigationPlanningExtent extent,
                 NavigationPlanningPurpose purpose,
                 System.Threading.CancellationToken cancellationToken,
                 out NavigationPlanningOperation operation)
             {
                 operation = new NavigationPlanningOperation();
                 operation.RegisterCancellation(cancellationToken);
-                Requests.Add(new Request(operation, start, goal));
+                Requests.Add(new Request(operation, start, goal, extent, purpose));
                 return true;
             }
+        }
+
+        private static IEnumerator WaitForRequestCount(int count)
+        {
+            for (int frame = 0; ControlledWalk.Requests.Count < count && frame < PlanningFrameLimit; frame++)
+                yield return new WaitForFixedUpdate();
+            Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(count),
+                DescribeRequests());
+        }
+
+        private static string DescribeRequests()
+        {
+            if (ControlledWalk.Requests.Count == 0) return "No controlled planning requests were recorded.";
+            List<string> descriptions = new(ControlledWalk.Requests.Count);
+            for (int index = 0; index < ControlledWalk.Requests.Count; index++)
+            {
+                ControlledWalk.Request request = ControlledWalk.Requests[index];
+                descriptions.Add($"#{index}: {request.Extent}/{request.Purpose} Start={request.Start} "
+                    + $"Completed={request.Operation.IsCompleted} Cancelled={request.Operation.IsCancelled} "
+                    + $"Outcome={request.Operation.Outcome}");
+            }
+            return string.Join("; ", descriptions);
         }
     }
 }

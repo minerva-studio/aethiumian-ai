@@ -69,6 +69,9 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private int routeIndex;
         [NonSerialized] private MovementExecutor executor;
         [NonSerialized] private NavigationPlanningRequest request;
+        [NonSerialized] private NavigationPlanningRequest fallbackRequest;
+        [NonSerialized] private int fallbackBackoffLevel;
+        [NonSerialized] private ActionReplacementPolicy replacementPolicy;
         [NonSerialized] private Vector2? previousCenter;
         [NonSerialized] private Vector2? retryAnchor;
         [NonSerialized] private NavigationGoalRegion retryGoal;
@@ -117,6 +120,9 @@ namespace Aethiumian.AI.Nodes
             route = null;
             routeIndex = 0;
             request = null;
+            fallbackRequest = null;
+            fallbackBackoffLevel = 0;
+            replacementPolicy = ActionReplacementPolicy.Normal;
             executor = null;
             previousCenter = null;
             retryAnchor = null;
@@ -147,30 +153,30 @@ namespace Aethiumian.AI.Nodes
             bool faulted = false;
             try
             {
-                ReceiveRoute(goal, anchor, body);
+                ValidatePlanningContext(goal);
+                TryAcquireAction(goal, anchor, body);
                 if (IsComplete) return;
                 if (ActiveSegment == null)
                 {
                     if (IsGoalSatisfied(goal, body, swept)) { EndMovement(true, goal); return; }
-                    if (!PrepareNextAction(goal, anchor, body))
-                    {
-                        if (!IsComplete) RequestNextRoute(goal, anchor, body);
-                        return;
-                    }
+                    MaintainPlanning(goal, anchor, body, advanceResponseBudget: true);
+                    return;
                 }
 
                 NavigationRouteSegment action = ActiveSegment;
                 ExecutionResult result = executor.Tick(Time.fixedDeltaTime);
+                NavigationRouteSegment completedFallbackAction = null;
                 RecordStallFailure(result);
                 if (result.Status == ExecutionStatus.Failed)
                 {
                     physicalFailure = true;
-                    CancelRequest();
+                    CancelPlanningRequests();
+                    replacementPolicy = ActionReplacementPolicy.Normal;
                     route = null;
                     routeIndex = 0;
                     if (!TryRecover(result.FailureReason, goal, body) || !AllowRetry())
                         EndMovement(false, goal);
-                    else RequestNextRoute(goal, anchor, body);
+                    else MaintainPlanning(goal, anchor, body, advanceResponseBudget: false);
                     return;
                 }
                 if ((result.Status == ExecutionStatus.Completed || !IsIrreversible(action))
@@ -178,14 +184,16 @@ namespace Aethiumian.AI.Nodes
                 { EndMovement(true, goal); return; }
                 if (result.Status == ExecutionStatus.Completed)
                 {
-                    routeIndex++;
-                    ReceiveRoute(goal, anchor, body);
+                    if (replacementPolicy == ActionReplacementPolicy.AfterCompletion)
+                        completedFallbackAction = action;
+                    CompleteCurrentAction();
+                    TryAcquireAction(goal, anchor, body);
                     if (IsComplete) return;
-                    if (!PrepareNextAction(goal, anchor, body) && !IsComplete)
+                    if (ActiveSegment == null)
                         RigidBody.linearVelocity = Vector2.zero;
                 }
                 // Planning can overlap execution, but a second physical action never ticks here.
-                RequestNextRoute(goal, anchor, body);
+                if (!IsComplete) MaintainPlanning(goal, anchor, body, advanceResponseBudget: false, completedFallbackAction);
             }
             catch
             {
@@ -220,8 +228,8 @@ namespace Aethiumian.AI.Nodes
 
         /// <summary>Creates this ability's geometric goal and planning anchor from the tick sample.</summary>
         protected abstract NavigationGoalRequest BuildGoal(Bounds target, Bounds body, out Vector2 anchor);
-        /// <summary>False means temporary physical prerequisites are missing; true supplies a request.</summary>
-        protected abstract bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
+        /// <summary>False means temporary physical prerequisites are missing; true supplies the requested planning horizon.</summary>
+        protected abstract bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
         /// <summary>Returns a route reconnected to actual physics; performs no executor or lease mutation.</summary>
         protected abstract bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected);
         /// <summary>Prepares one route action after its predecessor was cancelled or completed.</summary>
@@ -254,7 +262,7 @@ namespace Aethiumian.AI.Nodes
         }
         protected sealed override void ReleaseActionResources()
         {
-            try { CancelRequest(); }
+            try { CancelPlanningRequests(); }
             finally
             {
                 try { executor?.Dispose(); }
@@ -263,6 +271,8 @@ namespace Aethiumian.AI.Nodes
                     executor = null;
                     route = null;
                     routeIndex = 0;
+                    fallbackBackoffLevel = 0;
+                    replacementPolicy = ActionReplacementPolicy.Normal;
                     previousCenter = null;
                     retryAnchor = null;
                     retryGoal = null;
@@ -331,6 +341,13 @@ namespace Aethiumian.AI.Nodes
             Waiting,
             Ready,
             Unavailable
+        }
+
+        /// <summary>Defines whether a committed action may be replaced before its normal completion boundary.</summary>
+        private enum ActionReplacementPolicy
+        {
+            Normal,
+            AfterCompletion
         }
 
         public enum Behaviour

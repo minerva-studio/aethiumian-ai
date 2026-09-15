@@ -4,9 +4,9 @@
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>
-    /// Identifies the delivery contract of a navigation request. Initial routes may publish
-    /// a verified executable prefix; endpoint continuations must accumulate a complete tail
-    /// or reach an explicit exhausted/budget terminal state before publishing.
+    /// Identifies whether planning begins at the initial anchor or the endpoint of a committed action.
+    /// It does not change result delivery: Route planning publishes only a complete route or its
+    /// exhausted/budget terminal result, while NextAction is explicitly a single local result.
     /// </summary>
     public enum NavigationPlanningPurpose
     {

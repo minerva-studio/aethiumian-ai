@@ -12,7 +12,9 @@ namespace Aethiumian.AI.Navigation
         NextAction,
 
         /// <summary>
-        /// Plan toward the goal, allowing an executable prefix when the search budget is reached.
+        /// Plan toward the goal. Runtime Route requests publish only a complete route or a
+        /// terminal exhausted/budget result; direct planners may explicitly opt into one
+        /// executable-prefix result through their public planning API.
         /// </summary>
         Route
     }

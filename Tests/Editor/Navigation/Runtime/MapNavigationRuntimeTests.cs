@@ -335,11 +335,11 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route, Is.Not.Null);
         }
 
-        /// <summary>Verifies an executable prefix never enters the failure cache.</summary>
+        /// <summary>Verifies a complete Route request never publishes an executable prefix.</summary>
         [Test]
-        public void HorizonNullDoesNotMemoFailure()
+        public void RouteExtentDoesNotPublishExecutablePrefix()
         {
-            using MapNavigationRuntime runtime = new(4, 1, 1);
+            using MapNavigationRuntime runtime = new(4, 64, 1);
             runtime.PublishWorld(CreateOpenWorld());
             WalkNavigationParameters groundedOnly = new(new Vector2(0.8f, 1f), 4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
@@ -348,42 +348,37 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanningOperation first = runtime.PlanWalkAsync(new Vector2(0.5f, 1f), goal, groundedOnly);
             Complete(runtime, first);
             Assert.That(first.Result, Is.Not.Null, DescribeRoute(first.Result));
+            Assert.That(first.Result.SearchComplete, Is.True, DescribeRoute(first.Result));
+            Assert.That(first.Result.Segments, Has.Count.GreaterThan(1), DescribeRoute(first.Result));
             Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
                 DescribeRoute(first.Result));
-            Assert.That(first.Result.SearchComplete, Is.False, DescribeRoute(first.Result));
-
-            NavigationPlanningOperation second = runtime.PlanWalkAsync(new Vector2(0.5f, 1f), goal, groundedOnly);
-            Assert.That(second.IsCompleted, Is.False, "A horizon result must remain eligible for a fresh attempt.");
-            Complete(runtime, second);
-            Assert.That(second.Result, Is.Not.Null, DescribeRoute(second.Result));
-            Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
-                DescribeRoute(second.Result));
-            Assert.That(second.Result.SearchComplete, Is.False, DescribeRoute(second.Result));
         }
 
-        /// <summary>Verifies an executable prefix is not negative-cached as an exhausted request.</summary>
+        /// <summary>Verifies Walk, Jump, and Fly Route requests do not publish executable prefixes.</summary>
         [Test]
-        public void ExecutablePrefixWithSameSnapshotAndRegionIsNotNegativeCached()
+        public void RouteExtentDoesNotPublishExecutablePrefixForWalkJumpAndFly()
         {
-            using MapNavigationRuntime runtime = CreateRuntime();
+            using MapNavigationRuntime runtime = new(4, 1, 1);
             runtime.PublishWorld(CreateBlockedWorld());
-            NavigationGoalRequest goal = Goal(new Vector2(4.5f, 2.5f));
-            NavigationPlanningOperation first = runtime.PlanFlyAsync(new Vector2(1.5f, 2.5f), goal, FlyParameters);
-            WaitForCompletion(first);
+            NavigationPlanningOperation walk = runtime.PlanWalkAsync(
+                new Vector2(0.5f, 1f), Goal(new Vector2(5.5f, 1f)), WalkParameters,
+                NavigationPlanningExtent.Route);
+            NavigationPlanningOperation jump = runtime.PlanJumpAsync(
+                new Vector2(0.5f, 1f), Goal(new Vector2(5.5f, 1f)), JumpParameters,
+                NavigationPlanningExtent.Route);
+            NavigationPlanningOperation fly = runtime.PlanFlyAsync(
+                new Vector2(1.5f, 2.5f), Goal(new Vector2(4.5f, 2.5f)), FlyParameters,
+                NavigationPlanningExtent.Route);
 
-            Assert.That(first.IsCompleted, Is.True);
-            Assert.That(first.Result, Is.Not.Null, DescribeRoute(first.Result));
-            Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
-                DescribeRoute(first.Result));
-            Assert.That(first.Result.SearchComplete, Is.False, DescribeRoute(first.Result));
-
-            NavigationPlanningOperation second = runtime.PlanFlyAsync(new Vector2(1.5f, 2.5f), goal, FlyParameters);
-            Assert.That(second.IsCompleted, Is.False);
-            WaitForCompletion(second);
-            Assert.That(second.Result, Is.Not.Null, DescribeRoute(second.Result));
-            Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
-                DescribeRoute(second.Result));
-            Assert.That(second.Result.SearchComplete, Is.False, DescribeRoute(second.Result));
+            WaitForCompletion(walk);
+            WaitForCompletion(jump);
+            WaitForCompletion(fly);
+            Assert.That(walk.Result, Is.Null, DescribeRoute(walk.Result));
+            Assert.That(jump.Result, Is.Null, DescribeRoute(jump.Result));
+            Assert.That(fly.Result, Is.Null, DescribeRoute(fly.Result));
+            Assert.That(walk.PlanResult.Termination, Is.Not.EqualTo(NavigationPlanTermination.ResultProduced));
+            Assert.That(jump.PlanResult.Termination, Is.Not.EqualTo(NavigationPlanTermination.ResultProduced));
+            Assert.That(fly.PlanResult.Termination, Is.Not.EqualTo(NavigationPlanTermination.ResultProduced));
         }
 
         /// <summary>Verifies failed-request memoization keeps distance metrics distinct.</summary>

@@ -6,6 +6,11 @@ This document describes the current `Movement` contract in the Aethiumian.AI pac
 2. `Movement` coordinates planning and one fixed-step execution loop.
 3. `PrepareExecutor` and `MovementExecutor.Tick` return per-step outcomes; they do not define action states.
 
+The lifecycle and preparation boundaries below are established contracts. Smart
+fallback coordination follows those boundaries; the project
+[response decision](../../../Doc/Systems/AI/NavigationResponsePolicy.md) owns
+timing, backoff, and candidate-selection requirements.
+
 ## NavigationAction lifecycle
 
 The lifecycle has only the phases owned by `NavigationAction`: waiting for the immutable world binding, executing the action, and ended. Permission pauses, pending planning, and a missing successor do not create additional lifecycle states.
@@ -32,7 +37,7 @@ This is a repeated coordination loop inside the `Executing` phase, not another l
 flowchart TD
     A[Permitted fixed step] --> B[Read target once]
     B --> C[BuildGoal and bind NavigationGoalRegion]
-    C --> D[Receive or request one route]
+    C --> D[Acquire or select a route candidate]
     D --> E[Reconnect candidate from the real body anchor]
     E --> F[Prepare one route segment]
     F --> G{ActionPreparation result}
@@ -58,17 +63,24 @@ flowchart TD
 
 The loop has one physical writer: the currently installed `MovementExecutor`. A `MovementExecutor` result describes one physical segment; it does not by itself complete the overall goal. `Movement` publishes the behaviour-tree result only after terminal cleanup.
 
+The diagram describes ownership, not a requirement to prepare the active action
+again on every tick. Acquisition selects a candidate; all candidate sources share
+connection, preparation and commitment. An already executing action continues
+when no replacement is adopted. Acquisition helpers do not call back into the
+outer receipt-processing loop. A completed segment may trigger another adoption
+attempt before the tick ends, but never a second physical execution.
+
 ## Preparation outcomes, not lifecycle states
 
 `PrepareExecutor` returns `ActionPreparation` for the current route segment. These values are consumed during the current fixed step and must not be shown as states of `NavigationAction`:
 
 | Preparation result | Meaning | Coordinator action |
 | --- | --- | --- |
-| `Waiting` | A temporary prerequisite is not ready yet, such as the Jump launch gate or contact requirement. | Keep the previous executor untouched and retry on a later permitted fixed step. |
+| `Waiting` | A temporary prerequisite is not ready yet, such as the Jump launch gate or contact requirement. | Keep the previous executor untouched and retain the still-valid candidate for a later permitted fixed step. This applies to local fallback candidates too. |
 | `Ready` | The segment has produced an executing executor. | Install the executor and publish the connected route. Only this result may replace executor/route state. |
 | `Unavailable` | This segment cannot be prepared under the current physical or capability constraints. | Leave the previous executor untouched, reject the candidate, and apply the normal retry/recovery or terminal policy. |
 
-`Waiting` and `Unavailable` therefore have different meanings, but neither is a persistent phase. They are decisions made by `Movement` at the `PrepareRoute` boundary. Likewise, `Running`, `Completed`, and `Failed` are `ExecutionResult.Status` values returned by one executor tick, not additional `NavigationAction` states.
+`Waiting` and `Unavailable` therefore have different meanings, but neither is a persistent phase. They are decisions made by `Movement` at the shared `TryAdoptRoute` boundary. Likewise, `Running`, `Completed`, and `Failed` are `ExecutionResult.Status` values returned by one executor tick, not additional `NavigationAction` states.
 
 ## Goal construction
 
@@ -81,13 +93,25 @@ Every permitted fixed tick reads the current target once. Trace and Retreat use 
 Simple and Smart both obtain actions from `NavigationRoute`:
 
 - Simple passes `NavigationPlanningExtent.NextAction` and asks for a local executable step.
-- Smart passes `NavigationPlanningExtent.Route` and may adopt an executable prefix.
+- Smart passes `NavigationPlanningExtent.Route` and receives a complete route or an
+  exhausted/budget terminal result; it never adopts a search prefix.
+- While a successfully submitted Smart request has no executable action, its initial
+  response budget is four physics ticks. One asynchronous Simple `NextAction` may
+  be borrowed without changing `PathMode` or the enclosing Movement lifecycle.
+- Only an actually prepared and committed fallback action raises the next wait budget:
+  four, then eight, then sixteen physics ticks (sixteen remains the cap). A local
+  miss does not make the full Smart request fail or authorize another local request.
 - `TryConnectRoute` reconnects a candidate to the current body and rejects unsafe or disconnected geometry.
 - `PrepareExecutor` returns `Waiting`, `Ready`, or `Unavailable` for one segment.
 
-At most one `NavigationPlanningRequest` is held by one Movement execution. It contains the operation/result receipt, captured start and goal, purpose, committed predecessor, and cancellation resource. The owner detaches it before cancellation and disposal. Background planning never invokes an executor or Unity callback directly; result adoption is performed by the Movement fixed-step loop.
+Movement holds one Smart `NavigationPlanningRequest` plus at most one local fallback
+request. The local request runs while Smart remains live. Smart receipts are processed
+first on every fixed step; only a pending Smart request permits a local receipt to prepare
+an action. The owner detaches request references before cancellation and disposal.
+Background planning never invokes an executor or Unity callback directly; result adoption
+is performed by the Movement fixed-step loop.
 
-A moving target is coalesced through the single in-flight request. After completion, executable results retain their original goal snapshot; their endpoint need not satisfy the latest target. Position changes beyond geometry epsilon permit another request. A negative result for an old target cannot terminate the current goal.
+A moving target is coalesced through the primary planning request; an optional local attempt does not create a second target authority. After completion, executable results retain their original goal snapshot; their endpoint need not satisfy the latest target. Position changes beyond geometry epsilon permit another request. A negative result for an old target cannot terminate the current goal.
 
 `PrepareExecutor` receives a segment and body, not a goal. `Waiting` and `Unavailable` leave the previous executor untouched. Same-direction Ground updates and Fly waypoint updates preserve velocity and idle timing. Ground reconnection combines contiguous straight, same-level segments without crossing other action kinds.
 
@@ -101,7 +125,15 @@ The capability prepares or reuses one executor. `MovementExecutor.IsExecuting` i
 4. Keep the executor active for `Running`; release terminal action resources for `Completed` or `Failed`.
 5. Evaluate the overall goal and either continue, recover, or finish.
 
-When an executor reports `Completed`, `Movement` first receives any already available route result and attempts to prepare the next segment. If the node has not completed and no successor is ready, the existing completion path clears the rigidbody velocity once and then continues with the normal `RequestNextRoute` call. This is not repeated from the per-tick `ActiveSegment == null` wait path. For a partial route whose final Ground segment has just completed without an active successor, the next request starts from that segment's logical endpoint. The endpoint is a consumed planning boundary, not a physics teleport: route adoption still reconnects from the real body anchor and validates support and clearance.
+When an executor reports `Completed`, `Movement` advances the segment, clears its action replacement policy, and performs one new candidate-selection boundary without a second executor tick. If the node has not completed and no successor is ready, it clears the rigidbody velocity once and then lets `MaintainPlanning` request work. This is not repeated from the per-tick `ActiveSegment == null` wait path. For a partial Ground route or committed fallback whose final segment has just completed without an active successor, the next request starts from that segment's logical endpoint. The endpoint is a consumed planning boundary, not a physics teleport: route adoption still reconnects from the real body anchor and validates support and clearance.
+
+The response budget advances only on permitted fixed steps with a pending Smart request
+and no executable action. World readiness, movement-permission pauses, and active actions
+do not advance it. Once a fallback action is committed, its segment remains the physical
+writer through its normal completion or failure boundary; an early Smart receipt is retained
+but cannot reverse it. A replacement Smart request starts from the fallback segment's logical
+endpoint, then every eventual adoption still reconnects and validates from the actual physics
+position. A logical endpoint never authorizes teleportation.
 
 For `Walk`, a Jump candidate whose logical start remains within the completed Ground action's horizontal completion range and vertical support tolerance may be accepted as a continuation. This proximity check only admits the candidate to preparation; the Jump is then re-solved from the real grounded anchor through `GroundJumpSolver`, including support, surface, height, clearance, and landing checks. OneWay collision leases are rebuilt from that actual trajectory. Fall and DropThrough retain their existing strict continuation tolerance because they do not use this grounded re-solve path. Waiting for a successor never locks the body velocity across frames.
 
@@ -144,13 +176,13 @@ Recovery remains at the Movement owner:
 
 ## Planning API boundary
 
-`MapNavigationRuntime.PlanWalkAsync`, `PlanJumpAsync`, and `PlanFlyAsync` take `NavigationPlanningExtent` after their parameter object and before `CancellationToken`. `PlanWalkStepAsync` is removed. `NextAction` uses local planning; `Route` is the Smart horizon.
+`MapNavigationRuntime.PlanWalkAsync`, `PlanJumpAsync`, and `PlanFlyAsync` take `NavigationPlanningExtent` after their parameter object and before `CancellationToken`. `PlanWalkStepAsync` is removed. `NextAction` uses local planning; `Route` runs to a complete route, exhaustion, or budget terminal result.
 
 Local Jump expands one launch-support successor set. Local Fly checks direct flight and adjacent legal flight steps. Neither local mode performs global search followed by truncation, and a local failure is not promoted to a whole-world no-path claim.
 
 ## Extension and migration contract
 
-External movement implementations use the protected `BuildGoal`, `TryRequestRoute`, `TryConnectRoute`, `PrepareExecutor`, `IsGoalSatisfied`, `TryRecover`, `Finish`, and required `GetWanderLocation` hooks. Implementations must preserve the one-executor and fixed-step result-adoption boundaries. The partial Ground continuation rule is owned by `Movement`; it does not require a new derived-class interface.
+External movement implementations use the protected `BuildGoal`, explicit-extent `TryRequestRoute`, `TryConnectRoute`, `PrepareExecutor`, `IsGoalSatisfied`, `TryRecover`, `Finish`, and required `GetWanderLocation` hooks. Implementations must preserve the one-executor and fixed-step result-adoption boundaries. The partial Ground continuation rule is owned by `Movement`; it does not require a new derived-class interface.
 
 The former `MovementGoalProvider`, `RollingNavigationSession`, public `Movement.Navigation`, public session wrappers, and reflection adapters are removed. They are not compatibility surfaces and must not be restored to satisfy old diagnostics or tests.
 

@@ -36,12 +36,11 @@ namespace Aethiumian.AI.Nodes
             return CreateGoal(target, NavigationGoalGeometry.Proximity);
         }
 
-        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal,
-            NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
             operation = NavigationRuntime.PlanFlyAsync(start, goal.Request,
                 new FlyNavigationParameters(NavigationBodySize, RetreatExecution?.RemainingApproachDistance ?? 0f,
-                    RetreatExecution?.HasApproachLimit ?? false), PlanningExtent, cancellation, purpose);
+                    RetreatExecution?.HasApproachLimit ?? false), extent, cancellation, purpose);
             return true;
         }
 

@@ -346,6 +346,20 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
+        /// <summary>Prevents a complete Route request from publishing a frontier route at an exhausted terminal state.</summary>
+        private static NavigationPlanResult CompleteRouteResult(NavigationPlanResult result)
+        {
+            if (result.Termination == NavigationPlanTermination.ResultProduced && result.Route != null && result.Route.SearchComplete)
+                return result;
+
+            return result.Termination switch
+            {
+                NavigationPlanTermination.SearchExhausted => NavigationPlanResult.SearchExhausted(),
+                NavigationPlanTermination.BudgetReached => NavigationPlanResult.BudgetReached(),
+                _ => NavigationPlanResult.NoResult,
+            };
+        }
+
         /// <summary>Stores pure request data until a published world can create detached planner work.</summary>
         private abstract class PlanningRequestDescriptor
         {
@@ -390,7 +404,7 @@ namespace Aethiumian.AI.Navigation
                     ?? throw new InvalidOperationException("Walk planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => simple
                     ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, true));
+                    : CompleteRouteResult(planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, false)));
             }
         }
 
@@ -425,7 +439,7 @@ namespace Aethiumian.AI.Navigation
                     ?? throw new InvalidOperationException("Jump planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
                     ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, true));
+                    : CompleteRouteResult(planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, false)));
             }
         }
 
@@ -460,7 +474,7 @@ namespace Aethiumian.AI.Navigation
                     ?? throw new InvalidOperationException("Fly planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
                     ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, true));
+                    : CompleteRouteResult(planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, false)));
             }
         }
 

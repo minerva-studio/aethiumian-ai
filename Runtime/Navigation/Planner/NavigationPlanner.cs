@@ -30,6 +30,8 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>
         /// Runs planning synchronously against this planner's immutable navigation world.
+        /// When <paramref name="allowExecutablePrefix"/> is true, a prefix is returned as
+        /// one terminal result; this API does not stream or repeatedly publish prefixes.
         /// </summary>
         public abstract NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null, bool allowExecutablePrefix = false);
 

@@ -236,11 +236,12 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             protected override bool TryRequestRoute(
-                Vector2 start, NavigationGoalRegion goal, NavigationPlanningPurpose purpose,
+                Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent,
+                NavigationPlanningPurpose purpose,
                 CancellationToken cancellationToken, out NavigationPlanningOperation operation)
             {
                 PlannedGoal = goal.Request.TargetBounds;
-                return base.TryRequestRoute(start, goal, purpose, cancellationToken, out operation);
+                return base.TryRequestRoute(start, goal, extent, purpose, cancellationToken, out operation);
             }
         }
     }
