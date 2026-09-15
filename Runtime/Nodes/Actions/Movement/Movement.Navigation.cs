@@ -76,7 +76,7 @@ namespace Aethiumian.AI.Nodes
             primary.Release(false);
             if (primary.Operation.IsCancelled)
             {
-                CancelPrimaryRequest();
+                CancelPlanningRequests();
                 return false;
             }
             if (primary.Operation.Exception != null) throw primary.Operation.Exception;
@@ -98,14 +98,20 @@ namespace Aethiumian.AI.Nodes
                     CancelPlanningRequests();
                     return false;
                 }
-                if (followsActive) return true;
+                if (followsActive)
+                {
+                    // The terminal no-route receipt has been consumed. Keep the physical
+                    // predecessor running, but do not reprocess this completed receipt every tick.
+                    CancelPlanningRequests();
+                    return true;
+                }
                 if (active != null)
                 {
                     RejectPrimaryCandidate(goal);
                     return true;
                 }
 
-                CancelPrimaryRequest();
+                CancelPlanningRequests();
                 if (IsGoalSatisfied(goal, body, false)) { EndMovement(true, goal); return true; }
                 if (route != null && routeIndex < route.Count) return false;
                 if (result.Termination == NavigationPlanTermination.BudgetReached)
@@ -128,7 +134,7 @@ namespace Aethiumian.AI.Nodes
             if (ActiveSegment != null || route == null || routeIndex >= route.Count) return false;
             NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(
                 route.Segments[routeIndex].Start, route.GoalRegion, route.ResolvedGoal,
-                GetRouteSegments(route, routeIndex), route.SearchComplete);
+                GetRouteSegments(route, routeIndex), route.ReachesGoal);
             ActionPreparation preparation = TryAdoptRoute(remaining, CandidateSource.ExistingRoute, goal, anchor, body);
             if (preparation != ActionPreparation.Unavailable) return true;
 
@@ -165,10 +171,26 @@ namespace Aethiumian.AI.Nodes
         private ActionPreparation TryAdoptRoute(NavigationRoute candidate, CandidateSource source,
             NavigationGoalRegion goal, Vector2 anchor, Bounds body)
         {
-            if (!CanReplaceActiveAction) return ActionPreparation.Waiting;
-            if (!TryConnectRoute(candidate, body, out NavigationRoute connected)
-                || connected == null || connected.Count == 0
-                || !RouteAllowed(goal, anchor, connected)) return ActionPreparation.Unavailable;
+            if (!CanReplaceActiveAction)
+                return source == CandidateSource.PrimaryRequest
+                    && CanWaitForPrimaryContinuation(candidate, goal)
+                    ? ActionPreparation.Waiting
+                    : ActionPreparation.Unavailable;
+            if (!TryConnectRoute(candidate, body, out NavigationRoute connected))
+            {
+                return source == CandidateSource.PrimaryRequest
+                    && CanWaitForPrimaryContinuation(candidate, goal)
+                    ? ActionPreparation.Waiting
+                    : ActionPreparation.Unavailable;
+            }
+            if (connected == null || connected.Count == 0)
+            {
+                return ActionPreparation.Unavailable;
+            }
+            if (!RouteAllowed(goal, anchor, connected))
+            {
+                return ActionPreparation.Unavailable;
+            }
 
             ActionPreparation preparation = PrepareExecutor(connected.Segments[0], body, executor, out MovementExecutor prepared);
             if (preparation != ActionPreparation.Ready) return preparation;
@@ -186,18 +208,33 @@ namespace Aethiumian.AI.Nodes
             return ActionPreparation.Ready;
         }
 
+        /// <summary>
+        /// Keeps a valid primary continuation pending while its committed predecessor is still
+        /// physically irreversible. Waiting is intentionally limited to that request boundary;
+        /// local candidates and unrelated predecessors must be rejected instead.
+        /// </summary>
+        private bool CanWaitForPrimaryContinuation(NavigationRoute candidate, NavigationGoalRegion goal)
+        {
+            NavigationRouteSegment active = ActiveSegment;
+            return request != null
+                && active != null
+                && ReferenceEquals(request.CommittedSegment, active)
+                && CompatibleGoal(request.GoalRegion, goal)
+                && candidate != null
+                && CompatibleGoal(candidate.GoalRegion, goal)
+                && RouteAllowed(request.GoalRegion, request.Start, candidate);
+        }
+
         private void OnRouteAdopted(CandidateSource source)
         {
             switch (source)
             {
                 case CandidateSource.PrimaryRequest:
                     if (path == PathMode.Smart) ResetSmartFallbackBackoff();
-                    CancelFallbackRequest();
-                    CancelPrimaryRequest();
+                    CancelPlanningRequests();
                     break;
                 case CandidateSource.LocalFallback:
-                    CancelFallbackRequest();
-                    CancelPrimaryRequest();
+                    CancelPlanningRequests();
                     fallbackBackoffLevel = Math.Min(fallbackBackoffLevel + 1, 2);
                     break;
             }
@@ -234,7 +271,7 @@ namespace Aethiumian.AI.Nodes
                 && !changed && route != null && routeIndex < route.Count)
             {
                 Vector2 endpointCenter = route.ResolvedGoal + (Vector2)body.center - anchor;
-                if (route.SearchComplete && goal.IsComplete(endpointCenter, body.size)) return false;
+                if (route.ReachesGoal && goal.IsComplete(endpointCenter, body.size)) return false;
             }
 
             NavigationRouteSegment predecessor = completedFallbackAction;
@@ -243,7 +280,7 @@ namespace Aethiumian.AI.Nodes
             {
                 predecessor = action;
             }
-            else if (predecessor == null && action == null && !changed && route != null && !route.SearchComplete
+            else if (predecessor == null && action == null && !changed && route != null && !route.ReachesGoal
                 && route.Count > 0 && routeIndex == route.Count
                 && route.Segments[route.Count - 1] is GroundRouteSegment completedGround)
             {
@@ -304,8 +341,7 @@ namespace Aethiumian.AI.Nodes
 
         private void RejectPrimaryCandidate(NavigationGoalRegion goal)
         {
-            CancelFallbackRequest();
-            CancelPrimaryRequest();
+            CancelPlanningRequests();
             if (ActiveSegment == null && !AllowRetry()) EndMovement(false, goal);
         }
 
@@ -349,15 +385,14 @@ namespace Aethiumian.AI.Nodes
 
         private void CancelPlanningRequests()
         {
-            CancelFallbackRequest();
-            CancelPrimaryRequest();
-        }
-
-        private void CancelPrimaryRequest()
-        {
-            NavigationPlanningRequest previous = request;
+            // Detach both fields before cancellation can invoke callbacks.
+            NavigationPlanningRequest primary = request;
+            NavigationPlanningRequest local = fallbackRequest;
             request = null;
-            previous?.Release(true);
+            fallbackRequest = null;
+
+            try { local?.Release(true); }
+            finally { primary?.Release(true); }
         }
 
         private void CancelFallbackRequest()

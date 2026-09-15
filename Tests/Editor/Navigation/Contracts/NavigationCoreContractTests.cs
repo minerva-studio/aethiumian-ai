@@ -16,7 +16,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRegion goal = NavigationGoalRegion.Bind(
                 NavigationGoalRequest.Proximity(new Bounds(Vector2.right, Vector3.zero), DistanceMetric.Euclidean, 0f), world);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 8, false, NavigationNodeIdentity.Ground(-1),
+                NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
                 _ => Array.Empty<NavigationTransitionWork>());
             using NavigationSearch search = new NavigationSearch(request);
 
@@ -31,7 +31,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRegion goal = NavigationGoalRegion.Bind(
                 NavigationGoalRequest.Proximity(new Bounds(Vector2.right, Vector3.zero), DistanceMetric.Euclidean, 0f), world);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 8, false, NavigationNodeIdentity.Ground(-1), node =>
+                NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1), node =>
                     ArtificialTransitions(node));
             using NavigationSearch search = new NavigationSearch(request);
 
@@ -50,53 +50,27 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRegion goal = NavigationGoalRegion.Bind(
                 NavigationGoalRequest.Proximity(new Bounds(Vector2.right, Vector3.zero), DistanceMetric.Euclidean, 0f), world);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 1, false, NavigationNodeIdentity.Ground(-1),
+                NavigationActions.GroundMove, 1, NavigationNodeIdentity.Ground(-1),
                 ArtificialTransitions);
             using NavigationSearch search = new NavigationSearch(request);
 
             NavigationSearchUpdate firstSlice = search.Advance(new NavigationWorkBudget(1, 1000d), default);
             NavigationSearchUpdate update = search.Advance(new NavigationWorkBudget(1, 1000d), default);
 
-            Assert.That(firstSlice.Status, Is.EqualTo(NavigationSearchStatus.BudgetReached));
-            Assert.That(firstSlice.IsTerminal, Is.False);
+            Assert.That(firstSlice.Status, Is.EqualTo(NavigationSearchStatus.Pending));
             Assert.That(update.Status, Is.EqualTo(NavigationSearchStatus.CompleteRoute));
             Assert.That(update.ExpandedNodes, Is.EqualTo(1));
         }
 
-        /// <summary>Verifies a multi-step prefix is rebuilt from immutable path history and pauses cleanly.</summary>
+        /// <summary>Verifies endpoint continuation keeps searching across work slices.</summary>
         [Test]
-        public void NavigationSearchPrefixUsesFirstSegmentAndPauses()
-        {
-            TestNavigationWorld world = new(new RectInt(-2, -2, 8, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(new Vector3(10f, 0f), Vector3.zero), DistanceMetric.Euclidean, 0f), world);
-            NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 8, true, NavigationNodeIdentity.Ground(-1),
-                ArtificialPrefixTransitions);
-            using NavigationSearch search = new NavigationSearch(request);
-
-            NavigationSearchUpdate update = search.Advance(new NavigationWorkBudget(3, 1000d), default);
-            NavigationSearchUpdate afterPause = search.Advance(new NavigationWorkBudget(3, 1000d), default);
-
-            Assert.That(update.Status, Is.EqualTo(NavigationSearchStatus.ExecutablePrefix));
-            Assert.That(update.Route, Is.Not.Null);
-            Assert.That(update.Route.Segments, Has.Count.EqualTo(1));
-            Assert.That(update.Route.Segments[0].Start, Is.EqualTo(Vector2.zero));
-            Assert.That(update.Route.Segments[0].End, Is.EqualTo(Vector2.right));
-            Assert.That(update.Route.SearchComplete, Is.False);
-            Assert.That(afterPause.Status, Is.EqualTo(NavigationSearchStatus.Pending));
-            Assert.That(afterPause.IsTerminal, Is.False);
-        }
-
-        /// <summary>Verifies endpoint continuation keeps searching across slices instead of publishing a prefix.</summary>
-        [Test]
-        public void NavigationSearchContinuationDoesNotPublishPrefix()
+        public void NavigationSearchContinuesAcrossWorkSlices()
         {
             TestNavigationWorld world = new(new RectInt(-2, -2, 8, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             NavigationGoalRegion goal = NavigationGoalRegion.Bind(
                 NavigationGoalRequest.Proximity(new Bounds(new Vector3(3f, 0f), Vector3.zero), DistanceMetric.Euclidean, 0f), world);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 8, false, NavigationNodeIdentity.Ground(-1),
+                NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
                 ArtificialTailTransitions);
             using NavigationSearch search = new NavigationSearch(request);
 
@@ -104,12 +78,30 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationSearchUpdate second = search.Advance(new NavigationWorkBudget(1, 1000d), default);
             NavigationSearchUpdate third = search.Advance(new NavigationWorkBudget(1, 1000d), default);
 
-            Assert.That(first.Status, Is.EqualTo(NavigationSearchStatus.BudgetReached));
-            Assert.That(first.IsTerminal, Is.False);
-            Assert.That(second.Status, Is.EqualTo(NavigationSearchStatus.BudgetReached));
-            Assert.That(second.IsTerminal, Is.False);
+            Assert.That(first.Status, Is.EqualTo(NavigationSearchStatus.Pending));
+            Assert.That(second.Status, Is.EqualTo(NavigationSearchStatus.Pending));
             Assert.That(third.Status, Is.EqualTo(NavigationSearchStatus.CompleteRoute));
             Assert.That(third.Route.Segments, Has.Count.EqualTo(3));
+        }
+
+        /// <summary>Verifies a total search budget is terminal and never publishes a frontier route.</summary>
+        [Test]
+        public void NavigationSearchTotalBudgetIsTerminalWithoutRoute()
+        {
+            TestNavigationWorld world = new(new RectInt(-2, -2, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
+                NavigationGoalRequest.Proximity(new Bounds(Vector2.right, Vector3.zero), DistanceMetric.Euclidean, 0f), world);
+            NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
+                NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
+                ArtificialTransitions, maxTotalWorkUnits: 1);
+            using NavigationSearch search = new NavigationSearch(request);
+
+            NavigationSearchUpdate update = search.Advance(new NavigationWorkBudget(8, 1000d), default);
+
+            Assert.That(update.Status, Is.EqualTo(NavigationSearchStatus.BudgetReached));
+            Assert.That(update.Route, Is.Null);
+            Assert.That(search.Advance(new NavigationWorkBudget(8, 1000d), default).Status,
+                Is.EqualTo(NavigationSearchStatus.Pending));
         }
 
         /// <summary>Verifies ground reconnection preserves a validated multi-segment tail.</summary>
@@ -127,7 +119,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 {
                     new GroundRouteSegment(new Vector2(1f, 1f), new Vector2(4f, 1f)),
                     new FlyRouteSegment(new Vector2(4f, 1f), new Vector2(6f, 1f)),
-                });
+                }, true);
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
                 world, route, new Vector2(1.2f, 1f), new Vector2(0.8f, 0.8f),
@@ -149,7 +141,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRegion goal = NavigationGoalRegion.Bind(
                 NavigationGoalRequest.Proximity(new Bounds(new Vector3(5f, 1f), Vector3.zero), DistanceMetric.Euclidean, 0f), world);
             NavigationRoute route = NavigationRoute.Create(new Vector2(3f, 1f), goal, new Vector2(5f, 1f),
-                new[] { new GroundRouteSegment(new Vector2(3f, 1f), new Vector2(5f, 1f)) });
+                new[] { new GroundRouteSegment(new Vector2(3f, 1f), new Vector2(5f, 1f)) }, true);
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
                 world, route, new Vector2(2.81f, 1f), new Vector2(0.8f, 0.8f),
@@ -173,7 +165,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRegion goal = NavigationGoalRegion.Bind(
                 NavigationGoalRequest.Proximity(new Bounds(new Vector3(6f, 1f), Vector3.zero), DistanceMetric.Euclidean, 0f), world);
             NavigationRoute route = NavigationRoute.Create(new Vector2(4f, 1f), goal, new Vector2(6f, 1f),
-                new[] { new GroundRouteSegment(new Vector2(4f, 1f), new Vector2(6f, 1f)) });
+                new[] { new GroundRouteSegment(new Vector2(4f, 1f), new Vector2(6f, 1f)) }, true);
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
                 world, route, new Vector2(1.2f, 1f), new Vector2(0.8f, 0.8f),
@@ -328,7 +320,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationRouteCopiesAndProtectsSegments()
         {
             List<NavigationRouteSegment> source = new() { new GroundRouteSegment(Vector2.zero, Vector2.right) };
-            NavigationRoute route = NavigationRoute.Create(Vector2.zero, BoundPoint(new Vector2(2, 1), 0f), Vector2.right, source);
+            NavigationRoute route = NavigationRoute.Create(Vector2.zero, BoundPoint(new Vector2(2, 1), 0f), Vector2.right, source, true);
             source.Add(new FlyRouteSegment(Vector2.right, new Vector2(2, 1)));
 
             Assert.That(route.Count, Is.EqualTo(1));
@@ -341,7 +333,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationRoutePreservesRequestedAndResolvedGoals()
         {
             NavigationRoute route = NavigationRoute.Create(Vector2.zero, BoundPoint(new Vector2(5, 2), 0f), Vector2.right,
-                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
+                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) }, true);
 
             Assert.That(route.RequestedGoal, Is.EqualTo(new Vector2(5, 2)));
             Assert.That(route.ResolvedGoal, Is.EqualTo(Vector2.right));
@@ -359,12 +351,12 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationRoute replaced = partial.WithSegments(
                 new[] { new FlyRouteSegment(Vector2.zero, Vector2.right) });
 
-            Assert.That(complete.SearchComplete, Is.True);
-            Assert.That(partial.SearchComplete, Is.False);
+            Assert.That(complete.ReachesGoal, Is.True);
+            Assert.That(partial.ReachesGoal, Is.False);
             Assert.That(replaced.Start, Is.EqualTo(partial.Start));
             Assert.That(replaced.GoalRegion, Is.SameAs(partial.GoalRegion));
             Assert.That(replaced.ResolvedGoal, Is.EqualTo(partial.ResolvedGoal));
-            Assert.That(replaced.SearchComplete, Is.False);
+            Assert.That(replaced.ReachesGoal, Is.False);
             Assert.That(replaced.Segments[0], Is.TypeOf<FlyRouteSegment>());
         }
 
@@ -378,18 +370,24 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(NavigationPlanResult.ResultProduced(route).Termination,
                 Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(NavigationPlanResult.ResultProduced(route).Route, Is.SameAs(route));
-            Assert.That(NavigationPlanResult.SearchExhausted(route).Termination,
+            Assert.That(NavigationPlanResult.SearchExhausted().Termination,
                 Is.EqualTo(NavigationPlanTermination.SearchExhausted));
             Assert.That(NavigationPlanResult.SearchExhausted().Route, Is.Null);
-            Assert.That(NavigationPlanResult.BudgetReached(route).Termination,
+            Assert.That(NavigationPlanResult.BudgetReached().Termination,
                 Is.EqualTo(NavigationPlanTermination.BudgetReached));
             Assert.That(NavigationPlanResult.BudgetReached().Route, Is.Null);
             Assert.That(NavigationPlanResult.NoResult.Termination,
                 Is.EqualTo(NavigationPlanTermination.NoResult));
             Assert.That(NavigationPlanResult.NoResult.Route, Is.Null);
+            Assert.That(() => NavigationPlanResult.SearchExhausted().WithRoute(route),
+                Throws.InstanceOf<InvalidOperationException>());
+            Assert.That(() => NavigationPlanResult.BudgetReached().WithRoute(route),
+                Throws.InstanceOf<InvalidOperationException>());
+            Assert.That(() => NavigationPlanResult.NoResult.WithRoute(route),
+                Throws.InstanceOf<InvalidOperationException>());
         }
 
-        /// <summary>Verifies named search updates are the only owner of their terminal state.</summary>
+        /// <summary>Verifies named search updates expose their status and route payload.</summary>
         [Test]
         public void NavigationSearchUpdateFactoriesSetExpectedTerminalState()
         {
@@ -397,27 +395,18 @@ namespace Aethiumian.AI.Navigation.Tests
                 Vector2.right, new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
             NavigationSearchUpdate pending = NavigationSearchUpdate.Pending(3);
             NavigationSearchUpdate completed = NavigationSearchUpdate.CompletedRoute(route, 4, 5);
-            NavigationSearchUpdate prefix = NavigationSearchUpdate.ExecutablePrefix(route, 4, 5);
-            NavigationSearchUpdate exhausted = NavigationSearchUpdate.Exhausted(route, 4, 5);
-            NavigationSearchUpdate slicedBudget = NavigationSearchUpdate.BudgetReached(null, 4, 5, false);
-            NavigationSearchUpdate totalBudget = NavigationSearchUpdate.BudgetReached(route, 4, 5, true);
+            NavigationSearchUpdate exhausted = NavigationSearchUpdate.Exhausted(4, 5);
+            NavigationSearchUpdate budget = NavigationSearchUpdate.BudgetReached(4, 5);
 
             Assert.That(pending.Status, Is.EqualTo(NavigationSearchStatus.Pending));
             Assert.That(pending.WorkUnits, Is.Zero);
             Assert.That(pending.ExpandedNodes, Is.EqualTo(3));
-            Assert.That(pending.IsTerminal, Is.False);
             Assert.That(completed.Status, Is.EqualTo(NavigationSearchStatus.CompleteRoute));
             Assert.That(completed.Route, Is.SameAs(route));
-            Assert.That(completed.IsTerminal, Is.True);
-            Assert.That(prefix.Status, Is.EqualTo(NavigationSearchStatus.ExecutablePrefix));
-            Assert.That(prefix.IsTerminal, Is.True);
             Assert.That(exhausted.Status, Is.EqualTo(NavigationSearchStatus.Exhausted));
-            Assert.That(exhausted.IsTerminal, Is.True);
-            Assert.That(slicedBudget.Status, Is.EqualTo(NavigationSearchStatus.BudgetReached));
-            Assert.That(slicedBudget.Route, Is.Null);
-            Assert.That(slicedBudget.IsTerminal, Is.False);
-            Assert.That(totalBudget.Route, Is.SameAs(route));
-            Assert.That(totalBudget.IsTerminal, Is.True);
+            Assert.That(exhausted.Route, Is.Null);
+            Assert.That(budget.Status, Is.EqualTo(NavigationSearchStatus.BudgetReached));
+            Assert.That(budget.Route, Is.Null);
         }
 
         /// <summary>Verifies named transition factories preserve their graph identity and edge fields.</summary>
@@ -427,19 +416,16 @@ namespace Aethiumian.AI.Navigation.Tests
             GroundRouteSegment segment = new(Vector2.zero, Vector2.right);
             NavigationTransition completedJump = NavigationTransition.CompletedJump(Vector2.right, segment, 2f);
             NavigationTransition landing = NavigationTransition.JumpLanding(NavigationNodeIdentity.Ground(7),
-                Vector2.right, default, segment, 3f, false, 4f);
+                Vector2.right, default, segment, 3f, false);
             NavigationTransition fly = NavigationTransition.FlyMove(new Vector2Int(3, 4), Vector2.right,
-                segment, 5f, true, 6f);
+                segment, 5f, true);
 
             Assert.That(completedJump.Destination, Is.EqualTo(NavigationNodeIdentity.Jump(-1)));
             Assert.That(completedJump.CompletesGoal, Is.True);
-            Assert.That(completedJump.ProgressDistance, Is.Zero);
             Assert.That(landing.Destination, Is.EqualTo(NavigationNodeIdentity.Ground(7)));
             Assert.That(landing.Cost, Is.EqualTo(3f));
-            Assert.That(landing.ProgressDistance, Is.EqualTo(4f));
             Assert.That(fly.Destination, Is.EqualTo(NavigationNodeIdentity.Fly(new Vector2Int(3, 4))));
             Assert.That(fly.CompletesGoal, Is.True);
-            Assert.That(fly.ProgressDistance, Is.EqualTo(6f));
         }
 
         /// <summary>Verifies rectangular goal regions accept overlap and compute the shortest AABB gap.</summary>
@@ -879,27 +865,27 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationRouteEnforcesContinuityAndEmptyRouteRules()
         {
             Vector2 microscopicOffset = new(0.000005f, 0f);
-            Assert.DoesNotThrow(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.zero, Array.Empty<NavigationRouteSegment>()));
+            Assert.DoesNotThrow(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.zero, Array.Empty<NavigationRouteSegment>(), true));
             Assert.DoesNotThrow(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.right,
-                new NavigationRouteSegment[] { new GroundRouteSegment(new Vector2(0f, 0f), new Vector2(1f, 0f)) }));
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up, Array.Empty<NavigationRouteSegment>()),
+                new NavigationRouteSegment[] { new GroundRouteSegment(new Vector2(0f, 0f), new Vector2(1f, 0f)) }, true));
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up, Array.Empty<NavigationRouteSegment>(), true),
                 Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), microscopicOffset, Array.Empty<NavigationRouteSegment>()),
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), microscopicOffset, Array.Empty<NavigationRouteSegment>(), true),
                 Throws.InstanceOf<ArgumentException>());
             Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.right,
-                new[] { new GroundRouteSegment(Vector2.up, Vector2.right) }), Throws.InstanceOf<ArgumentException>());
+                new[] { new GroundRouteSegment(Vector2.up, Vector2.right) }, true), Throws.InstanceOf<ArgumentException>());
             Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.right,
-                new[] { new GroundRouteSegment(microscopicOffset, Vector2.right) }), Throws.InstanceOf<ArgumentException>());
+                new[] { new GroundRouteSegment(microscopicOffset, Vector2.right) }, true), Throws.InstanceOf<ArgumentException>());
             Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up,
-                new NavigationRouteSegment[] { new GroundRouteSegment(Vector2.zero, Vector2.right), new FlyRouteSegment(Vector2.up, Vector2.up) }),
+                new NavigationRouteSegment[] { new GroundRouteSegment(Vector2.zero, Vector2.right), new FlyRouteSegment(Vector2.up, Vector2.up) }, true),
                 Throws.InstanceOf<ArgumentException>());
             Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up,
                 new NavigationRouteSegment[] { new GroundRouteSegment(Vector2.zero, Vector2.right),
-                    new FlyRouteSegment(Vector2.right + microscopicOffset, Vector2.up) }), Throws.InstanceOf<ArgumentException>());
+                    new FlyRouteSegment(Vector2.right + microscopicOffset, Vector2.up) }, true), Throws.InstanceOf<ArgumentException>());
             Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up,
-                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) }), Throws.InstanceOf<ArgumentException>());
+                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) }, true), Throws.InstanceOf<ArgumentException>());
             Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.right,
-                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right + microscopicOffset) }),
+                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right + microscopicOffset) }, true),
                 Throws.InstanceOf<ArgumentException>());
         }
 
@@ -956,31 +942,7 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return NavigationTransitionWork.WorkUnit;
             yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
                 1, Vector2.right, default, new GroundRouteSegment(Vector2.zero, Vector2.right),
-                1f, true, 0f));
-        }
-
-        private static IEnumerable<NavigationTransitionWork> ArtificialPrefixTransitions(NavigationSearchNode node)
-        {
-            if (node.Identity.Equals(NavigationNodeIdentity.Ground(-1)))
-            {
-                yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
-                    1, Vector2.right, default, new GroundRouteSegment(Vector2.zero, Vector2.right),
-                    1f, false, 9f));
-                yield break;
-            }
-
-            if (node.Identity.Equals(NavigationNodeIdentity.Ground(1)))
-            {
-                yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
-                    2, new Vector2(2f, 0f), default,
-                    new GroundRouteSegment(Vector2.right, new Vector2(2f, 0f)), 1f, false, 8f));
-                yield break;
-            }
-
-            if (node.Identity.Equals(NavigationNodeIdentity.Ground(2)))
-                yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
-                    3, new Vector2(3f, 0f), default,
-                    new GroundRouteSegment(new Vector2(2f, 0f), new Vector2(3f, 0f)), 1f, false, 7f));
+                1f, true));
         }
 
         private static IEnumerable<NavigationTransitionWork> ArtificialTailTransitions(NavigationSearchNode node)
@@ -989,7 +951,7 @@ namespace Aethiumian.AI.Navigation.Tests
             {
                 yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
                     1, Vector2.right, default, new GroundRouteSegment(Vector2.zero, Vector2.right),
-                    1f, false, 3f));
+                    1f, false));
                 yield break;
             }
 
@@ -997,7 +959,7 @@ namespace Aethiumian.AI.Navigation.Tests
             {
                 yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
                     2, new Vector2(2f, 0f), default,
-                    new GroundRouteSegment(Vector2.right, new Vector2(2f, 0f)), 1f, false, 2f));
+                    new GroundRouteSegment(Vector2.right, new Vector2(2f, 0f)), 1f, false));
                 yield break;
             }
 
@@ -1005,7 +967,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
                     3, new Vector2(3f, 0f), default,
                     new GroundRouteSegment(new Vector2(2f, 0f), new Vector2(3f, 0f)),
-                    1f, true, 0f));
+                    1f, true));
         }
 
         private static NavigationWorldSnapshot CreateGroundWorld(params NavigationShapeData[] shapes)

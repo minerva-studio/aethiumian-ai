@@ -21,7 +21,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Runs jump planning through the shared action-graph search.
         /// </summary>
-        public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion, JumpNavigationParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null, bool allowExecutablePrefix = false)
+        public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion, JumpNavigationParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null)
         {
             ValidatePlanInputs(start, goalRegion, cancellationToken);
             parameters = PrepareParameters(parameters);
@@ -47,7 +47,7 @@ namespace Aethiumian.AI.Navigation
                 else
                 {
                     NavigationSearchRequest request = new(World, resolvedStart, startSupport, goalRegion,
-                        parameters.BodySize, NavigationActions.Jump, MaxExpandedNodes, allowExecutablePrefix,
+                        parameters.BodySize, NavigationActions.Jump, MaxExpandedNodes,
                         NavigationNodeIdentity.Jump(-1),
                         node => EnumerateSharedTransitions(node, goalRegion, parameters, diagnostics),
                         position => EvaluateGoalHeuristic(position, goalRegion, parameters.BodySize));
@@ -92,7 +92,7 @@ namespace Aethiumian.AI.Navigation
             NavigationRoute route = NavigationRoute.Create(resolvedStart, goal, selected.DestinationPosition,
                 new[] { selected.Segment }, selected.CompletesGoal);
             route = PrepareRouteForExecution(route, parameters, cancellationToken);
-            return budgetReached ? NavigationPlanResult.BudgetReached(route) : NavigationPlanResult.ResultProduced(route);
+            return NavigationPlanResult.ResultProduced(route);
         }
 
         private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRegion goalRegion, JumpNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
@@ -117,27 +117,8 @@ namespace Aethiumian.AI.Navigation
                 yield return NavigationTransitionWork.Edge(NavigationTransition.JumpLanding(
                     NavigationNodeIdentity.Jump(jump.LandingCandidateId), jump.Trajectory.LandingPosition,
                     jump.LandingSupport, jump.CreateSegment(),
-                    Vector2.Distance(node.Position, jump.Trajectory.LandingPosition) + jump.Trajectory.FlightDuration, completesGoal, EvaluateTrajectoryGoalDistance(jump.Trajectory, goalRegion, parameters.BodySize)));
+                    Vector2.Distance(node.Position, jump.Trajectory.LandingPosition) + jump.Trajectory.FlightDuration, completesGoal));
             }
-        }
-
-        /// <summary>Evaluates the closest approach to a goal region along one already-validated trajectory.</summary>
-        private static float EvaluateTrajectoryGoalDistance(JumpTrajectorySolution trajectory, NavigationGoalRegion goalRegion, Vector2 bodySize)
-        {
-            Vector2 landingCenter = trajectory.LandingPosition + Vector2.up * (bodySize.y * 0.5f);
-            if (goalRegion.IsComplete(landingCenter, bodySize)) return 0f;
-
-            float closest = float.PositiveInfinity;
-            Vector2 previous = trajectory.StartPosition;
-            int samples = Mathf.Clamp(Mathf.CeilToInt(trajectory.FlightDuration / 0.02f), 8, 256);
-            for (int index = 1; index <= samples; index++)
-            {
-                Vector2 next = trajectory.GetPosition(trajectory.FlightDuration * index / samples);
-                closest = Mathf.Min(closest, goalRegion.DistanceToLowerCenterBodySegment(previous, next, bodySize));
-                previous = next;
-            }
-
-            return closest;
         }
 
         /// <summary>

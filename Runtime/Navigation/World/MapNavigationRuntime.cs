@@ -225,7 +225,8 @@ namespace Aethiumian.AI.Navigation
                     return;
                 }
 
-                if (!TryCreateFailureKey(request.Descriptor.Start, goalRegion, profileKey, out NavigationFailureKey failureKey))
+                if (!TryCreateFailureKey(request.Descriptor.Start, goalRegion, profileKey,
+                    request.Descriptor.Purpose, out NavigationFailureKey failureKey))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.NoResult);
                     request.IsScheduled = true;
@@ -346,20 +347,6 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        /// <summary>Prevents a complete Route request from publishing a frontier route at an exhausted terminal state.</summary>
-        private static NavigationPlanResult CompleteRouteResult(NavigationPlanResult result)
-        {
-            if (result.Termination == NavigationPlanTermination.ResultProduced && result.Route != null && result.Route.SearchComplete)
-                return result;
-
-            return result.Termination switch
-            {
-                NavigationPlanTermination.SearchExhausted => NavigationPlanResult.SearchExhausted(),
-                NavigationPlanTermination.BudgetReached => NavigationPlanResult.BudgetReached(),
-                _ => NavigationPlanResult.NoResult,
-            };
-        }
-
         /// <summary>Stores pure request data until a published world can create detached planner work.</summary>
         private abstract class PlanningRequestDescriptor
         {
@@ -404,7 +391,7 @@ namespace Aethiumian.AI.Navigation
                     ?? throw new InvalidOperationException("Walk planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => simple
                     ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : CompleteRouteResult(planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, false)));
+                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken));
             }
         }
 
@@ -439,7 +426,7 @@ namespace Aethiumian.AI.Navigation
                     ?? throw new InvalidOperationException("Jump planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
                     ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : CompleteRouteResult(planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, false)));
+                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken));
             }
         }
 
@@ -474,7 +461,7 @@ namespace Aethiumian.AI.Navigation
                     ?? throw new InvalidOperationException("Fly planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
                     ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : CompleteRouteResult(planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, false)));
+                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken));
             }
         }
 
@@ -527,14 +514,16 @@ namespace Aethiumian.AI.Navigation
             return world == null ? default : NavigationWorldQueries.WorldToCell(world, position);
         }
 
-        private bool TryCreateFailureKey(Vector2 start, NavigationGoalRegion goalRegion, NavigationProfileKey profileKey, out NavigationFailureKey key)
+        private bool TryCreateFailureKey(Vector2 start, NavigationGoalRegion goalRegion,
+            NavigationProfileKey profileKey, NavigationPlanningPurpose purpose, out NavigationFailureKey key)
         {
             key = default;
             if (world == null || goalRegion == null) return false;
             Vector2 snappedStart = default;
             NavigationSupport support = default;
             bool hasSupport = profileKey.IsGround && world.TryResolveGroundSupport(start, profileKey.BodySize, out snappedStart, out support);
-            key = new NavigationFailureKey(hasSupport, support.Surface, hasSupport ? snappedStart : start, goalRegion, profileKey);
+            key = new NavigationFailureKey(hasSupport, support.Surface, hasSupport ? snappedStart : start,
+                goalRegion, profileKey, purpose);
             return true;
         }
 
@@ -572,10 +561,11 @@ namespace Aethiumian.AI.Navigation
             private readonly int startY;
             private readonly NavigationGoalKey goal;
             private readonly NavigationProfileKey profileKey;
+            private readonly NavigationPlanningPurpose purpose;
 
             public NavigationProfileKey ProfileKey => profileKey;
             public NavigationFailureKey(bool hasSupport, NavigationSurfaceId supportSurface, Vector2 start,
-                NavigationGoalRegion goalRegion, NavigationProfileKey profileKey)
+                NavigationGoalRegion goalRegion, NavigationProfileKey profileKey, NavigationPlanningPurpose purpose)
             {
                 this.hasSupport = hasSupport;
                 this.supportSurface = supportSurface;
@@ -583,15 +573,18 @@ namespace Aethiumian.AI.Navigation
                 startY = BitConverter.SingleToInt32Bits(start.y);
                 goal = goalRegion.GoalKey;
                 this.profileKey = profileKey;
+                this.purpose = purpose;
             }
             public bool Equals(NavigationFailureKey other) => hasSupport == other.hasSupport
                 && supportSurface == other.supportSurface
                 && startX == other.startX
                 && startY == other.startY
                 && goal.Equals(other.goal)
-                && profileKey.Equals(other.profileKey);
+                && profileKey.Equals(other.profileKey)
+                && purpose == other.purpose;
             public override bool Equals(object obj) => obj is NavigationFailureKey other && Equals(other);
-            public override int GetHashCode() => HashCode.Combine(hasSupport, supportSurface, startX, startY, goal, profileKey);
+            public override int GetHashCode() => HashCode.Combine(hasSupport, supportSurface, startX, startY,
+                goal, profileKey, purpose);
         }
 
         /// <summary>Stores exact profile value bits used to generate a navigation search.</summary>

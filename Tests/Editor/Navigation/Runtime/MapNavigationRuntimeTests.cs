@@ -144,7 +144,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 new Vector2(1.5f, 2.5f), goal, FlyParameters);
             WaitForCompletion(operation);
 
-            Assert.That(operation.Outcome, Is.EqualTo(NavigationPlanningOutcome.RouteFound));
+            Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(operation.Result, Is.Not.Null);
             Assert.That(operation.Result.Count, Is.Zero);
         }
@@ -194,7 +194,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 new Vector2(2.25f, 0.5f), captured, parameters);
             WaitForCompletion(operation);
 
-            Assert.That(operation.Outcome, Is.EqualTo(NavigationPlanningOutcome.RouteFound));
+            Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(operation.Result, Is.Not.Null);
             Assert.That(operation.Result.GoalRegion.IsGroundWalk, Is.True);
             Assert.That(operation.Result.GoalRegion.CellSize, Is.EqualTo(0.5f));
@@ -216,14 +216,14 @@ namespace Aethiumian.AI.Navigation.Tests
 
             NavigationPlanningOperation first = runtime.PlanWalkAsync(start, goal, parameters);
             WaitForCompletion(first);
-            Assert.That(first.Outcome, Is.EqualTo(NavigationPlanningOutcome.NoPath));
+            Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
             Assert.That(first.Result, Is.Null);
             Assert.That(world.SupportQueryCount, Is.EqualTo(2),
                 "Prepared parameters are shared by the request boundary, failure key, and worker core.");
 
             NavigationPlanningOperation second = runtime.PlanWalkAsync(start, goal, parameters);
             WaitForCompletion(second);
-            Assert.That(second.Outcome, Is.EqualTo(NavigationPlanningOutcome.NoPath));
+            Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
             Assert.That(second.Result, Is.Null);
             Assert.That(world.SupportQueryCount, Is.EqualTo(4),
                 "The second unresolved request must enter the worker instead of hitting failed-request memoization.");
@@ -326,18 +326,23 @@ namespace Aethiumian.AI.Navigation.Tests
             for (int x = 0; x < 41; x++) floor.Add(new Vector2Int(x, 0));
             TestNavigationWorld world = new(new RectInt(0, 0, 41, 8), floor, Array.Empty<Vector2Int>());
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(token => planner.Plan(
+            using INavigationPlanningWork work = new PlannerWork(token => planner.PlanSingleStep(
                 new Vector2(20.5f, 1f), NavigationGoalRegion.Bind(
                     Goal(new Vector2(35.5f, 1f)), world), JumpParameters,
-                token, new NavigationPlanningDiagnostics()));
+                token));
 
-            NavigationRoute route = work.Execute(CancellationToken.None).Route;
+            NavigationPlanResult result = work.Execute(CancellationToken.None);
+            Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
+            NavigationRoute route = result.Route;
             Assert.That(route, Is.Not.Null);
+            Assert.That(route.Segments, Has.Count.EqualTo(1));
+            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
+            Assert.That(((JumpRouteSegment)route.Segments[0]).MinimumApexHeight, Is.GreaterThan(0f));
         }
 
-        /// <summary>Verifies a complete Route request never publishes an executable prefix.</summary>
+        /// <summary>Verifies a complete Route request never publishes a partial route.</summary>
         [Test]
-        public void RouteExtentDoesNotPublishExecutablePrefix()
+        public void RouteExtentProducesOnlyCompleteRoute()
         {
             using MapNavigationRuntime runtime = new(4, 64, 1);
             runtime.PublishWorld(CreateOpenWorld());
@@ -348,15 +353,15 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanningOperation first = runtime.PlanWalkAsync(new Vector2(0.5f, 1f), goal, groundedOnly);
             Complete(runtime, first);
             Assert.That(first.Result, Is.Not.Null, DescribeRoute(first.Result));
-            Assert.That(first.Result.SearchComplete, Is.True, DescribeRoute(first.Result));
+            Assert.That(first.Result.ReachesGoal, Is.True, DescribeRoute(first.Result));
             Assert.That(first.Result.Segments, Has.Count.GreaterThan(1), DescribeRoute(first.Result));
             Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
                 DescribeRoute(first.Result));
         }
 
-        /// <summary>Verifies Walk, Jump, and Fly Route requests do not publish executable prefixes.</summary>
+        /// <summary>Verifies incomplete Walk, Jump, and Fly Route requests publish no route.</summary>
         [Test]
-        public void RouteExtentDoesNotPublishExecutablePrefixForWalkJumpAndFly()
+        public void RouteExtentPublishesNoRouteWhenCompleteSearchCannotFinish()
         {
             using MapNavigationRuntime runtime = new(4, 1, 1);
             runtime.PublishWorld(CreateBlockedWorld());
@@ -395,7 +400,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Manhattan, 0.25f), FlyParameters);
             WaitForCompletion(manhattan);
             Assert.That(manhattan.Result, Is.Null);
-            Assert.That(manhattan.Outcome, Is.EqualTo(NavigationPlanningOutcome.NoPath));
+            Assert.That(manhattan.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
 
             NavigationPlanningOperation chebyshev = runtime.PlanFlyAsync(start,
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f), FlyParameters);
@@ -420,7 +425,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 start, goal, new FlyNavigationParameters(new Vector2(0.8f, 0.8f), 0.1f));
             WaitForCompletion(constrained);
             Assert.That(constrained.Result, Is.Null);
-            Assert.That(constrained.Outcome, Is.EqualTo(NavigationPlanningOutcome.NoPath));
+            Assert.That(constrained.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.SearchExhausted));
+            runtime.ReleaseCompletedOperations();
 
             NavigationPlanningOperation relaxed = runtime.PlanFlyAsync(
                 start, goal, new FlyNavigationParameters(new Vector2(0.8f, 0.8f), 1f));
@@ -444,7 +450,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f, true), FlyParameters);
             WaitForCompletion(requiresLineOfSight);
             Assert.That(requiresLineOfSight.Result, Is.Null);
-            Assert.That(requiresLineOfSight.Outcome, Is.EqualTo(NavigationPlanningOutcome.NoPath));
+            Assert.That(requiresLineOfSight.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
 
             NavigationPlanningOperation noLineOfSight = runtime.PlanFlyAsync(start,
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f), FlyParameters);
@@ -595,7 +601,7 @@ namespace Aethiumian.AI.Navigation.Tests
             if (route == null) return "Route=null";
             string segments = string.Join(", ", route.Segments.Select(segment =>
                 $"{segment.GetType().Name}:{segment.Start}->{segment.End}"));
-            return $"Route.SearchComplete={route.SearchComplete}; Route.ResolvedGoal={route.ResolvedGoal}; "
+            return $"Route.ReachesGoal={route.ReachesGoal}; Route.ResolvedGoal={route.ResolvedGoal}; "
                 + $"Route.Segments=[{segments}]";
         }
 

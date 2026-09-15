@@ -23,7 +23,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the immutable goal geometry used by the planner.</summary>
         public NavigationGoalRegion GoalRegion { get; }
 
-        /// <summary>Gets the best-effort world-space endpoint selected by the planner.</summary>
+        /// <summary>Gets the world-space endpoint selected by the planner.</summary>
         public Vector2 ResolvedGoal { get; }
 
         /// <summary>Gets the read-only route segments in execution order.</summary>
@@ -32,25 +32,25 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the number of route segments.</summary>
         public int Count => segments.Count;
 
-        /// <summary>Gets whether this route is a terminal ordinary-navigation result.</summary>
-        public bool SearchComplete { get; }
+        /// <summary>Gets whether this route reaches its immutable planning goal.</summary>
+        public bool ReachesGoal { get; }
 
         private NavigationRoute(Vector2 start, NavigationGoalRegion goalRegion, Vector2 resolvedGoal,
-            NavigationRouteSegment[] segments, bool searchComplete)
+            NavigationRouteSegment[] segments, bool reachesGoal)
         {
             Start = start;
             GoalRegion = goalRegion;
             ResolvedGoal = resolvedGoal;
-            SearchComplete = searchComplete;
+            ReachesGoal = reachesGoal;
             this.segments = new ReadOnlyCollection<NavigationRouteSegment>(segments);
         }
 
-        /// <summary>Creates a route against an immutable goal region.</summary>
+        /// <summary>Creates a route against an immutable goal region with an explicit goal-arrival fact.</summary>
         public static NavigationRoute Create(Vector2 start, NavigationGoalRegion goalRegion, Vector2 resolvedGoal,
-            IEnumerable<NavigationRouteSegment> segments, bool searchComplete = true)
+            IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
         {
             if (goalRegion == null) throw new ArgumentNullException(nameof(goalRegion));
-            return CreateInternal(start, goalRegion, resolvedGoal, segments, searchComplete);
+            return CreateInternal(start, goalRegion, resolvedGoal, segments, reachesGoal);
         }
 
         /// <summary>Creates a route that represents a complete search or direct result.</summary>
@@ -61,7 +61,7 @@ namespace Aethiumian.AI.Navigation
             return CreateInternal(start, goalRegion, resolvedGoal, segments, true);
         }
 
-        /// <summary>Creates one prefix or best-effort planning result; it is not a streaming route update.</summary>
+        /// <summary>Creates a produced route whose next action does not yet reach the planning goal.</summary>
         public static NavigationRoute Partial(Vector2 start, NavigationGoalRegion goalRegion, Vector2 resolvedGoal,
             IEnumerable<NavigationRouteSegment> segments)
         {
@@ -71,10 +71,10 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>Replaces this route's segments while preserving its origin, goal, endpoint, and completeness.</summary>
         public NavigationRoute WithSegments(IEnumerable<NavigationRouteSegment> replacementSegments)
-            => CreateInternal(Start, GoalRegion, ResolvedGoal, replacementSegments, SearchComplete);
+            => CreateInternal(Start, GoalRegion, ResolvedGoal, replacementSegments, ReachesGoal);
 
         private static NavigationRoute CreateInternal(Vector2 start, NavigationGoalRegion goalRegion, Vector2 resolvedGoal,
-            IEnumerable<NavigationRouteSegment> segments, bool searchComplete)
+            IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
         {
             if (!NavigationNumeric.IsFinite(start) || !NavigationNumeric.IsFinite(resolvedGoal))
                 throw new ArgumentException("Navigation plan coordinates must be finite world coordinates.");
@@ -97,7 +97,7 @@ namespace Aethiumian.AI.Navigation
                     throw new ArgumentException("An empty route is valid only when Start equals ResolvedGoal.", nameof(segments));
                 }
 
-                return new NavigationRoute(start, goalRegion, resolvedGoal, copiedSegments, searchComplete);
+                return new NavigationRoute(start, goalRegion, resolvedGoal, copiedSegments, reachesGoal);
             }
 
             if (!copiedSegments[0].Start.Equals(start))
@@ -118,7 +118,7 @@ namespace Aethiumian.AI.Navigation
                 throw new ArgumentException("The final route segment must end at ResolvedGoal.", nameof(segments));
             }
 
-            return new NavigationRoute(start, goalRegion, resolvedGoal, copiedSegments, searchComplete);
+            return new NavigationRoute(start, goalRegion, resolvedGoal, copiedSegments, reachesGoal);
         }
 
     }

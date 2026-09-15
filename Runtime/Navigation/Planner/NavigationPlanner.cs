@@ -30,10 +30,8 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>
         /// Runs planning synchronously against this planner's immutable navigation world.
-        /// When <paramref name="allowExecutablePrefix"/> is true, a prefix is returned as
-        /// one terminal result; this API does not stream or repeatedly publish prefixes.
         /// </summary>
-        public abstract NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null, bool allowExecutablePrefix = false);
+        public abstract NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null);
 
         /// <summary>
         /// Attempts to create the first executable route produced by this planner.
@@ -75,6 +73,7 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>
         /// Advances the shared action-graph search with the planner's standard cooperative budget.
+        /// A complete-route request publishes only a route that reaches its planning goal.
         /// This remains assembly-scoped because <see cref="NavigationSearchRequest"/> is internal;
         /// external planners implement their own <see cref="Plan"/> method instead.
         /// </summary>
@@ -92,22 +91,14 @@ namespace Aethiumian.AI.Navigation
                     recordedExpansions++;
                 }
 
-                if (update.Status == NavigationSearchStatus.CompleteRoute
-                    || update.Status == NavigationSearchStatus.ExecutablePrefix
-                    || update.Status == NavigationSearchStatus.Exhausted && update.Route != null)
-                {
-                    return update.Status == NavigationSearchStatus.Exhausted
-                        ? NavigationPlanResult.SearchExhausted(update.Route)
-                        : NavigationPlanResult.ResultProduced(update.Route);
-                }
+                if (update.Status == NavigationSearchStatus.CompleteRoute)
+                    return NavigationPlanResult.ResultProduced(update.Route);
 
                 if (update.Status == NavigationSearchStatus.Exhausted)
                     return NavigationPlanResult.SearchExhausted();
 
-                if (update.Status == NavigationSearchStatus.BudgetReached && update.IsTerminal)
-                {
-                    return NavigationPlanResult.BudgetReached(update.Route);
-                }
+                if (update.Status == NavigationSearchStatus.BudgetReached)
+                    return NavigationPlanResult.BudgetReached();
             }
         }
 

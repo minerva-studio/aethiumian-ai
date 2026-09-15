@@ -155,7 +155,7 @@ namespace Aethiumian.AI.Navigation.Editor
             int revision = movement.NavigationRuntime?.SnapshotRevision ?? 0;
             string routeStatus = route == null
                 ? "Route None"
-                : $"Route {routeIndex}/{route.Count} / complete {route.SearchComplete}";
+                : $"Route {routeIndex}/{route.Count} / reaches-goal {route.ReachesGoal}";
             Handles.Label(labelPosition,
                 $"{ai.name} / {movement.GetType().Name}\n" +
                 $"Mode {movement.path} / {movement.type} / snapshot {revision}\n" +

@@ -27,9 +27,9 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Segments, Has.Count.GreaterThan(0));
         }
 
-        /// <summary>Verifies a retreat horizon yields a continuation route rather than claiming success.</summary>
+        /// <summary>Verifies a complete Retreat request does not publish a frontier route at its budget.</summary>
         [Test]
-        public void FlyPlannerRetreatPartialRouteIsNotTerminal()
+        public void FlyPlannerRetreatBudgetReturnsNoRoute()
         {
             TestNavigationWorld world = new(new RectInt(0, 0, 10, 5), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             Vector2 bodySize = new(0.8f, 0.8f);
@@ -39,25 +39,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanResult result = new FlyNavigationPlanner(world, 1).Plan(new Vector2(3.5f, 2.5f), goal, new FlyNavigationParameters(bodySize));
             NavigationRoute route = result.Route;
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.BudgetReached));
-            Assert.That(route, Is.Not.Null);
-            Assert.That(route.SearchComplete, Is.False);
-            Assert.That(goal.IsComplete(route.ResolvedGoal, bodySize), Is.False);
-        }
-
-        /// <summary>Verifies a bounded Retreat search prefers the escape boundary over the target center.</summary>
-        [Test]
-        public void FlyPlannerRetreatPartialRoutePrefersEscapeDirection()
-        {
-            TestNavigationWorld world = new(new RectInt(0, 0, 10, 5), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            Vector2 bodySize = new(0.8f, 0.8f);
-            Vector2 start = new(4.5f, 2.5f);
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Retreat(new Bounds(new Vector3(2.5f, 2.5f), Vector3.zero), DistanceMetric.Euclidean, 4f), world);
-
-            Assert.That(new FlyNavigationPlanner(world, 1).TryPlan(start, goal, new FlyNavigationParameters(bodySize), out NavigationRoute route), Is.True);
-            Assert.That(route.SearchComplete, Is.False);
-            Assert.That(route.ResolvedGoal.x, Is.GreaterThan(start.x),
-                "A bounded Retreat search must publish an outward continuation instead of approaching the target center.");
+            Assert.That(route, Is.Null);
         }
 
         /// <summary>Verifies a finite approach budget prunes the target-facing branch while retaining the escape branch.</summary>
@@ -491,13 +473,29 @@ namespace Aethiumian.AI.Navigation.Tests
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
             using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.Plan(
                 new Vector2(0.5f, 1f), Goal(world, new Vector2(4.5f, 1f), 0.1f), JumpParameters(),
-                cancellationToken, diagnostics, false));
+                cancellationToken, diagnostics));
             NavigationRoute route = work.Execute(CancellationToken.None).Route;
             Assert.That(route, Is.Not.Null,
                 "The jump planner should produce a route through the reachable supports.");
             Assert.That(route.Count, Is.EqualTo(2));
             for (int i = 0; i < route.Count; i++) Assert.That(route.Segments[i], Is.TypeOf<JumpRouteSegment>());
             Assert.That(diagnostics.TerminalCandidateCount, Is.EqualTo(1));
+        }
+
+        /// <summary>Verifies a Simple Jump action is successful even when its landing is not the final goal.</summary>
+        [Test]
+        public void SimpleJumpPlannerProducesNonGoalActionAsResult()
+        {
+            TestNavigationWorld world = new(new RectInt(0, 0, 6, 6),
+                new[] { new Vector2Int(0, 0), new Vector2Int(2, 0), new Vector2Int(4, 0) }, Array.Empty<Vector2Int>());
+            JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
+
+            NavigationPlanResult result = planner.PlanSingleStep(
+                new Vector2(0.5f, 1f), Goal(world, new Vector2(4.5f, 1f), 0.1f), JumpParameters());
+
+            Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
+            Assert.That(result.Route, Is.Not.Null);
+            Assert.That(result.Route.ReachesGoal, Is.False);
         }
 
         /// <summary>Verifies a jump planner with an unresolved start exits before creating a search frontier.</summary>
@@ -865,7 +863,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(planner.TryPlan(new Vector2(1.5f, 1f), Goal(world, new Vector2(1.5f, 3.25f), 0.1f),
                 WalkParameters(jumpHeight: 2.99f, jumpLength: 0f), out NavigationRoute highTargetRoute), Is.True);
             Assert.That(highTargetRoute, Is.Not.Null);
-            Assert.That(highTargetRoute.SearchComplete, Is.True);
+            Assert.That(highTargetRoute.ReachesGoal, Is.True);
             Assert.That(highTargetRoute.ResolvedGoal.y, Is.LessThan(3.25f));
             Assert.That(world.TryResolveSupport(highTargetRoute.ResolvedGoal, new Vector2(0.8f, 1.5f),
                 NavigationWorldQueries.SupportSnapDistance, out _), Is.True);
@@ -934,7 +932,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion,
                 int parameters, CancellationToken cancellationToken = default,
-                NavigationPlanningDiagnostics diagnostics = null, bool allowExecutablePrefix = false)
+                NavigationPlanningDiagnostics diagnostics = null)
             {
                 ValidatePlanInputs(start, goalRegion, cancellationToken);
                 PrepareCount++;

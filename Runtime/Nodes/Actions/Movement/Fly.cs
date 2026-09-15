@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Nodes
             var segments = new System.Collections.Generic.List<NavigationRouteSegment>
             { new FlyRouteSegment(body.center, candidate.Segments[furthest].End) };
             for (int i = furthest + 1; i < candidate.Count; i++) segments.Add(candidate.Segments[i]);
-            connected = NavigationRoute.Create(body.center, candidate.GoalRegion, candidate.ResolvedGoal, segments, candidate.SearchComplete);
+            connected = NavigationRoute.Create(body.center, candidate.GoalRegion, candidate.ResolvedGoal, segments, candidate.ReachesGoal);
             return true;
         }
 

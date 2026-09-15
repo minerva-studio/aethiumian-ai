@@ -94,7 +94,7 @@ Simple and Smart both obtain actions from `NavigationRoute`:
 
 - Simple passes `NavigationPlanningExtent.NextAction` and asks for a local executable step.
 - Smart passes `NavigationPlanningExtent.Route` and receives a complete route or an
-  exhausted/budget terminal result; it never adopts a search prefix.
+  exhausted/budget terminal result. The search layer never publishes a best-effort prefix.
 - While a successfully submitted Smart request has no executable action, its initial
   response budget is four physics ticks. One asynchronous Simple `NextAction` may
   be borrowed without changing `PathMode` or the enclosing Movement lifecycle.
@@ -178,7 +178,13 @@ Recovery remains at the Movement owner:
 
 `MapNavigationRuntime.PlanWalkAsync`, `PlanJumpAsync`, and `PlanFlyAsync` take `NavigationPlanningExtent` after their parameter object and before `CancellationToken`. `PlanWalkStepAsync` is removed. `NextAction` uses local planning; `Route` runs to a complete route, exhaustion, or budget terminal result.
 
+`FixedJump` is an explicit one-action command. Its `skipReached` field defaults to false: a reached target may be skipped only when the body has valid navigation support; otherwise the command still prepares and executes one jump.
+A `PlannedStep` request uses `NextAction`, and an empty result is successful only when the captured target is currently reached and `skipReached` is true. 
+A required jump that is already reached uses the current support as its landing; it does not add an in-place edge to the shared navigation graph.
+
 Local Jump expands one launch-support successor set. Local Fly checks direct flight and adjacent legal flight steps. Neither local mode performs global search followed by truncation, and a local failure is not promoted to a whole-world no-path claim.
+
+Failure memoization also keeps `InitialRoute` and `EndpointContinuation` requests distinct; an exhausted continuation cannot short-circuit a later initial search with the same geometry and profile.
 
 ## Extension and migration contract
 

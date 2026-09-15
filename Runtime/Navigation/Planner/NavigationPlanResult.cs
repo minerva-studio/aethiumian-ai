@@ -25,9 +25,10 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets why planning reached a terminal result.</summary>
         public NavigationPlanTermination Termination { get; }
 
-        /// <summary>Creates a terminal planning result.</summary>
-        public NavigationPlanResult(NavigationRoute route, NavigationPlanTermination termination)
+        private NavigationPlanResult(NavigationRoute route, NavigationPlanTermination termination)
         {
+            if (termination != NavigationPlanTermination.ResultProduced && route != null)
+                throw new ArgumentException("Only a produced result may carry a route.", nameof(route));
             Route = route;
             Termination = termination;
         }
@@ -42,12 +43,12 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Creates a result after the search frontier was exhausted.</summary>
-        public static NavigationPlanResult SearchExhausted(NavigationRoute route = null)
-            => new(route, NavigationPlanTermination.SearchExhausted);
+        public static NavigationPlanResult SearchExhausted()
+            => new(null, NavigationPlanTermination.SearchExhausted);
 
         /// <summary>Creates a result after the request's total search budget was exhausted.</summary>
-        public static NavigationPlanResult BudgetReached(NavigationRoute route = null)
-            => new(route, NavigationPlanTermination.BudgetReached);
+        public static NavigationPlanResult BudgetReached()
+            => new(null, NavigationPlanTermination.BudgetReached);
 
         /// <summary>Replaces the route while preserving this result's terminal condition.</summary>
         public NavigationPlanResult WithRoute(NavigationRoute route)
@@ -56,10 +57,8 @@ namespace Aethiumian.AI.Navigation
             return Termination switch
             {
                 NavigationPlanTermination.ResultProduced => ResultProduced(route),
-                NavigationPlanTermination.SearchExhausted => SearchExhausted(route),
-                NavigationPlanTermination.BudgetReached => BudgetReached(route),
                 _ => throw new InvalidOperationException(
-                    "A no-result planning outcome cannot be assigned a route."),
+                    "A non-produced planning outcome cannot be assigned a route."),
             };
         }
     }

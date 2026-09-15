@@ -129,7 +129,7 @@ namespace Aethiumian.AI.Navigation
             List<NavigationRouteSegment> segments = new() { new GroundRouteSegment(start, end) };
             for (int index = segmentIndex + 1; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
-            reconnectedRoute = route.SearchComplete
+            reconnectedRoute = route.ReachesGoal
                 ? NavigationRoute.Complete(start, route.GoalRegion, route.ResolvedGoal, segments)
                 : NavigationRoute.Partial(start, route.GoalRegion, route.ResolvedGoal, segments);
             return true;
@@ -141,7 +141,7 @@ namespace Aethiumian.AI.Navigation
             List<NavigationRouteSegment> segments = new(route.Count - segmentIndex);
             for (int index = segmentIndex; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
-            reconnectedRoute = route.SearchComplete
+            reconnectedRoute = route.ReachesGoal
                 ? NavigationRoute.Complete(segments[0].Start, route.GoalRegion, route.ResolvedGoal, segments)
                 : NavigationRoute.Partial(segments[0].Start, route.GoalRegion, route.ResolvedGoal, segments);
             return true;
@@ -164,7 +164,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Runs the shared action-graph search for a Walk request.</summary>
         public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion,
             WalkNavigationParameters parameters, CancellationToken cancellationToken = default,
-            NavigationPlanningDiagnostics diagnostics = null, bool allowExecutablePrefix = false)
+            NavigationPlanningDiagnostics diagnostics = null)
         {
             ValidatePlanInputs(start, goalRegion, cancellationToken);
             parameters = PrepareParameters(parameters);
@@ -192,7 +192,7 @@ namespace Aethiumian.AI.Navigation
                     NavigationSearchRequest request = new(World, resolvedStart, startSupport, goalRegion,
                         parameters.BodySize, NavigationActions.GroundMove | NavigationActions.Jump
                             | NavigationActions.Fall | NavigationActions.DropThrough,
-                        MaxExpandedNodes, allowExecutablePrefix, NavigationNodeIdentity.Ground(-1),
+                        MaxExpandedNodes, NavigationNodeIdentity.Ground(-1),
                         node => EnumerateSharedTransitions(node, parameters, goalRegion, diagnostics),
                         position => goalRegion.IsGroundWalk
                             ? goalRegion.DistanceToLowerCenterGoal(position, parameters.BodySize.x) : 0f);
@@ -269,8 +269,7 @@ namespace Aethiumian.AI.Navigation
                     jump.LandingSupport, jump.CreateSegment(),
                     Vector2.Distance(node.Position, jump.Trajectory.LandingPosition)
                         + jump.Trajectory.FlightDuration + 0.5f,
-                    goalRegion.IsComplete(landingCenter, parameters.BodySize),
-                    goalRegion.GuidanceDistance(landingCenter, parameters.BodySize)));
+                    goalRegion.IsComplete(landingCenter, parameters.BodySize)));
             }
         }
 
@@ -604,13 +603,13 @@ namespace Aethiumian.AI.Navigation
             yield return null;
         }
 
-        private static Successor CreateSuccessor(NavigationSupportCandidate candidate, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize, float? bestEffortDistance = null)
-            => CreateSuccessor(candidate.Id, candidate.Support, step, cost, goalRegion, bodySize, bestEffortDistance);
+        private static Successor CreateSuccessor(NavigationSupportCandidate candidate, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize)
+            => CreateSuccessor(candidate.Id, candidate.Support, step, cost, goalRegion, bodySize);
 
-        private static Successor CreateSuccessor(Vector2 position, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize, float? bestEffortDistance = null)
-            => CreateSuccessor(-1, default, step, cost, goalRegion, bodySize, bestEffortDistance);
+        private static Successor CreateSuccessor(Vector2 position, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize)
+            => CreateSuccessor(-1, default, step, cost, goalRegion, bodySize);
 
-        private static Successor CreateSuccessor(int candidateId, NavigationSupport support, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize, float? bestEffortDistance = null)
+        private static Successor CreateSuccessor(int candidateId, NavigationSupport support, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize)
         {
             Vector2 position = step.End;
             Vector2 startCenter = step.Start + Vector2.up * (bodySize.y * 0.5f);
@@ -619,7 +618,7 @@ namespace Aethiumian.AI.Navigation
             bool completesGoal = goalRegion.IsComplete(endCenter, bodySize)
                 || step is GroundRouteSegment && goalRegion.SweptIsComplete(startCenter, endCenter, bodySize);
             return new Successor(candidateId, support, position, step, cost, endpointDistance,
-                goalRegion.GuidanceDistance(endCenter, bodySize), bestEffortDistance ?? endpointDistance, completesGoal);
+                goalRegion.GuidanceDistance(endCenter, bodySize), completesGoal);
         }
 
         /// <summary>Accepts a Simple Walk candidate only when completion or plateau guidance strictly improves.</summary>
@@ -696,11 +695,10 @@ namespace Aethiumian.AI.Navigation
             public readonly float Cost;
             public readonly float CompletionDistance;
             public readonly float GuidanceDistance;
-            public readonly float BestEffortDistance;
             public readonly bool CompletesGoal;
 
             public Successor(int candidateId, NavigationSupport support, Vector2 position, NavigationRouteSegment step, float cost, float completionDistance,
-                float guidanceDistance, float bestEffortDistance, bool completesGoal)
+                float guidanceDistance, bool completesGoal)
             {
                 CandidateId = candidateId;
                 Support = support;
@@ -709,13 +707,12 @@ namespace Aethiumian.AI.Navigation
                 Cost = cost;
                 CompletionDistance = completionDistance;
                 GuidanceDistance = guidanceDistance;
-                BestEffortDistance = bestEffortDistance;
                 CompletesGoal = completesGoal;
             }
 
             public NavigationTransition ToTransition()
                 => NavigationTransition.GroundSuccessor(CandidateId, Position, Support, Step, Cost,
-                    CompletesGoal, BestEffortDistance);
+                    CompletesGoal);
         }
     }
 }

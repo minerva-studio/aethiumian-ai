@@ -193,7 +193,11 @@ namespace Aethiumian.AI.Nodes
                         RigidBody.linearVelocity = Vector2.zero;
                 }
                 // Planning can overlap execution, but a second physical action never ticks here.
-                if (!IsComplete) MaintainPlanning(goal, anchor, body, advanceResponseBudget: false, completedFallbackAction);
+                NavigationRouteSegment continuation = completedFallbackAction != null
+                    && ActiveSegment == null && request == null && fallbackRequest == null
+                    ? completedFallbackAction
+                    : null;
+                if (!IsComplete) MaintainPlanning(goal, anchor, body, advanceResponseBudget: false, continuation);
             }
             catch
             {

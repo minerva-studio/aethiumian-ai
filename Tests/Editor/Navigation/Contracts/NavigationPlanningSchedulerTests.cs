@@ -16,11 +16,10 @@ namespace Aethiumian.AI.Navigation.Tests
             using NavigationPlanningScheduler scheduler = new(1);
             NavigationPlanningOperation operation = scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right));
             Assert.That(operation.IsCompleted, Is.False);
-            Assert.That(operation.Outcome, Is.EqualTo(NavigationPlanningOutcome.Pending));
             scheduler.Start();
             WaitForCompletion(operation);
             Assert.That(operation.Result, Is.Not.Null);
-            Assert.That(operation.Outcome, Is.EqualTo(NavigationPlanningOutcome.RouteFound));
+            Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
         }
 
         /// <summary>Verifies cancellation publishes one terminal outcome without invoking queued work.</summary>
@@ -36,7 +35,6 @@ namespace Aethiumian.AI.Navigation.Tests
             scheduler.Start();
             WaitForCompletion(operation);
             Assert.That(operation.IsCancelled, Is.True);
-            Assert.That(operation.Outcome, Is.EqualTo(NavigationPlanningOutcome.Cancelled));
             Assert.That(invocationCount, Is.Zero);
         }
 
@@ -106,7 +104,6 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(operation);
             Assert.That(operation.Exception, Is.TypeOf<InvalidOperationException>());
             Assert.That(operation.Result, Is.Null);
-            Assert.That(operation.Outcome, Is.EqualTo(NavigationPlanningOutcome.Faulted));
         }
 
         /// <summary>Verifies an ordinary null completion is distinguished from cancellation and failure.</summary>
@@ -119,7 +116,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(operation.IsCancelled, Is.False);
             Assert.That(operation.Result, Is.Null);
             Assert.That(operation.Exception, Is.Null);
-            Assert.That(operation.Outcome, Is.EqualTo(NavigationPlanningOutcome.NoPath));
+            Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.SearchExhausted));
         }
 
         /// <summary>Verifies malformed requests are rejected at the queue boundary.</summary>

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Text.RegularExpressions;
+using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
@@ -13,6 +14,12 @@ namespace Aethiumian.AI.Navigation.Tests
     /// </summary>
     public sealed class MovementRuntimeBindingTests : MovementNodePackageFixture
     {
+        [Test]
+        public void FixedJumpSkipReachedDefaultsToFalse()
+        {
+            Assert.That((bool)new FixedJump().skipReached, Is.False);
+        }
+
         [UnityTest]
         public IEnumerator MissingOrDisposedRuntimeFails()
         {
@@ -50,6 +57,93 @@ namespace Aethiumian.AI.Navigation.Tests
             harness.AI.End(false);
         }
 
+        [UnityTest]
+        public IEnumerator FixedJumpSkipReachedCompletesWithoutLaunching()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            FixedJump node = CreateSingleFixedJump(MovementStart);
+            node.skipReached = (VariableField<bool>)true;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
+                DescribeHarness(harness));
+            Assert.That(harness.Source.JumpCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator FixedJumpReachedTargetStillLaunchesWhenSkipDisabled()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            FixedJump node = CreateSingleFixedJump(MovementStart);
+            node.skipReached = (VariableField<bool>)false;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+
+            yield return WaitForTreeCreated(harness);
+            for (int tick = 0; tick < RuntimeContractTickLimit && harness.AI.BehaviourTree.IsRunning; tick++)
+                yield return new WaitForFixedUpdate();
+
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
+                DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator PlannedStepReachedTargetUsesTheSameSkipContract()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            FixedJump node = CreateSingleFixedJump(MovementStart, FixedJump.JumpTargetMode.PlannedStep);
+            node.skipReached = (VariableField<bool>)true;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
+                DescribeHarness(harness));
+            Assert.That(harness.Source.JumpCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator PlannedStepReachedTargetStillLaunchesWhenSkipDisabled()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            FixedJump node = CreateSingleFixedJump(MovementStart, FixedJump.JumpTargetMode.PlannedStep);
+            node.skipReached = (VariableField<bool>)false;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+
+            yield return WaitForTreeCreated(harness);
+            for (int tick = 0; tick < RuntimeContractTickLimit && harness.AI.BehaviourTree.IsRunning; tick++)
+                yield return new WaitForFixedUpdate();
+
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
+                DescribeHarness(harness));
+        }
+
+        private static MapNavigationRuntime CreateGroundRuntime(float y)
+        {
+            MapNavigationRuntime runtime = new(
+                8,
+                4096,
+                4096,
+                new NavigationPhysicsLayers(
+                    NavigationPhysicsTestLayers.GeometryMask,
+                    NavigationPhysicsTestLayers.PlatformMask));
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Ground(y));
+            return runtime;
+        }
+
         private static Walk CreateFixedWalk()
             => new()
             {
@@ -64,14 +158,16 @@ namespace Aethiumian.AI.Navigation.Tests
                 speedModifier = (VariableField<float>)1f,
             };
 
-        private static FixedJump CreateSingleFixedJump(Vector2 target)
+        private static FixedJump CreateSingleFixedJump(Vector2 target,
+            FixedJump.JumpTargetMode mode = FixedJump.JumpTargetMode.Direct)
             => new()
             {
                 uuid = UUID.NewUUID(),
-                targetMode = FixedJump.JumpTargetMode.Direct,
+                targetMode = mode,
                 target = new VariableField(target),
                 jumpHeight = new VariableField(3f),
                 jumpLength = 3f,
+                reachDistance = (VariableField<float>)0f,
                 offset = Vector2.zero,
             };
     }

@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace Aethiumian.AI.Navigation
 {
-    /// <summary>Controls planning horizon without changing a Movement node's completion condition.</summary>
+    /// <summary>Controls whether a request asks for a complete route or one local action.</summary>
     public enum NavigationPlanningExtent
     {
         /// <summary>
@@ -12,21 +12,10 @@ namespace Aethiumian.AI.Navigation
         NextAction,
 
         /// <summary>
-        /// Plan toward the goal. Runtime Route requests publish only a complete route or a
-        /// terminal exhausted/budget result; direct planners may explicitly opt into one
-        /// executable-prefix result through their public planning API.
+        /// Plan toward the goal. Route requests publish only a complete route or a terminal
+        /// exhausted/budget result.
         /// </summary>
         Route
-    }
-
-    /// <summary>Describes the computed terminal view of an existing planning operation.</summary>
-    public enum NavigationPlanningOutcome
-    {
-        Pending,
-        RouteFound,
-        NoPath,
-        Cancelled,
-        Faulted,
     }
 
     /// <summary>
@@ -62,17 +51,6 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the unexpected planner exception, or null for pending and ordinary terminal outcomes.</summary>
         public Exception Exception => IsCompleted ? Volatile.Read(ref exception) : null;
 
-        /// <summary>Computes the stable outcome from the operation's existing terminal evidence.</summary>
-        public NavigationPlanningOutcome Outcome
-        {
-            get
-            {
-                if (!IsCompleted) return NavigationPlanningOutcome.Pending;
-                if (IsCancelled) return NavigationPlanningOutcome.Cancelled;
-                if (Exception != null) return NavigationPlanningOutcome.Faulted;
-                return PlanResult.Route != null ? NavigationPlanningOutcome.RouteFound : NavigationPlanningOutcome.NoPath;
-            }
-        }
 
         /// <summary>Creates a pending operation with no owner-capturing state.</summary>
         public NavigationPlanningOperation() { }

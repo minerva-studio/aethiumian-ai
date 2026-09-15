@@ -38,17 +38,17 @@ namespace Aethiumian.AI.Nodes
         [Readable]
         public VariableField target;
         public JumpTargetMode targetMode;
+        /// <summary>Allows this action to finish without launching when its target is already reached.</summary>
+        [Readable]
+        public VariableField<bool> skipReached = false;
         /// <summary>Selects collider AABB or transform-position measurement for PlannedStep.</summary>
         public TargetMeasurement targetMeasurement;
-        [DisplayIf(nameof(targetMode), JumpTargetMode.PlannedStep)]
-        /// <summary>Defines the navigation region relationship used by PlannedStep.</summary>
+        /// <summary>Defines the navigation region relationship used for target completion.</summary>
         public MovementGoal goal = MovementGoal.Default;
-        [DisplayIf(nameof(goal), MovementGoal.Proximity, MovementGoal.FiringPosition)]
-        /// <summary>Selects the distance metric for Proximity and FiringPosition goals.</summary>
+        /// <summary>Selects the distance metric for proximity-based completion goals.</summary>
         public DistanceMetric distanceMetric = DistanceMetric.Euclidean;
-        [DisplayIf(nameof(targetMode), JumpTargetMode.PlannedStep)]
         [Readable]
-        /// <summary>Sets the accepted navigation reach distance for PlannedStep.</summary>
+        /// <summary>Sets the accepted navigation reach distance for the reached-target check.</summary>
         [FormerlySerializedAs("arrivalErrorBound")]
         public VariableField<float> reachDistance;
         [Readable]
@@ -98,28 +98,55 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
-            if (targetMode == JumpTargetMode.Direct)
-            {
-                TryStartDirectJump(world, start, directLanding);
-                return;
-            }
-
-            float arrivalTolerance = reachDistance == null || !reachDistance.HasValue
-                ? 0f
-                : reachDistance.NumericValue;
+            float arrivalTolerance = GetArrivalTolerance();
             if (!NavigationNumeric.IsFinite(arrivalTolerance) || arrivalTolerance < 0f)
             {
                 CompleteAction(false);
                 return;
             }
 
+            NavigationGoalRegion completionGoal = NavigationGoalRegion.Bind(
+                CreateCompletionRequest(targetBounds, arrivalTolerance), world);
+            if (skipReached && IsReached(completionGoal, start))
+            {
+                CompleteAction(true);
+                return;
+            }
+
+            if (targetMode == JumpTargetMode.Direct)
+            {
+                if (!TryStartDirectJump(world, start, directLanding)) CompleteAction(false);
+                return;
+            }
+
+            if (IsReached(completionGoal, start))
+            {
+                // PlannedStep is still an action command when skipReached is false. Use the
+                // current support as the landing so this does not enter the global search graph.
+                if (!TryStartDirectJump(world, start, start)) CompleteAction(false);
+                return;
+            }
+
+            NavigationGoalRequest request = CreateCompletionRequest(targetBounds, arrivalTolerance);
+            planningOperation = navigation.PlanJumpAsync(start, request, jumpParameters, NavigationPlanningExtent.NextAction, ExecutionCancellation);
+        }
+
+        private NavigationGoalRequest CreateCompletionRequest(Bounds targetBounds, float arrivalTolerance)
+        {
             bool requiresLineOfSight = goal == MovementGoal.Confront
                 || goal == MovementGoal.FiringPosition;
-            NavigationGoalRequest request = goal == MovementGoal.Confront
+            return goal == MovementGoal.Confront
                 ? NavigationGoalRequest.GroundRange(targetBounds, arrivalTolerance, true)
                 : NavigationGoalRequest.Proximity(targetBounds, distanceMetric, arrivalTolerance,
                     requiresLineOfSight);
-            planningOperation = navigation.PlanJumpAsync(start, request, jumpParameters, NavigationPlanningExtent.Route, ExecutionCancellation);
+        }
+
+        private bool IsReached(NavigationGoalRegion completionGoal, Vector2 groundAnchor)
+        {
+            if (!navigation.TryResolvePlanningGroundSupport(
+                groundAnchor, bodySize, out _, out _)) return false;
+            Vector2 center = groundAnchor + Vector2.up * (bodySize.y * 0.5f);
+            return completionGoal.IsComplete(center, bodySize);
         }
 
         /// <summary>Advances planning or the committed single jump on the fixed-step path.</summary>
@@ -145,7 +172,34 @@ namespace Aethiumian.AI.Nodes
 
                 if (route.Count == 0)
                 {
-                    CompleteAction(true);
+                    Vector2 currentStart = NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
+                    bool currentlyReached = IsReached(
+                        NavigationGoalRegion.Bind(
+                            CreateCompletionRequest(capturedTargetBounds, GetArrivalTolerance()),
+                            NavigationWorld),
+                        currentStart);
+                    if (skipReached && currentlyReached)
+                    {
+                        CompleteAction(true);
+                        return;
+                    }
+
+                    // A single-step planner may legitimately report an empty route when
+                    // the target became reached while the request was in flight. FixedJump
+                    // remains an explicit action unless skipReached was requested, so launch
+                    // one in-place jump from the current grounded support.
+                    if (targetMode == JumpTargetMode.PlannedStep
+                        && TryStartDirectJump(NavigationWorld, currentStart, currentStart))
+                        return;
+
+                    CompleteAction(false);
+                    return;
+                }
+
+                if (route.Segments[0] is not JumpRouteSegment)
+                {
+                    CompleteActionException(new InvalidOperationException(
+                        "FixedJump PlannedStep requires a Jump route segment."));
                     return;
                 }
 
@@ -266,24 +320,23 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        private void TryStartDirectJump(INavigationWorld world, Vector2 start, Vector2 landing)
+        private bool TryStartDirectJump(INavigationWorld world, Vector2 start, Vector2 landing)
         {
             GroundJumpParameters parameters = CreateGeometryParameters(jumpParameters);
             if (!navigation.TryGetJumpSolver(out GroundJumpSolver jumpSolver)
                 || !jumpSolver.TrySolve(start, landing, parameters, out JumpTrajectorySolution solved))
             {
-                CompleteAction(false);
-                return;
+                return false;
             }
 
             JumpRouteSegment segment = GroundJumpGeometry.CreateSegment(world, solved, bodySize, parameters.SupportSnapDistance);
             if (!OneWayPlatformCollisionLease.TryCreateForSegment(bodyCollider, segment, navigation, out OneWayPlatformCollisionLease lease))
             {
-                CompleteAction(false);
-                return;
+                return false;
             }
 
             BeginExecutor(solved, lease);
+            return true;
         }
 
         private bool TryStartPlannedJump(NavigationRoute route)
@@ -342,6 +395,9 @@ namespace Aethiumian.AI.Nodes
                 capturedLanding = default;
             }
         }
+
+        private float GetArrivalTolerance()
+            => reachDistance == null || !reachDistance.HasValue ? 0f : reachDistance.NumericValue;
 
         /// <summary>Invokes the standard jump callback after a trajectory executor is ready.</summary>
         private void InvokeJumpCallback()

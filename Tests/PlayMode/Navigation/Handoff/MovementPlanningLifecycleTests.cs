@@ -9,6 +9,7 @@ using UnityEngine.TestTools;
 namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>Verifies Movement's handoff of planning outcomes without prescribing planner or executor internals.</summary>
+    [Parallelizable(ParallelScope.None)]
     public sealed partial class NavigationHandoffContractTests : MovementNodePackageFixture
     {
         private const float ArrivalErrorBound = 0.2f;
@@ -120,7 +121,7 @@ namespace Aethiumian.AI.Navigation.Tests
             ControlledWalk.Request first = ControlledWalk.Requests[0];
             NavigationRoute lateRoute = CreateGroundRoute(first, new Vector2(36.5f, 1f));
             Assert.That(first.Operation.TryPrepareCompletion(
-                new NavigationPlanResult(lateRoute, NavigationPlanTermination.ResultProduced), out bool wasCancelled), Is.True);
+                NavigationPlanResult.ResultProduced(lateRoute), out bool wasCancelled), Is.True);
             Assert.That(wasCancelled, Is.False);
             BehaviourTree tree = harness.AI.BehaviourTree;
             ControlledWalk movement = (ControlledWalk)tree.Head;
@@ -204,7 +205,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             ControlledWalk.Request smart = ControlledWalk.Requests[0];
             ControlledWalk.Request fallback = ControlledWalk.Requests[1];
-            NavigationRoute smartRoute = CreateGroundRoute(smart, new Vector2(36.5f, 1f), false);
+            NavigationRoute smartRoute = CreateGroundRoute(smart);
             ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
             ControlledWalk.Complete(smart, smartRoute);
             ControlledWalk.Complete(fallback, CreateGroundRoute(fallback, new Vector2(32.5f, 1f), false));
@@ -213,7 +214,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(smart.Operation.IsCancelled, Is.False);
             Assert.That(fallback.Operation.IsCompleted, Is.True);
             Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(36.5f).Within(0.25f),
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(smart.Goal.Center.x).Within(0.25f),
                 "A fallback result published in the same fixed tick must not replace Smart.");
             Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(2), DescribeHarness(harness));
             if (ControlledWalk.Requests.Count >= 3)
@@ -370,15 +371,22 @@ namespace Aethiumian.AI.Navigation.Tests
                 jumpLength = (VariableField<float>)10f,
             };
 
+        /// <summary>Builds a contract-valid route for a captured controlled request.</summary>
         private static NavigationRoute CreateGroundRoute(
             ControlledWalk.Request request,
             Vector2? endpoint = null,
             bool completesGoal = true)
         {
-            Vector2 resolvedGoal = endpoint ?? request.Goal.Center;
-            Vector2 logicalStart = new(request.Start.x, resolvedGoal.y);
+            Vector2 resolvedGoal = endpoint ?? new Vector2(request.Goal.Center.x, 1f);
+            Vector2 logicalStart = new(request.Start.x, 1f);
+            Vector2 bodyCenter = resolvedGoal + Vector2.up * (BodyHeight * 0.5f);
+            bool reachesGoal = request.Goal.IsComplete(bodyCenter, new Vector2(BodyWidth, BodyHeight));
+            if (completesGoal)
+                Assert.That(reachesGoal, Is.True,
+                    $"Fixture endpoint {resolvedGoal} does not satisfy the captured goal {request.Goal}.");
             return NavigationRoute.Create(logicalStart, request.Goal, resolvedGoal,
-                new[] { new GroundRouteSegment(logicalStart, resolvedGoal) }, completesGoal);
+                new[] { new GroundRouteSegment(logicalStart, resolvedGoal) },
+                reachesGoal);
         }
 
         private static IEnumerator WaitForRequest()
@@ -414,8 +422,9 @@ namespace Aethiumian.AI.Navigation.Tests
             internal static void ResetTestState() => Requests.Clear();
 
             internal static void Complete(Request request, NavigationRoute route)
-                => Assert.That(request.Operation.TryComplete(new NavigationPlanResult(
-                    route, NavigationPlanTermination.ResultProduced)), Is.True);
+                => Assert.That(request.Operation.TryComplete(route == null
+                    ? NavigationPlanResult.NoResult
+                    : NavigationPlanResult.ResultProduced(route)), Is.True);
 
             internal static void Cancel(Request request)
                 => Assert.That(request.Operation.TryFinalizeCancellation(), Is.True);
@@ -452,7 +461,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 ControlledWalk.Request request = ControlledWalk.Requests[index];
                 descriptions.Add($"#{index}: {request.Extent}/{request.Purpose} Start={request.Start} "
                     + $"Completed={request.Operation.IsCompleted} Cancelled={request.Operation.IsCancelled} "
-                    + $"Outcome={request.Operation.Outcome}");
+                    + $"Termination={request.Operation.PlanResult.Termination}");
             }
             return string.Join("; ", descriptions);
         }

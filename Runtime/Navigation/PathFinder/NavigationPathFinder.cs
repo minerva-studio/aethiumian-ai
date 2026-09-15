@@ -16,10 +16,9 @@ namespace Aethiumian.AI.Navigation
         Fly = 16,
     }
 
-    public enum NavigationSearchStatus
+    internal enum NavigationSearchStatus
     {
         Pending,
-        ExecutablePrefix,
         CompleteRoute,
         Exhausted,
         BudgetReached,
@@ -101,9 +100,8 @@ namespace Aethiumian.AI.Navigation
         public NavigationRouteSegment Segment { get; }
         public float Cost { get; }
         public bool CompletesGoal { get; }
-        public float ProgressDistance { get; }
 
-        private NavigationTransition(NavigationNodeIdentity destination, Vector2 destinationPosition, NavigationSupport destinationSupport, NavigationRouteSegment segment, float cost, bool completesGoal, float progressDistance = float.PositiveInfinity)
+        private NavigationTransition(NavigationNodeIdentity destination, Vector2 destinationPosition, NavigationSupport destinationSupport, NavigationRouteSegment segment, float cost, bool completesGoal)
         {
             if (segment == null) throw new ArgumentNullException(nameof(segment));
             if (cost < 0f || !NavigationNumeric.IsFinite(cost))
@@ -114,20 +112,19 @@ namespace Aethiumian.AI.Navigation
             Segment = segment;
             Cost = cost;
             CompletesGoal = completesGoal;
-            ProgressDistance = progressDistance;
         }
 
-        public static NavigationTransition GroundSuccessor(int candidateId, Vector2 position, NavigationSupport support, NavigationRouteSegment segment, float cost, bool completesGoal, float progressDistance)
-            => new(NavigationNodeIdentity.Ground(candidateId), position, support, segment, cost, completesGoal, progressDistance);
+        public static NavigationTransition GroundSuccessor(int candidateId, Vector2 position, NavigationSupport support, NavigationRouteSegment segment, float cost, bool completesGoal)
+            => new(NavigationNodeIdentity.Ground(candidateId), position, support, segment, cost, completesGoal);
 
         public static NavigationTransition CompletedJump(Vector2 position, NavigationRouteSegment segment, float cost)
-            => new(NavigationNodeIdentity.Jump(-1), position, default, segment, cost, true, 0f);
+            => new(NavigationNodeIdentity.Jump(-1), position, default, segment, cost, true);
 
-        public static NavigationTransition JumpLanding(NavigationNodeIdentity destination, Vector2 position, NavigationSupport support, NavigationRouteSegment segment, float cost, bool completesGoal, float progressDistance)
-            => new(destination, position, support, segment, cost, completesGoal, progressDistance);
+        public static NavigationTransition JumpLanding(NavigationNodeIdentity destination, Vector2 position, NavigationSupport support, NavigationRouteSegment segment, float cost, bool completesGoal)
+            => new(destination, position, support, segment, cost, completesGoal);
 
-        public static NavigationTransition FlyMove(Vector2Int destinationCell, Vector2 position, NavigationRouteSegment segment, float cost, bool completesGoal, float progressDistance)
-            => new(NavigationNodeIdentity.Fly(destinationCell), position, default, segment, cost, completesGoal, progressDistance);
+        public static NavigationTransition FlyMove(Vector2Int destinationCell, Vector2 position, NavigationRouteSegment segment, float cost, bool completesGoal)
+            => new(NavigationNodeIdentity.Fly(destinationCell), position, default, segment, cost, completesGoal);
     }
 
     /// <summary>One resumable unit from an action generator; empty units account for geometry work.</summary>
@@ -161,14 +158,13 @@ namespace Aethiumian.AI.Navigation
         public NavigationActions AllowedActions { get; }
         public int MaxExpandedNodes { get; }
         public int MaxTotalWorkUnits { get; }
-        public bool AllowExecutablePrefix { get; }
         public NavigationNodeIdentity StartIdentity { get; }
         public Func<Vector2, float> Heuristic { get; }
         public NavigationTransitionProvider Transitions { get; }
 
         public NavigationSearchRequest(INavigationWorld world, Vector2 start, NavigationSupport startSupport,
             NavigationGoalRegion goalRegion, Vector2 bodySize, NavigationActions allowedActions,
-            int maxExpandedNodes, bool allowExecutablePrefix, NavigationNodeIdentity startIdentity,
+            int maxExpandedNodes, NavigationNodeIdentity startIdentity,
             NavigationTransitionProvider transitions, Func<Vector2, float> heuristic = null,
             int maxTotalWorkUnits = -1)
         {
@@ -195,7 +191,6 @@ namespace Aethiumian.AI.Navigation
                 int scaledLimit = maxExpandedNodes > 256 ? int.MaxValue : maxExpandedNodes * 16;
                 MaxTotalWorkUnits = Math.Min(4096, Math.Max(256, scaledLimit));
             }
-            AllowExecutablePrefix = allowExecutablePrefix;
             StartIdentity = startIdentity;
             Transitions = transitions ?? throw new ArgumentNullException(nameof(transitions));
             Heuristic = heuristic ?? (_ => 0f);
@@ -209,32 +204,27 @@ namespace Aethiumian.AI.Navigation
         public NavigationRoute Route { get; }
         public int WorkUnits { get; }
         public int ExpandedNodes { get; }
-        public bool IsTerminal { get; }
 
         private NavigationSearchUpdate(NavigationSearchStatus status, NavigationRoute route,
-            int workUnits, int expandedNodes, bool isTerminal)
+            int workUnits, int expandedNodes)
         {
             Status = status;
             Route = route;
             WorkUnits = workUnits;
             ExpandedNodes = expandedNodes;
-            IsTerminal = isTerminal;
         }
 
         public static NavigationSearchUpdate Pending(int expandedNodes)
-            => new(NavigationSearchStatus.Pending, null, 0, expandedNodes, false);
+            => new(NavigationSearchStatus.Pending, null, 0, expandedNodes);
 
         public static NavigationSearchUpdate CompletedRoute(NavigationRoute route, int workUnits, int expandedNodes)
-            => new(NavigationSearchStatus.CompleteRoute, route, workUnits, expandedNodes, true);
+            => new(NavigationSearchStatus.CompleteRoute, route, workUnits, expandedNodes);
 
-        public static NavigationSearchUpdate ExecutablePrefix(NavigationRoute route, int workUnits, int expandedNodes)
-            => new(NavigationSearchStatus.ExecutablePrefix, route, workUnits, expandedNodes, true);
+        public static NavigationSearchUpdate Exhausted(int workUnits, int expandedNodes)
+            => new(NavigationSearchStatus.Exhausted, null, workUnits, expandedNodes);
 
-        public static NavigationSearchUpdate Exhausted(NavigationRoute route, int workUnits, int expandedNodes)
-            => new(NavigationSearchStatus.Exhausted, route, workUnits, expandedNodes, true);
-
-        public static NavigationSearchUpdate BudgetReached(NavigationRoute route, int workUnits, int expandedNodes, bool totalBudgetReached)
-            => new(NavigationSearchStatus.BudgetReached, route, workUnits, expandedNodes, totalBudgetReached);
+        public static NavigationSearchUpdate BudgetReached(int workUnits, int expandedNodes)
+            => new(NavigationSearchStatus.BudgetReached, null, workUnits, expandedNodes);
     }
 
     /// <summary>Cooperatively advances one action-graph search without owning Unity objects.</summary>
@@ -246,9 +236,7 @@ namespace Aethiumian.AI.Navigation
         private readonly NavigationMinHeap<NavigationNodeIdentity> open = new(Comparer<NavigationNodeIdentity>.Create(CompareIdentity));
         private NavigationSearchNode expandingNode;
         private IEnumerator<NavigationTransitionWork> transitionEnumerator;
-        private NavigationSearchNode bestNode;
         private bool terminal;
-        private bool paused;
         private int expandedNodes;
         private int totalWorkUnits;
         private int disposed;
@@ -259,16 +247,15 @@ namespace Aethiumian.AI.Navigation
             float heuristic = SafeHeuristic(request.Start);
             NavigationSearchNode start = new(request.StartIdentity, request.Start, request.StartSupport, heuristic)
             {
-                BestPath = new PathRecord(null, null, 0f, 0, request.GoalRegion.CompletionDistance(request.Start + Vector2.up * (request.BodySize.y * 0.5f), request.BodySize)),
+            BestPath = new PathRecord(null, null, 0f, 0),
             };
             nodes.Add(start.Identity, start);
             open.Enqueue(start.Identity, heuristic, heuristic);
-            bestNode = start;
         }
 
         /// <summary>
-        /// Advances the search by a bounded slice. A terminal or paused search returns
-        /// Pending on subsequent calls and must be discarded or resumed by its owner.
+        /// Advances the search by a bounded slice. A terminal search returns Pending on
+        /// subsequent calls and must be discarded by its owner.
         /// </summary>
         public NavigationSearchUpdate Advance(NavigationWorkBudget budget, CancellationToken cancellationToken)
         {
@@ -278,7 +265,7 @@ namespace Aethiumian.AI.Navigation
             if (!NavigationNumeric.IsFinite(budget.Milliseconds)
                 || budget.Milliseconds <= 0d)
                 throw new ArgumentOutOfRangeException(nameof(budget), "Navigation work budget must have a finite positive time slice.");
-            if (terminal || paused)
+            if (terminal)
                 return NavigationSearchUpdate.Pending(expandedNodes);
 
             Stopwatch timer = Stopwatch.StartNew();
@@ -296,7 +283,7 @@ namespace Aethiumian.AI.Navigation
                         if (!HasOpenCandidate())
                         {
                             terminal = true;
-                            return NavigationSearchUpdate.Exhausted(BuildBestEffortRoute(true), workUnits, expandedNodes);
+                            return NavigationSearchUpdate.Exhausted(workUnits, expandedNodes);
                         }
 
                         return CreateBudgetUpdate(workUnits, true);
@@ -305,7 +292,7 @@ namespace Aethiumian.AI.Navigation
                     if (!TryTakeNext(out expandingNode))
                     {
                         terminal = true;
-                        return NavigationSearchUpdate.Exhausted(BuildBestEffortRoute(true), workUnits, expandedNodes);
+                        return NavigationSearchUpdate.Exhausted(workUnits, expandedNodes);
                     }
 
                     expandingNode.IsClosed = true;
@@ -339,7 +326,7 @@ namespace Aethiumian.AI.Navigation
                 if (transition.CompletesGoal)
                 {
                     terminal = true;
-                    return NavigationSearchUpdate.CompletedRoute(BuildRoute(expandingNode, transition, true, true), workUnits, expandedNodes);
+                    return NavigationSearchUpdate.CompletedRoute(BuildRoute(expandingNode, transition), workUnits, expandedNodes);
                 }
 
                 Relax(expandingNode, transition);
@@ -362,13 +349,9 @@ namespace Aethiumian.AI.Navigation
 
         private NavigationSearchUpdate CreateBudgetUpdate(int workUnits, bool totalBudgetReached)
         {
-            if (request.AllowExecutablePrefix && bestNode?.BestPath?.Step != null)
-            {
-                paused = true;
-                return NavigationSearchUpdate.ExecutablePrefix(BuildPrefixRoute(bestNode), workUnits, expandedNodes);
-            }
-
-            return NavigationSearchUpdate.BudgetReached(totalBudgetReached ? BuildBestEffortRoute(false) : null, workUnits, expandedNodes, totalBudgetReached);
+            if (!totalBudgetReached) return NavigationSearchUpdate.Pending(expandedNodes);
+            terminal = true;
+            return NavigationSearchUpdate.BudgetReached(workUnits, expandedNodes);
         }
 
         private void Relax(NavigationSearchNode parent, NavigationTransition transition)
@@ -380,10 +363,7 @@ namespace Aethiumian.AI.Navigation
                 nodes.Add(destination.Identity, destination);
             }
 
-            float progressDistance = float.IsPositiveInfinity(transition.ProgressDistance)
-                ? request.GoalRegion.GuidanceDistance(transition.DestinationPosition, request.BodySize)
-                : transition.ProgressDistance;
-            PathRecord candidatePath = new(parent.BestPath, transition.Segment, parent.BestPath.RouteCost + transition.Cost, parent.BestPath.StepCount + 1, progressDistance);
+            PathRecord candidatePath = new(parent.BestPath, transition.Segment, parent.BestPath.RouteCost + transition.Cost, parent.BestPath.StepCount + 1);
             bool better = destination.BestPath == null || IsBetterPath(candidatePath, destination.BestPath);
             if (!better) return;
 
@@ -392,8 +372,6 @@ namespace Aethiumian.AI.Navigation
             destination.IsClosed = false;
             open.Enqueue(destination.Identity, candidatePath.RouteCost + heuristic, heuristic);
 
-            if (destination.BestPath.Step != null && IsBetterProgress(destination, bestNode))
-                bestNode = destination;
         }
 
         private bool TryTakeNext(out NavigationSearchNode selected)
@@ -419,23 +397,10 @@ namespace Aethiumian.AI.Navigation
             return true;
         }
 
-        private NavigationRoute BuildPrefixRoute(NavigationSearchNode node)
-        {
-            PathRecord firstPath = node.BestPath;
-            while (firstPath.Parent != null && firstPath.Parent.Step != null)
-                firstPath = firstPath.Parent;
-            NavigationRouteSegment first = firstPath.Step;
-
-            return NavigationRoute.Partial(request.Start, request.GoalRegion, first.End, new[] { first });
-        }
-
-        private NavigationRoute BuildBestEffortRoute(bool searchComplete)
-            => bestNode?.BestPath?.Step == null ? null : BuildRoute(bestNode, default, false, searchComplete);
-
-        private NavigationRoute BuildRoute(NavigationSearchNode node, NavigationTransition terminalTransition, bool includeTerminal, bool searchComplete)
+        private NavigationRoute BuildRoute(NavigationSearchNode node, NavigationTransition terminalTransition)
         {
             List<NavigationRouteSegment> reversed = new();
-            if (includeTerminal) reversed.Add(terminalTransition.Segment);
+            reversed.Add(terminalTransition.Segment);
 
             for (PathRecord path = node.BestPath; path != null && path.Step != null; path = path.Parent)
             {
@@ -443,10 +408,8 @@ namespace Aethiumian.AI.Navigation
             }
 
             reversed.Reverse();
-            Vector2 resolvedGoal = includeTerminal ? terminalTransition.DestinationPosition : node.Position;
-            return searchComplete
-                ? NavigationRoute.Complete(request.Start, request.GoalRegion, resolvedGoal, reversed)
-                : NavigationRoute.Partial(request.Start, request.GoalRegion, resolvedGoal, reversed);
+            return NavigationRoute.Complete(request.Start, request.GoalRegion,
+                terminalTransition.DestinationPosition, reversed);
         }
 
         private static void ValidateTransitionResult(NavigationTransition transition)
@@ -461,17 +424,6 @@ namespace Aethiumian.AI.Navigation
         {
             float heuristic = request.Heuristic(position);
             return !NavigationNumeric.IsFinite(heuristic) || heuristic < 0f ? 0f : heuristic;
-        }
-
-        private static bool IsBetterProgress(NavigationSearchNode candidate, NavigationSearchNode best)
-        {
-            if (candidate.BestPath.ProgressDistance < best.BestPath.ProgressDistance - Tolerance) return true;
-            if (Mathf.Abs(candidate.BestPath.ProgressDistance - best.BestPath.ProgressDistance) > Tolerance) return false;
-            if (candidate.BestPath.RouteCost < best.BestPath.RouteCost - Tolerance) return true;
-            if (Mathf.Abs(candidate.BestPath.RouteCost - best.BestPath.RouteCost) > Tolerance) return false;
-            if (candidate.BestPath.StepCount != best.BestPath.StepCount)
-                return candidate.BestPath.StepCount < best.BestPath.StepCount;
-            return CompareIdentity(candidate.Identity, best.Identity) < 0;
         }
 
         private static bool IsBetterPath(PathRecord candidate, PathRecord best)
@@ -505,16 +457,12 @@ namespace Aethiumian.AI.Navigation
             public readonly NavigationRouteSegment Step;
             public readonly float RouteCost;
             public readonly int StepCount;
-            public readonly float ProgressDistance;
-
-            public PathRecord(PathRecord parent, NavigationRouteSegment step, float routeCost, int stepCount,
-                float progressDistance)
+            public PathRecord(PathRecord parent, NavigationRouteSegment step, float routeCost, int stepCount)
             {
                 Parent = parent;
                 Step = step;
                 RouteCost = routeCost;
                 StepCount = stepCount;
-                ProgressDistance = progressDistance;
             }
         }
     }

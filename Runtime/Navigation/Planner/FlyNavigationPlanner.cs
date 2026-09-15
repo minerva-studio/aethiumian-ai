@@ -20,7 +20,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Runs aerial planning through the shared action-graph search.</summary>
         public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion,
             FlyNavigationParameters parameters, CancellationToken cancellationToken = default,
-            NavigationPlanningDiagnostics diagnostics = null, bool allowExecutablePrefix = false)
+            NavigationPlanningDiagnostics diagnostics = null)
         {
             ValidatePlanInputs(start, goalRegion, cancellationToken);
             ValidateParameters(parameters);
@@ -67,7 +67,7 @@ namespace Aethiumian.AI.Navigation
                 return NavigationPlanResult.NoResult;
 
             NavigationSearchRequest request = new(World, start, default, goalRegion, parameters.BodySize,
-                NavigationActions.Fly, MaxExpandedNodes, allowExecutablePrefix, NavigationNodeIdentity.Fly(startCell),
+                NavigationActions.Fly, MaxExpandedNodes, NavigationNodeIdentity.Fly(startCell),
                 node => EnumerateFlyTransitions(node, goalRegion, resolvedGoal, goalCell, parameters),
                 _ => 0f);
             return RunSearch(request, diagnostics, cancellationToken);
@@ -140,7 +140,7 @@ namespace Aethiumian.AI.Navigation
                 bool completesGoal = next == goalCell && goalRegion.IsComplete(destination, parameters.BodySize);
                 yield return NavigationTransitionWork.Edge(NavigationTransition.FlyMove(next, destination,
                     new FlyRouteSegment(source, destination), Vector2.Distance(source, destination),
-                    completesGoal, goalRegion.GuidanceDistance(destination, parameters.BodySize)));
+                    completesGoal));
             }
         }
 
@@ -215,7 +215,6 @@ namespace Aethiumian.AI.Navigation
             labels.Add(startLabel);
             labelIdsByCell.Add(startCell, new List<int> { 0 });
             open.Enqueue(startCell, startLabel.RetreatScore, startHeuristic, 0);
-            float startRemaining = goalRegion.CompletionDistance(start, parameters.BodySize);
             int expanded = 0;
 
             while (expanded < MaxExpandedNodes && TrySelectRetreatNext(open, labels, out int currentLabelId))
@@ -257,15 +256,11 @@ namespace Aethiumian.AI.Navigation
             if (!hasOpenFrontier)
                 return NavigationPlanResult.SearchExhausted();
 
-            if (TryFindBestRetreatFrontier(labels, World, goalRegion, parameters, startRemaining, out int frontierLabelId))
-                return NavigationPlanResult.BudgetReached(BuildRetreatRoute(start, goalRegion, World, labels,
-                    frontierLabelId, false));
-
             return NavigationPlanResult.BudgetReached();
         }
 
         private static NavigationRoute BuildRetreatRoute(Vector2 start, NavigationGoalRegion goalRegion,
-            INavigationWorld snapshot, List<RetreatSearchLabel> labels, int labelId, bool searchComplete = true)
+            INavigationWorld snapshot, List<RetreatSearchLabel> labels, int labelId)
         {
             List<int> chain = new();
             for (int current = labelId; current >= 0; current = labels[current].ParentId)
@@ -275,10 +270,10 @@ namespace Aethiumian.AI.Navigation
             List<Vector2Int> cells = new(chain.Count);
             for (int index = 0; index < chain.Count; index++)
                 cells.Add(labels[chain[index]].Cell);
-            return BuildFlyRoute(start, goalRegion, snapshot, cells, null, searchComplete);
+            return BuildFlyRoute(start, goalRegion, snapshot, cells, null);
         }
 
-        private static NavigationRoute BuildFlyRoute(Vector2 start, NavigationGoalRegion goalRegion, INavigationWorld snapshot, IReadOnlyList<Vector2Int> cells, Vector2? finalEndpoint, bool searchComplete = true)
+        private static NavigationRoute BuildFlyRoute(Vector2 start, NavigationGoalRegion goalRegion, INavigationWorld snapshot, IReadOnlyList<Vector2Int> cells, Vector2? finalEndpoint)
         {
             List<NavigationRouteSegment> segments = new();
             Vector2 previous = start;
@@ -296,9 +291,7 @@ namespace Aethiumian.AI.Navigation
                 previous = finalEndpoint.Value;
             }
 
-            return searchComplete
-                ? NavigationRoute.Complete(start, goalRegion, previous, segments)
-                : NavigationRoute.Partial(start, goalRegion, previous, segments);
+            return NavigationRoute.Complete(start, goalRegion, previous, segments);
         }
 
         private static bool TryAddRetreatLabel(List<RetreatSearchLabel> labels, Dictionary<Vector2Int, List<int>> labelIdsByCell, RetreatSearchLabel candidate, out int candidateId)
@@ -361,34 +354,6 @@ namespace Aethiumian.AI.Navigation
             }
 
             return false;
-        }
-
-        private static bool TryFindBestRetreatFrontier(List<RetreatSearchLabel> labels, INavigationWorld snapshot, NavigationGoalRegion goalRegion, FlyNavigationParameters parameters, float startRemaining, out int labelId)
-        {
-            labelId = -1;
-            float bestScore = float.PositiveInfinity;
-            for (int index = 0; index < labels.Count; index++)
-            {
-                RetreatSearchLabel label = labels[index];
-                if (label.State != RetreatSearchLabelState.Open) continue;
-                Vector2 position = NavigationWorldQueries.CellCenter(snapshot, label.Cell);
-                if (goalRegion.CompletionDistance(position, parameters.BodySize)
-                    >= startRemaining - Tolerance) continue;
-
-                float score = label.RetreatScore;
-                if (score < bestScore - Tolerance
-                    || Mathf.Abs(score - bestScore) <= Tolerance
-                        && (labelId < 0
-                            || label.Heuristic < labels[labelId].Heuristic - Tolerance
-                            || Mathf.Abs(label.Heuristic - labels[labelId].Heuristic) <= Tolerance
-                                && index < labelId))
-                {
-                    bestScore = score;
-                    labelId = index;
-                }
-            }
-
-            return labelId >= 0;
         }
 
         private static bool TryFindRetreatConnectorCell(INavigationWorld snapshot, Vector2 position, Vector2 targetCenter, FlyNavigationParameters parameters, out Vector2Int connector)
