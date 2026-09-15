@@ -78,6 +78,7 @@ namespace Aethiumian.AI.Nodes
         // the latter is refreshed when retry/sweep evidence is reset.
         [NonSerialized] private NavigationGoalRegion intentGoal;
         [NonSerialized] private NavigationGoalRegion progressGoal;
+        [NonSerialized] private int simpleWaitTicks;
         [NonSerialized] private int retries;
         [NonSerialized] private float executionTime;
         [NonSerialized] private RetreatMovementExecution retreat;
@@ -130,6 +131,7 @@ namespace Aethiumian.AI.Nodes
             retryAnchor = null;
             intentGoal = null;
             progressGoal = null;
+            simpleWaitTicks = 0;
             retries = 0;
             executionTime = 0f;
             wanderDestination = null;
@@ -146,28 +148,34 @@ namespace Aethiumian.AI.Nodes
             NavigationGoalRequest goalRequest = BuildGoal(target, body, out Vector2 anchor);
             NavigationGoalRegion goal = NavigationGoalRegion.Bind(goalRequest, NavigationWorld);
             executionTime += Time.fixedDeltaTime;
-            bool planningInvalidated = RefreshPlanningIntent(goal, body);
-            if (goal.IsRetreat)
-            {
-                retreat ??= new RetreatMovementExecution(targetObject, MaxApproachDistance, path == PathMode.Smart ? 0f : MaximumIdleDuration);
-                if (!retreat.BeginTick(targetObject, goal, body.center))
-                { EndMovement(false, goal); return; }
-            }
+            bool firstGoalSample = intentGoal == null;
+            bool planningInvalidated = false;
             bool physicalFailure = false;
             bool faulted = false;
             try
             {
+                // Keep semantic invalidation inside the existing cleanup boundary so request
+                // cancellation cannot bypass the node's normal fault/finalization handling.
+                planningInvalidated = RefreshPlanningIntent(goal);
+                if (goal.IsRetreat)
+                {
+                    retreat ??= new RetreatMovementExecution(targetObject, MaxApproachDistance, path == PathMode.Smart ? 0f : MaximumIdleDuration);
+                    if (!retreat.BeginTick(targetObject, goal, body.center))
+                    { EndMovement(false, goal); return; }
+                }
                 bool swept = !planningInvalidated
                     && previousCenter.HasValue
                     && SameGoal(progressGoal, goal)
                     && goal.SweptIsComplete(previousCenter.Value, body.center, body.size);
                 RefreshProgressBaseline(goal, anchor, planningInvalidated);
-                TryAcquireAction(goal, anchor, body);
+                bool fallbackReceiptConsumed = TryAcquireAction(goal, anchor, body);
                 if (IsComplete) return;
                 if (ActiveSegment == null)
                 {
                     if (IsGoalSatisfied(goal, body, swept)) { EndMovement(true, goal); return; }
-                    MaintainPlanning(goal, anchor, body, advanceResponseBudget: true);
+                    RefreshPendingPlanningRequest(goal);
+                    MaintainPlanning(goal, anchor, body,
+                        skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
                     return;
                 }
 
@@ -186,7 +194,7 @@ namespace Aethiumian.AI.Nodes
                     }
                     else
                     {
-                        MaintainPlanning(goal, anchor, body, advanceResponseBudget: false);
+                        MaintainPlanning(goal, anchor, body, skipCountingThisTick: true);
                     }
                     return;
                 }
@@ -196,13 +204,16 @@ namespace Aethiumian.AI.Nodes
                 if (result.Status == ExecutionStatus.Completed)
                 {
                     CompleteCurrentAction();
-                    TryAcquireAction(goal, anchor, body);
+                    fallbackReceiptConsumed |= TryAcquireAction(goal, anchor, body);
                     if (IsComplete) return;
                     if (ActiveSegment == null)
                         RigidBody.linearVelocity = Vector2.zero;
                 }
                 // Planning can overlap execution, but a second physical action never ticks here.
-                if (!IsComplete) MaintainPlanning(goal, anchor, body, advanceResponseBudget: false);
+                RefreshPendingPlanningRequest(goal);
+                if (!IsComplete)
+                    MaintainPlanning(goal, anchor, body,
+                        skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
             }
             catch
             {
@@ -260,12 +271,6 @@ namespace Aethiumian.AI.Nodes
         protected abstract bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept);
 
         /// <summary>
-        /// Determines whether a compatible positional change invalidates trace intent.
-        /// Movement owns semantic compatibility, cancellation, and action handoff.
-        /// </summary>
-        protected virtual bool ShouldInvalidateTraceTarget(NavigationGoalRegion previous, NavigationGoalRegion current, Bounds body) => false;
-
-        /// <summary>
         /// Authorizes recovery after a normal physical failure; never ends the node itself.
         /// </summary>
         protected abstract bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body);
@@ -310,6 +315,7 @@ namespace Aethiumian.AI.Nodes
                     retryAnchor = null;
                     intentGoal = null;
                     progressGoal = null;
+                    simpleWaitTicks = 0;
                     wanderDestination = null;
                     retreat = null;
                 }

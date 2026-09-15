@@ -86,7 +86,7 @@ attempt before the tick ends, but never a second physical execution.
 
 Every permitted fixed tick reads the current target once. Trace and Retreat use the current `tracing` object; FixedDestination uses `destination`; Wander lazily selects one nullable point after world readiness and permission, and clears it on restart. The capability then implements `BuildGoal` and binds the resulting request to the action's captured immutable `INavigationWorld`.
 
-`NavigationGoalRegion` is the authoritative goal geometry and identity. It contains the target bounds, metric, tolerance, world snapshot, and request identity used to decide whether a result is still adoptable. `Movement` keeps two non-persisted histories with separate owners: `intentGoal` is the accepted planning intention used for semantic and Trace invalidation, while `progressGoal` and its anchor describe the retry and swept-motion sample. Request and route regions are historical delivery data; they are not additional target authorities. A capability may invalidate compatible Trace motion through `ShouldInvalidateTraceTarget`; the base action owns cancellation and handoff. Updating a progress sample must not overwrite the accepted intention.
+`NavigationGoalRegion` is the authoritative goal geometry and identity. It contains the target bounds, metric, tolerance, world snapshot, and request identity used to decide whether a result is still adoptable. `Movement` keeps two non-persisted histories with separate owners: `intentGoal` is the accepted planning intention, while `progressGoal` and its anchor describe the retry and swept-motion sample. Request and route regions are historical delivery data; they are not additional target authorities. A moving target is compared with the remaining route before a rate-limited refresh; a route that still contains a legal arrival position is reused. Updating a progress sample must not overwrite the accepted intention.
 
 ## Action acquisition
 
@@ -95,23 +95,34 @@ Simple and Smart both obtain actions from `NavigationRoute`:
 - Simple passes `NavigationPlanningExtent.NextAction` and asks for a local executable step.
 - Smart passes `NavigationPlanningExtent.Route` and receives a complete route or an
   exhausted/budget terminal result. The search layer never publishes a best-effort prefix.
-- While a successfully submitted Smart request has no executable action, its initial
-  response budget is four physics ticks. One asynchronous Simple `NextAction` may
-  be borrowed without changing `PathMode` or the enclosing Movement lifecycle.
-- Only an actually prepared and committed fallback action raises the next wait budget:
-  four, then eight, then sixteen physics ticks (sixteen remains the cap). A local
-  miss does not make the full Smart request fail or authorize another local request.
+- While Smart has no executable action, or a reversible action no longer covers a
+  moved target, its initial Simple response cooldown is four physics ticks. Simple
+  may be requested again after that cooldown while the same Smart request remains
+  live; the cooldown is owned by Movement's action-supply loop, not by a particular
+  Smart request. Each committed fallback advances the cooldown to eight, then
+  sixteen physics ticks; a local miss does not make Smart fail.
 - `TryConnectRoute` reconnects a candidate to the current body and rejects unsafe or disconnected geometry.
 - `PrepareExecutor` returns `Waiting`, `Ready`, or `Unavailable` for one segment.
 
 Movement holds one Smart `NavigationPlanningRequest` plus at most one local fallback
-request. The local request runs while Smart remains live. Smart receipts are processed
-first on every fixed step; only a pending Smart request permits a local receipt to prepare
-an action. The owner detaches request references before cancellation and disposal.
+request. The local request is an independent action-supply request and may be recreated
+after its cooldown; it is not tied to the lifetime of one Smart request. Smart receipts are
+processed first on every fixed step; a pending Smart request
+is the normal source of the latest planning context, but Simple supply is not bound to one
+Smart request lifetime. At the selection boundary, a ready local result may replace a stale
+reversible Ground or Fly action; an executable Smart continuation for an older intent does
+not suppress that local result. The owner detaches request references before cancellation
+and disposal.
 Background planning never invokes an executor or Unity callback directly; result adoption
 is performed by the Movement fixed-step loop.
 
-A moving target is coalesced through the primary planning request; an optional local attempt does not create a second target authority. After completion, executable results retain their original goal snapshot; their endpoint need not satisfy the latest target. Position changes beyond geometry epsilon permit another request. For Trace Walk and Jump, a target that moves from one clear side of the body to the other invalidates old intent before result selection, stops a Ground executor once, and restarts the normal Smart flow. Fly retains its existing dynamic reconnection policy. Neutral-band motion and ordinary route detours remain reusable. A negative result for an old target cannot terminate the current goal.
+A moving target is compared with the unexecuted route before planning is refreshed. If
+the route still contains a legal arrival position, it is reused. Otherwise a changed
+target may refresh planning at most once per eight eligible physics ticks while safe
+reversible movement continues. A completed route for an older compatible target may
+still be adopted as executable progress; it does not complete the latest goal and its
+endpoint can seed a continuation request. A negative result for an old target cannot
+terminate the current goal.
 
 `PrepareExecutor` receives a segment and body, not a goal. `Waiting` and `Unavailable` leave the previous executor untouched. Same-direction Ground updates and Fly waypoint updates preserve velocity and idle timing. Ground reconnection combines contiguous straight, same-level segments without crossing other action kinds.
 
@@ -127,9 +138,8 @@ The capability prepares or reuses one executor. `MovementExecutor.IsExecuting` i
 
 When an executor reports `Completed`, `Movement` advances the segment and performs one new candidate-selection boundary without a second executor tick. If the node has not completed and no successor is ready, it clears the rigidbody velocity once and then lets `MaintainPlanning` request work. This is not repeated from the per-tick `ActiveSegment == null` wait path. For any partial route, including a committed fallback whose final segment has just completed without an active successor, the next request starts from that segment's logical endpoint. The endpoint is a consumed planning boundary, not a physics teleport: route adoption still reconnects from the real body anchor and validates support and clearance.
 
-The response budget advances only on permitted fixed steps with a pending Smart request
-and no executable action. World readiness, movement-permission pauses, and active actions
-do not advance it. A ready Smart receipt may replace a committed fallback Ground or Fly
+The response budget advances only on eligible fixed steps. World readiness,
+movement-permission pauses, and active irreversible actions do not advance it. A ready Smart receipt may replace a committed fallback Ground or Fly
 action immediately; only Jump, Fall, and DropThrough retain their physical non-replacement
 boundary. A replacement Smart request starts from the predecessor's logical endpoint when
 that is the consumed planning boundary, then every eventual adoption still reconnects and

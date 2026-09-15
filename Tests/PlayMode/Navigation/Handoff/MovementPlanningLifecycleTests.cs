@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
@@ -22,7 +23,7 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator MovingTargetKeepsPendingPlanUntilItCompletes()
+        public IEnumerator MovingTargetRefreshesPendingPlanAtBoundedCadence()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             using RuntimeContextScope context = new(runtime);
@@ -40,21 +41,50 @@ namespace Aethiumian.AI.Navigation.Tests
                 yield return new WaitForFixedUpdate();
             }
 
-            // Position changes do not invalidate the owned Smart operation. The timed
-            // fallback is still submitted once, but target motion must not duplicate it.
-            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(2));
-            Assert.That(first.Operation.IsCompleted, Is.False);
-            Assert.That(first.Operation.IsCancelled, Is.False);
-            Assert.That(ControlledWalk.Requests[1].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
+            // A target that leaves the reusable goal region may refresh planning, but the
+            // refresh is cadence-limited rather than repeated every fixed tick. The first
+            // request may therefore be cancelled while later work remains bounded.
+            Assert.That(ControlledWalk.Requests.Count, Is.GreaterThan(2));
+            Assert.That(ControlledWalk.Requests.Count, Is.LessThanOrEqualTo(6));
+            Assert.That(first.Operation.IsCancelled, Is.True);
+            Assert.That(ControlledWalk.Requests.Any(r => r.Extent == NavigationPlanningExtent.NextAction), Is.True);
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
 
         [UnityTest]
-        public IEnumerator TraceTargetSideChangeCancelsStaleIntentBeforeReceiptSelection()
+        public IEnumerator MovingTargetLevelChangeDoesNotStopActiveGroundAction()
         {
-            using MapNavigationRuntime runtime = CreateRuntime();
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
             using RuntimeContextScope context = new(runtime);
-            CreateGround();
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequest();
+
+            ControlledWalk.Request initial = ControlledWalk.Requests[0];
+            ControlledWalk.Complete(initial, CreateGroundRoute(initial, new Vector2(45.5f, 1f), false));
+            yield return new WaitForFixedUpdate();
+
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            Assert.That(movement.ActiveSegment, Is.TypeOf<GroundRouteSegment>(), DescribeHarness(harness));
+            Assert.That(Mathf.Abs(harness.Body.linearVelocity.x), Is.GreaterThan(0.1f), DescribeHarness(harness));
+
+            target.transform.position += Vector3.up * 3f;
+            Physics2D.SyncTransforms();
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(movement.ActiveSegment, Is.TypeOf<GroundRouteSegment>(), DescribeHarness(harness));
+            Assert.That(Mathf.Abs(harness.Body.linearVelocity.x), Is.GreaterThan(0.1f), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator TraceTargetSideChangeRefreshesAfterCadenceWithoutStoppingGroundAction()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
             GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
             MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
             yield return WaitForTreeCreated(harness);
@@ -67,10 +97,15 @@ namespace Aethiumian.AI.Navigation.Tests
 
             target.transform.position = new Vector2(20f, 1f);
             Physics2D.SyncTransforms();
-            yield return WaitForRequestCount(3);
+            for (int frame = 0; !staleContinuation.Operation.IsCancelled && frame < PlanningFrameLimit; frame++)
+                yield return new WaitForFixedUpdate();
 
             Assert.That(staleContinuation.Operation.IsCancelled, Is.True, DescribeHarness(harness));
-            Assert.That(ControlledWalk.Requests[2].Goal.Center.x, Is.EqualTo(20f).Within(0.001f), DescribeHarness(harness));
+            ControlledWalk.Request refreshed = ControlledWalk.Requests
+                .FirstOrDefault(candidate => candidate != staleContinuation
+                    && candidate.Extent == NavigationPlanningExtent.Route
+                    && Mathf.Abs(candidate.Goal.Center.x - 20f) <= 0.001f);
+            Assert.That(refreshed, Is.Not.Null, DescribeRequests());
             Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
 
@@ -78,7 +113,7 @@ namespace Aethiumian.AI.Navigation.Tests
             for (int frame = 0; frame < 5; frame++)
                 yield return new WaitForFixedUpdate();
             Assert.That(ControlledWalk.Requests.Count, Is.LessThanOrEqualTo(4), DescribeRequests());
-            Assert.That(ControlledWalk.Requests[2].Operation.IsCancelled, Is.False, DescribeRequests());
+            Assert.That(refreshed.Operation.IsCancelled, Is.False, DescribeRequests());
         }
 
         [UnityTest]
@@ -223,6 +258,80 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         [UnityTest]
+        public IEnumerator SimpleFallbackMissRetriesWithoutCancellingSmart()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Complete(ControlledWalk.Requests[1], null);
+            yield return WaitForRequestCount(3);
+
+            Assert.That(ControlledWalk.Requests[2].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
+            Assert.That(smart.Operation.IsCancelled, Is.False, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator PrimaryRefreshLeavesPendingSimpleFallbackAlive()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Request fallback = ControlledWalk.Requests[1];
+            target.transform.position = new Vector2(72.5f, 1f);
+            Physics2D.SyncTransforms();
+            yield return WaitForRequestCount(3);
+
+            Assert.That(smart.Operation.IsCancelled, Is.True, DescribeHarness(harness));
+            Assert.That(fallback.Operation.IsCancelled, Is.False, DescribeHarness(harness));
+            Assert.That(ControlledWalk.Requests[2].Extent, Is.EqualTo(NavigationPlanningExtent.Route));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator SmartRequestCanSupplyMultipleSimpleFallbacks()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Request firstFallback = ControlledWalk.Requests[1];
+            ControlledWalk.Complete(firstFallback, CreateGroundRoute(firstFallback, new Vector2(30f, 1f), false));
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+
+            int frame = 0;
+            while (movement.ActiveSegment != null && frame++ < PlanningFrameLimit)
+                yield return new WaitForFixedUpdate();
+            Assert.That(movement.ActiveSegment, Is.Null, DescribeHarness(harness));
+            Assert.That(smart.Operation.IsCompleted, Is.False, DescribeHarness(harness));
+
+            int countBeforeSecondFallback = ControlledWalk.Requests.Count;
+            for (int tick = 0; tick < 32 && ControlledWalk.Requests.Count == countBeforeSecondFallback; tick++)
+                yield return new WaitForFixedUpdate();
+            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(countBeforeSecondFallback + 1), DescribeHarness(harness));
+            Assert.That(ControlledWalk.Requests[^1].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
+            Assert.That(smart.Operation.IsCancelled, Is.False);
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
         public IEnumerator SmartResultWinsWhenPublishedWithFallback()
         {
             using MapNavigationRuntime runtime = CreateRuntime(1f);
@@ -291,6 +400,102 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         [UnityTest]
+        public IEnumerator SimpleFallbackCanReplaceStaleGroundAction()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitUntilGrounded(harness);
+            yield return WaitForRequest();
+
+            ControlledWalk.Complete(ControlledWalk.Requests[0],
+                CreateGroundRoute(ControlledWalk.Requests[0], new Vector2(35.5f, 1f), false));
+            yield return new WaitForFixedUpdate();
+
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            Assert.That(movement.ActiveSegment, Is.TypeOf<GroundRouteSegment>(), DescribeHarness(harness));
+            float oldEndpoint = movement.Route.Segments[0].End.x;
+
+            target.transform.position = new Vector3(76.5f, 1f, 0f);
+            Physics2D.SyncTransforms();
+            yield return WaitForRequestCount(3);
+
+            ControlledWalk.Request fallback = ControlledWalk.Requests
+                .First(request => request.Extent == NavigationPlanningExtent.NextAction);
+            Assert.That(movement.ActiveSegment, Is.TypeOf<GroundRouteSegment>(),
+                "Simple must be able to replace a still-running reversible Ground action.");
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(oldEndpoint).Within(0.25f));
+
+            ControlledWalk.Complete(fallback, CreateGroundRoute(fallback, new Vector2(48.5f, 1f), false));
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(movement.ActiveSegment, Is.TypeOf<GroundRouteSegment>(), DescribeHarness(harness));
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(48.5f).Within(0.25f),
+                "The current Simple result must replace the stale Ground action before it ends.");
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator CurrentSimpleResultWinsOverExecutableOldSmartReceipt()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitUntilGrounded(harness);
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Request fallback = ControlledWalk.Requests[1];
+            target.transform.position = new Vector3(76.5f, 1f, 0f);
+            Physics2D.SyncTransforms();
+            ControlledWalk.Complete(smart, CreateGroundRoute(smart, new Vector2(35.5f, 1f), false));
+            ControlledWalk.Complete(fallback, CreateGroundRoute(fallback, new Vector2(48.5f, 1f), false));
+            yield return new WaitForFixedUpdate();
+
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(48.5f).Within(0.25f),
+                "A Simple result for the current target must not be masked by an executable old Smart receipt.");
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator SmartRefreshesDoNotResetSimpleFallbackCooldown()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForRequestCount(2);
+
+            ControlledWalk.Request smart = ControlledWalk.Requests[0];
+            ControlledWalk.Request firstFallback = ControlledWalk.Requests[1];
+            ControlledWalk.Complete(firstFallback, CreateGroundRoute(firstFallback, new Vector2(30f, 1f), false));
+            yield return new WaitForFixedUpdate();
+
+            int initialCount = ControlledWalk.Requests.Count;
+            for (int tick = 0; tick < 12; tick++)
+            {
+                target.transform.position += Vector3.right * 2f;
+                Physics2D.SyncTransforms();
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(ControlledWalk.Requests.Skip(initialCount)
+                .Any(request => request.Extent == NavigationPlanningExtent.NextAction), Is.True,
+                "Repeated Smart refreshes must not restart the independent Simple cooldown.");
+            Assert.That(smart.Operation.IsCancelled, Is.True, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
         public IEnumerator PausedMovementDoesNotAccumulateSmartFallbackTicks()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
@@ -344,7 +549,10 @@ namespace Aethiumian.AI.Navigation.Tests
                 Assert.That(movement.ActiveSegment, Is.Null, DescribeHarness(harness));
 
                 int requestCountBeforeThreshold = ControlledWalk.Requests.Count;
-                for (int tick = 0; tick < thresholds[index] - 1; tick++)
+                // The fixed tick that consumes the completed predecessor also starts the
+                // next Simple cooldown. Begin the assertion window after that already-counted
+                // tick so the cadence is measured at the request boundary.
+                for (int tick = 0; tick < thresholds[index] - 2; tick++)
                 {
                     yield return new WaitForFixedUpdate();
                     Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(requestCountBeforeThreshold),

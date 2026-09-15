@@ -18,20 +18,11 @@ namespace Aethiumian.AI.Nodes
 
         private bool SameGoal(NavigationGoalRegion previous, NavigationGoalRegion latest) => previous != null && ReferenceEquals(previous.Snapshot, latest.Snapshot) && previous.IsReusableFor(latest, Mathf.Max(NavigationRuntime.CellSize, latest.ArrivalErrorBound));
 
-        // Ordinary position changes do not invalidate in-flight work. A capability may opt in
-        // to a narrower positional rule through ShouldInvalidateTraceTarget.
         private static bool CompatibleGoal(NavigationGoalRegion previous, NavigationGoalRegion latest)
-        {
-            if (previous == null || !ReferenceEquals(previous.Snapshot, latest.Snapshot)) return false;
-            NavigationGoalKey first = previous.GoalKey;
-            NavigationGoalKey second = latest.GoalKey;
-            return first.Geometry == second.Geometry && first.DistanceMetric == second.DistanceMetric
-                && first.RequiresLineOfSight == second.RequiresLineOfSight
-                && first.ArrivalTolerance.Equals(second.ArrivalTolerance)
-                && first.RetreatDistance.Equals(second.RetreatDistance)
-                && first.SnapshotCellSize.Equals(second.SnapshotCellSize)
-                && first.TargetBounds.size.Equals(second.TargetBounds.size);
-        }
+            => previous != null
+                && latest != null
+                && ReferenceEquals(previous.Snapshot, latest.Snapshot)
+                && previous.HasCompatibleSemantics(latest);
 
         private static bool SamePlanningTarget(NavigationGoalRegion previous, NavigationGoalRegion latest)
             => CompatibleGoal(previous, latest)
@@ -48,33 +39,10 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>
-        /// Returns true only when two compatible targets are unambiguously on opposite sides
-        /// of the current body. Targets inside the neutral band do not invalidate work.
+        /// Updates planning work when the accepted target is no longer reusable. A moving target
+        /// does not stop a safe action; it only makes its pending planning result eligible for refresh.
         /// </summary>
-        protected static bool HasSignificantTargetSideChange(NavigationGoalRegion previous, NavigationGoalRegion current, Bounds body)
-        {
-            if (previous == null || current == null || !CompatibleGoal(previous, current)) return false;
-
-            float neutralMargin = Mathf.Max(
-                Mathf.Max(previous.ArrivalErrorBound, current.ArrivalErrorBound),
-                NavigationWorldQueries.GeometryEpsilon);
-            int previousSide = GetTargetSide(previous.TargetBounds, body, neutralMargin);
-            int currentSide = GetTargetSide(current.TargetBounds, body, neutralMargin);
-            return previousSide != 0 && currentSide != 0 && previousSide != currentSide;
-        }
-
-        private static int GetTargetSide(Bounds target, Bounds body, float neutralMargin)
-        {
-            if (target.max.x < body.min.x - neutralMargin) return -1;
-            if (target.min.x > body.max.x + neutralMargin) return 1;
-            return 0;
-        }
-
-        /// <summary>
-        /// Detects a change in the current planning intent before any candidate is selected. Historical
-        /// route metadata remains unchanged when an irreversible action is retained.
-        /// </summary>
-        private bool RefreshPlanningIntent(NavigationGoalRegion goal, Bounds body)
+        private bool RefreshPlanningIntent(NavigationGoalRegion goal)
         {
             NavigationGoalRegion previous = intentGoal;
             if (previous == null)
@@ -83,56 +51,102 @@ namespace Aethiumian.AI.Nodes
                 return false;
             }
 
-            bool invalidated = !CompatibleGoal(previous, goal)
-                || (type == Behaviour.Trace && ShouldInvalidateTraceTarget(previous, goal, body));
-            if (!invalidated) return false;
+            if (!CompatibleGoal(previous, goal))
+            {
+                intentGoal = goal;
+                ResetActionProgress();
+                simpleWaitTicks = 0;
+                NavigationRouteSegment active = ActiveSegment;
+                CancelPlanningRequests();
+                ResetSmartFallbackBackoff();
 
-            intentGoal = goal;
-            // Invalidate the previous sample before any new target can be considered complete.
-            // This resets observation progress without cancelling an irreversible physical action.
-            ResetActionProgress();
-            NavigationRouteSegment active = ActiveSegment;
-            CancelPlanningRequests();
-            ResetSmartFallbackBackoff();
+                if (active is GroundRouteSegment)
+                {
+                    executor?.Cancel(); route = null; routeIndex = 0;
+                    if (RigidBody) RigidBody.linearVelocity = new Vector2(0f, RigidBody.linearVelocity.y);
+                }
+                else if (active is FlyRouteSegment)
+                {
+                    executor?.Cancel(); route = null; routeIndex = 0;
+                    if (RigidBody) RigidBody.linearVelocity = Vector2.zero;
+                }
+                else if (active != null)
+                {
+                    NavigationGoalRegion historicalGoal = route != null ? route.GoalRegion : goal;
+                    route = NavigationRoute.Partial(active.Start, historicalGoal, active.End, new[] { active });
+                    routeIndex = 0;
+                }
+                else { route = null; routeIndex = 0; }
+                return true;
+            }
 
-            if (active is GroundRouteSegment)
+            // Positional changes are handled against the pending request after receipt selection.
+            // They never cancel or reset the currently executing action here.
+            return false;
+        }
+
+        /// <summary>
+        /// Replaces only a still-pending positional request after its refresh interval. Completed
+        /// receipts have already passed through the candidate arbiter at this point.
+        /// </summary>
+        private void RefreshPendingPlanningRequest(NavigationGoalRegion goal)
+        {
+            NavigationPlanningRequest pending = request;
+            if (pending == null || pending.Operation.IsCompleted)
+                return;
+
+            bool stale = !SameGoal(pending.GoalRegion, goal)
+                && !RouteCoversGoal(route, routeIndex, NavigationBounds, goal);
+            if (!pending.AdvanceStaleness(stale)) return;
+
+            // Refresh only the primary Smart request; an in-flight Simple request belongs to
+            // the independent action-supply lifecycle and must not be cancelled here.
+            CancelPrimaryRequest();
+        }
+
+        private static bool RouteCoversGoal(NavigationRoute candidate, int first, Bounds body, NavigationGoalRegion goal)
+        {
+            if (candidate == null || first >= candidate.Count) return false;
+            Vector2 half = Vector2.up * (body.size.y * 0.5f);
+            for (int i = first; i < candidate.Count; i++)
             {
-                executor?.Cancel();
-                route = null;
-                routeIndex = 0;
-                if (RigidBody)
-                    RigidBody.linearVelocity = new Vector2(0f, RigidBody.linearVelocity.y);
+                NavigationRouteSegment segment = candidate.Segments[i];
+                if (segment is GroundRouteSegment)
+                {
+                    Vector2 start = segment.Start + half;
+                    Vector2 end = segment.End + half;
+                    if (goal.SweptIsComplete(start, end, body.size)) return true;
+                }
+                else if (segment is FlyRouteSegment)
+                {
+                    // Aerial movement is accepted at a waypoint; the goal predicate performs
+                    // the geometry and line-of-sight checks for the body center.
+                    if (goal.IsComplete(segment.End, body.size)) return true;
+                }
+                else if (goal.IsComplete(segment.End, body.size)) return true;
             }
-            else if (active is FlyRouteSegment)
-            {
-                executor?.Cancel();
-                route = null;
-                routeIndex = 0;
-                if (RigidBody) RigidBody.linearVelocity = Vector2.zero;
-            }
-            else if (active != null)
-            {
-                // Retain only the irreversible action. Its executor continues, while the
-                // normal maintenance pass submits a continuation from active.End.
-                NavigationGoalRegion previousGoal = route != null ? route.GoalRegion : goal;
-                route = NavigationRoute.Partial(active.Start, previousGoal, active.End,
-                    new[] { active });
-                routeIndex = 0;
-            }
-            else
-            {
-                route = null;
-                routeIndex = 0;
-            }
-            return true;
+            return false;
         }
 
         /// <summary>Arbitrates completed candidates in one fixed-step owner entry point.</summary>
-        private void TryAcquireAction(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
+        private bool TryAcquireAction(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
         {
-            if (TryHandlePrimaryResult(goal, anchor, body) || IsComplete) return;
-            if (TryHandleExistingRoute(goal, anchor, body) || IsComplete) return;
-            if (ActiveSegment == null) TryHandleFallbackResult(goal, anchor, body);
+            TryHandlePrimaryResult(goal, anchor, body);
+            if (IsComplete) return false;
+
+            TryHandleExistingRoute(goal, anchor, body);
+            if (IsComplete) return false;
+
+            // A completed Smart receipt that was stale, cancelled, or not physically
+            // adoptable must not prevent an independent Simple receipt from supplying a
+            // reversible action in the same fixed step.  Current Smart results still win
+            // naturally because adoption updates the route before this demand check.
+            if (CanReplaceActiveAction
+                && NeedsSimpleAcquisition(goal, body)
+                && TryHandleFallbackResult(goal, anchor, body))
+                return true;
+
+            return false;
         }
 
         private bool TryHandlePrimaryResult(NavigationGoalRegion goal, Vector2 anchor, Bounds body)
@@ -142,7 +156,7 @@ namespace Aethiumian.AI.Nodes
             primary.Release(false);
             if (primary.Operation.IsCancelled)
             {
-                CancelPlanningRequests();
+                CancelPrimaryRequest();
                 return false;
             }
             if (primary.Operation.Exception != null) throw primary.Operation.Exception;
@@ -159,16 +173,19 @@ namespace Aethiumian.AI.Nodes
             NavigationRoute candidate = result.Route;
             if (candidate == null || candidate.Count == 0)
             {
-                if (!primary.GoalRegion.GoalKey.Equals(goal.GoalKey))
+                // GoalKey is an exact cache identity. Runtime handoff uses the semantic
+                // compatibility contract so harmless collider sampling noise cannot discard a
+                // completed result before it reaches the executor.
+                if (!CompatibleGoal(primary.GoalRegion, goal))
                 {
-                    CancelPlanningRequests();
+                    CancelPrimaryRequest();
                     return false;
                 }
                 if (followsActive)
                 {
                     // The terminal no-route receipt has been consumed. Keep the physical
                     // predecessor running, but do not reprocess this completed receipt every tick.
-                    CancelPlanningRequests();
+                    CancelPrimaryRequest();
                     return true;
                 }
                 if (active != null)
@@ -177,7 +194,16 @@ namespace Aethiumian.AI.Nodes
                     return true;
                 }
 
-                CancelPlanningRequests();
+                CancelPrimaryRequest();
+                // A terminal result is only authoritative for the goal that was captured
+                // when the request was submitted.  If the target moved outside that goal's
+                // reusable region while the search was pending, let the normal maintenance
+                // path submit a fresh request instead of ending the node for a stale miss.
+                if (!SameGoal(primary.GoalRegion, goal))
+                    return false;
+
+                simpleWaitTicks = 0;
+                if (fallbackRequest != null) return true;
                 if (IsGoalSatisfied(goal, body, false)) { EndMovement(true, goal); return true; }
                 if (route != null && routeIndex < route.Count) return false;
                 if (result.Termination == NavigationPlanTermination.BudgetReached)
@@ -206,7 +232,8 @@ namespace Aethiumian.AI.Nodes
 
             route = null;
             routeIndex = 0;
-            if (!AllowRetry()) EndMovement(false, goal);
+            CancelPrimaryRequest();
+            if (fallbackRequest == null && !AllowRetry()) EndMovement(false, goal);
             return true;
         }
 
@@ -257,6 +284,10 @@ namespace Aethiumian.AI.Nodes
                 return ActionPreparation.Unavailable;
             }
 
+            bool servesCurrentIntent = CompatibleGoal(connected.GoalRegion, goal)
+                && (SameGoal(connected.GoalRegion, goal)
+                    || RouteCoversGoal(connected, 0, body, goal));
+
             ActionPreparation preparation = PrepareExecutor(connected.Segments[0], body, executor, out MovementExecutor prepared);
             if (preparation != ActionPreparation.Ready) return preparation;
             if (prepared == null || !prepared.IsExecuting)
@@ -266,7 +297,7 @@ namespace Aethiumian.AI.Nodes
             executor = prepared;
             route = connected;
             routeIndex = 0;
-            OnRouteAdopted(source);
+            OnRouteAdopted(source, servesCurrentIntent);
             return ActionPreparation.Ready;
         }
 
@@ -287,34 +318,79 @@ namespace Aethiumian.AI.Nodes
                 && RouteAllowed(request.GoalRegion, request.Start, candidate);
         }
 
-        private void OnRouteAdopted(CandidateSource source)
+        private void OnRouteAdopted(CandidateSource source, bool servesCurrentIntent)
         {
             switch (source)
             {
                 case CandidateSource.PrimaryRequest:
-                    if (path == PathMode.Smart) ResetSmartFallbackBackoff();
-                    CancelPlanningRequests();
+                    if (servesCurrentIntent)
+                    {
+                        if (path == PathMode.Smart) ResetSmartFallbackBackoff();
+                        // A Smart route for the current intent starts a fresh response
+                        // interval and makes a pending local candidate unnecessary.
+                        simpleWaitTicks = 0;
+                        CancelPrimaryRequest();
+                        CancelFallbackRequest();
+                    }
+                    else
+                    {
+                        // An executable continuation for an older intent must not rewrite
+                        // the independent Simple response budget or discard its candidate.
+                        CancelPrimaryRequest();
+                    }
                     break;
                 case CandidateSource.LocalFallback:
                     // Keep the primary Smart request alive. It may complete later and replace
                     // this reversible fallback at the same fixed-step adoption boundary.
                     CancelFallbackRequest();
                     fallbackBackoffLevel = Math.Min(fallbackBackoffLevel + 1, 2);
+                    // Each committed Simple action starts the next independent cooldown.
+                    simpleWaitTicks = 0;
                     break;
             }
         }
 
         /// <summary>Maintains request ownership only; route adoption is exclusive to <see cref="TryAcquireAction"/>.</summary>
-        private void MaintainPlanning(NavigationGoalRegion goal, Vector2 anchor, Bounds body, bool advanceResponseBudget)
+        private void MaintainPlanning(NavigationGoalRegion goal, Vector2 anchor, Bounds body,
+            bool skipCountingThisTick)
         {
             if (IsComplete) return;
-            bool submittedPrimary = EnsurePrimaryRequest(goal, anchor, body);
-            if (submittedPrimary || !advanceResponseBudget || path != PathMode.Smart
-                || ActiveSegment != null || request == null || request.Operation.IsCompleted || fallbackRequest != null)
+            EnsurePrimaryRequest(goal, anchor, body);
+            MaintainSimpleAcquisition(goal, anchor, NeedsSimpleAcquisition(goal, body),
+                skipCountingThisTick);
+        }
+
+        private bool NeedsSimpleAcquisition(NavigationGoalRegion goal, Bounds body)
+        {
+            NavigationRouteSegment active = ActiveSegment;
+            if (active == null) return true;
+            if (IsIrreversible(active)) return false;
+            // A reversible partial action is already supplying movement for this planning
+            // target.  Do not stack another Simple request while that action is executing;
+            // once it completes, the active-segment check above becomes false and the next
+            // independent cooldown can request another action.
+            if (route != null && SamePlanningTarget(route.GoalRegion, goal)) return false;
+            return !RouteCoversGoal(route, routeIndex, body, goal);
+        }
+
+        private void MaintainSimpleAcquisition(NavigationGoalRegion goal, Vector2 anchor,
+            bool needsAction, bool skipCountingThisTick)
+        {
+            if (path != PathMode.Smart || !needsAction)
+            {
+                simpleWaitTicks = 0;
+                return;
+            }
+
+            if (fallbackRequest != null || skipCountingThisTick)
                 return;
 
-            if (request.AdvanceFallbackBudget(CurrentSmartWaitThreshold))
-                SubmitFallbackRequest(goal, anchor);
+            simpleWaitTicks = Math.Min(simpleWaitTicks + 1, CurrentSmartWaitThreshold);
+            if (simpleWaitTicks < CurrentSmartWaitThreshold)
+                return;
+
+            simpleWaitTicks = 0;
+            SubmitFallbackRequest(goal, anchor);
         }
 
         private int CurrentSmartWaitThreshold => fallbackBackoffLevel == 0 ? 4 : fallbackBackoffLevel == 1 ? 8 : 16;
@@ -353,7 +429,8 @@ namespace Aethiumian.AI.Nodes
             if (!TryCreatePlanningRequest(start, goal, PlanningExtent, purpose, predecessor, out NavigationPlanningRequest created))
                 return false;
             request = created;
-            // A successfully submitted primary request is the next accepted planning intent.
+            // A successfully submitted primary request is the next accepted planning intent,
+            // including an endpoint continuation for an irreversible predecessor.
             intentGoal = goal;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (purpose == NavigationPlanningPurpose.InitialRoute) MovementReplanDiagnostics.RecordInitialPlan();
@@ -363,7 +440,7 @@ namespace Aethiumian.AI.Nodes
 
         private void SubmitFallbackRequest(NavigationGoalRegion goal, Vector2 anchor)
         {
-            if (fallbackRequest != null || request == null) return;
+            if (fallbackRequest != null) return;
             if (TryCreatePlanningRequest(anchor, goal, NavigationPlanningExtent.NextAction,
                 NavigationPlanningPurpose.InitialRoute, null, out NavigationPlanningRequest created))
                 fallbackRequest = created;
@@ -399,8 +476,8 @@ namespace Aethiumian.AI.Nodes
 
         private void RejectPrimaryCandidate(NavigationGoalRegion goal)
         {
-            CancelPlanningRequests();
-            if (ActiveSegment == null && !AllowRetry()) EndMovement(false, goal);
+            CancelPrimaryRequest();
+            if (ActiveSegment == null && fallbackRequest == null && !AllowRetry()) EndMovement(false, goal);
         }
 
         private bool RouteAllowed(NavigationGoalRegion goal, Vector2 anchor, NavigationRoute candidate)
@@ -451,6 +528,13 @@ namespace Aethiumian.AI.Nodes
 
             try { local?.Release(true); }
             finally { primary?.Release(true); }
+        }
+
+        private void CancelPrimaryRequest()
+        {
+            NavigationPlanningRequest primary = request;
+            request = null;
+            primary?.Release(true);
         }
 
         private void CancelFallbackRequest()

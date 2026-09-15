@@ -480,6 +480,49 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(region.IsComplete(new Vector2(-1.75f, 0f), Vector2.one), Is.True);
         }
 
+        [Test]
+        public void NavigationGoalSemanticsIgnoreTargetExtentSamplingNoiseButPreserveExactIdentity()
+        {
+            Bounds firstBounds = new(new Vector3(5f, 3f, 0f), new Vector3(1.79999971f, 1.5999999f, 0f));
+            Bounds sampledBounds = new(new Vector3(5f, 3f, 0f), new Vector3(1.79999971f, 1.60000038f, 0f));
+            NavigationGoalRequest first = NavigationGoalRequest.GroundRange(firstBounds, 1f, true);
+            NavigationGoalRequest sampled = NavigationGoalRequest.GroundRange(sampledBounds, 1f, true);
+
+            Assert.That(first.HasCompatibleSemantics(sampled), Is.True);
+            Assert.That(first.Equals(sampled), Is.False);
+
+            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(
+                Vector2.zero, 1f, new RectInt(-8, -8, 16, 16),
+                Array.Empty<NavigationShapeData>(), Array.Empty<NavigationRegionData>());
+            NavigationGoalRegion firstRegion = NavigationGoalRegion.Bind(first, world);
+            NavigationGoalRegion sampledRegion = NavigationGoalRegion.Bind(sampled, world);
+            Assert.That(firstRegion.HasCompatibleSemantics(sampledRegion), Is.True);
+            Assert.That(firstRegion.GoalKey, Is.Not.EqualTo(sampledRegion.GoalKey));
+
+            NavigationGoalRequest moved = NavigationGoalRequest.GroundRange(
+                new Bounds(new Vector3(5f, 6f, 0f), firstBounds.size), 1f, true);
+            Assert.That(first.HasCompatibleSemantics(moved), Is.True);
+            Assert.That(first.IsReusableFor(moved, 1f), Is.False);
+        }
+
+        [Test]
+        public void NavigationGoalSemanticsRejectRealTargetExtentChange()
+        {
+            NavigationGoalRequest first = NavigationGoalRequest.Proximity(
+                new Bounds(new Vector3(5f, 3f), new Vector3(2f, 2f)), DistanceMetric.Euclidean, 0.2f);
+            float epsilon = NavigationWorldQueries.GeometryEpsilon;
+            NavigationGoalRequest belowBoundary = NavigationGoalRequest.Proximity(
+                new Bounds(new Vector3(5f, 3f), new Vector3(2f, 2f + epsilon * 0.5f)), DistanceMetric.Euclidean, 0.2f);
+            NavigationGoalRequest atBoundary = NavigationGoalRequest.Proximity(
+                new Bounds(new Vector3(5f, 3f), new Vector3(2f, 2f + epsilon)), DistanceMetric.Euclidean, 0.2f);
+            NavigationGoalRequest changed = NavigationGoalRequest.Proximity(
+                new Bounds(new Vector3(5f, 3f), new Vector3(2f, 2.001f)), DistanceMetric.Euclidean, 0.2f);
+
+            Assert.That(first.HasCompatibleSemantics(belowBoundary), Is.True);
+            Assert.That(first.HasCompatibleSemantics(atBoundary), Is.True);
+            Assert.That(first.HasCompatibleSemantics(changed), Is.False);
+        }
+
         /// <summary>Verifies Approach and Retreat use one threshold with opposite completion directions.</summary>
         [Test]
         public void SharedReachDistanceUsesOppositeApproachAndRetreatDirections()

@@ -8,8 +8,8 @@ namespace Aethiumian.AI.Nodes
     internal sealed class NavigationPlanningRequest
     {
         private CancellationTokenSource cancellation;
-        private int eligibleWaitTicks;
-        private bool fallbackAttempted;
+        private int staleTicks;
+        private const int StaleRefreshTicks = 8;
 
         internal NavigationPlanningRequest(NavigationPlanningOperation operation, Vector2 start,
             NavigationGoalRegion goal, NavigationPlanningPurpose purpose,
@@ -33,22 +33,13 @@ namespace Aethiumian.AI.Nodes
         public NavigationPlanningPurpose Purpose { get; }
         /// <summary>The action this continuation follows, or null for an initial route.</summary>
         public NavigationRouteSegment CommittedSegment { get; }
-        /// <summary>Gets the permitted no-action ticks observed since this Smart request was submitted.</summary>
-        public int EligibleWaitTicks => eligibleWaitTicks;
-        /// <summary>Gets whether this request has consumed its one local fallback authorization.</summary>
-        public bool FallbackAttempted => fallbackAttempted;
 
-        /// <summary>Advances this request's response budget and consumes its one fallback authorization at the threshold.</summary>
-        internal bool AdvanceFallbackBudget(int threshold)
+        /// <summary>Advances or clears the request-local stale interval and reports when refresh is due.</summary>
+        internal bool AdvanceStaleness(bool stale)
         {
-            if (threshold <= 0) throw new System.ArgumentOutOfRangeException(nameof(threshold));
-            if (fallbackAttempted) return false;
-            eligibleWaitTicks++;
-            if (eligibleWaitTicks < threshold) return false;
-            fallbackAttempted = true;
-            return true;
+            staleTicks = stale ? System.Math.Min(staleTicks + 1, StaleRefreshTicks) : 0;
+            return staleTicks >= StaleRefreshTicks;
         }
-
         internal void Release(bool cancel)
         {
             CancellationTokenSource resource = cancellation;
