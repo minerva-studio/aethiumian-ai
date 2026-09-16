@@ -1,14 +1,13 @@
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
 {
-
     /// <summary>Represents a horizontal ledge exit followed by a downward fall.</summary>
     public sealed class FallRouteSegment : NavigationRouteSegment
     {
+        public override bool IsReversible => false;
+
         /// <summary>Gets the validated world-space waypoint where downward falling begins.</summary>
         public Vector2 LedgeExit { get; }
 
@@ -28,19 +27,4 @@ namespace Aethiumian.AI.Navigation
             LedgeExit = ledgeExit;
         }
     }
-
-    /// <summary>Represents a temporary drop-through traversal between two world positions.</summary>
-    public sealed class DropThroughRouteSegment : NavigationRouteSegment
-    {
-        /// <summary>Creates a drop-through route segment.</summary>
-        public DropThroughRouteSegment(Vector2 start, Vector2 end) : base(start, end) { }
-    }
-
-    /// <summary>Represents aerial movement between two world positions.</summary>
-    public sealed class FlyRouteSegment : NavigationRouteSegment
-    {
-        /// <summary>Creates a fly route segment.</summary>
-        public FlyRouteSegment(Vector2 start, Vector2 end) : base(start, end) { }
-    }
-
 }

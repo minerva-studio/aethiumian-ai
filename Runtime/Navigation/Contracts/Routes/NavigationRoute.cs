@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
 {
-
     /// <summary>
     /// Immutable planner snapshot for one world, start anchor, and goal.
     /// Coordinators may replace uncommitted suffixes; this object never owns execution.
@@ -14,28 +12,23 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public sealed class NavigationRoute
     {
-        private readonly ReadOnlyCollection<NavigationRouteSegment> segments;
-
         /// <summary>Gets the world-space origin used by the planner.</summary>
         public Vector2 Start { get; }
-
-        /// <summary>Gets the center of the requested goal.</summary>
-        public Vector2 RequestedGoal => Goal.Center;
 
         /// <summary>Gets the immutable goal this route was planned against.</summary>
         public NavigationGoalRequest Goal { get; }
 
-        /// <summary>Gets the immutable world this route was planned against.</summary>
-        public INavigationWorld World { get; }
-
         /// <summary>Gets the world-space endpoint selected by the planner.</summary>
         public Vector2 ResolvedGoal { get; }
 
+        /// <summary>Gets the immutable world this route was planned against.</summary>
+        public INavigationWorld World { get; }
+
         /// <summary>Gets the read-only route segments in execution order.</summary>
-        public IReadOnlyList<NavigationRouteSegment> Segments => segments;
+        public IReadOnlyList<NavigationRouteSegment> Segments { get; }
 
         /// <summary>Gets the number of route segments.</summary>
-        public int Count => segments.Count;
+        public int Count => Segments.Count;
 
         /// <summary>
         /// Gets whether this route reaches the goal captured when the route was created.
@@ -50,7 +43,7 @@ namespace Aethiumian.AI.Navigation
             World = world;
             ResolvedGoal = resolvedGoal;
             ReachesGoal = reachesGoal;
-            this.segments = new ReadOnlyCollection<NavigationRouteSegment>(segments);
+            Segments = segments;
         }
 
         /// <summary>Creates a route against an immutable goal with an explicit goal-arrival fact.</summary>

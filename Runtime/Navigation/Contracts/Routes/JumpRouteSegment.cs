@@ -49,6 +49,8 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the planned supported landing point.</summary>
         public Vector2 PlannedLanding => End;
 
+        public override bool IsReversible => false;
+
         /// <summary>Gets the minimum apex displacement selected by collision-aware planning.</summary>
         public float MinimumApexHeight { get; }
 

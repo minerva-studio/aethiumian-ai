@@ -488,9 +488,6 @@ namespace Aethiumian.AI.Navigation
                 : new RectInt(xMin, yMin, xMax - xMin + 1, yMax - yMin + 1);
         }
 
-        /// <summary>Gets the immutable cell size used by the published navigation snapshot.</summary>
-        public float CellSize => world?.CellSize ?? 1f;
-
         /// <summary>Resolves one planning launch support against the current published NavWorld.</summary>
         public bool TryResolvePlanningGroundSupport(Vector2 observedLowerCenter, Vector2 bodySize, out Vector2 snappedLowerCenter, out NavigationSupport support)
         {

@@ -327,7 +327,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationRoute route = NavigationRoute.Create(Vector2.zero, PointGoal(new Vector2(5, 2), 0f), UnitWorld(), Vector2.right,
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) }, true);
 
-            Assert.That(route.RequestedGoal, Is.EqualTo(new Vector2(5, 2)));
+            Assert.That(route.Goal.Center, Is.EqualTo(new Vector2(5, 2)));
             Assert.That(route.ResolvedGoal, Is.EqualTo(Vector2.right));
         }
 

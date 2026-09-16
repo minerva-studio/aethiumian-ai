@@ -11,10 +11,12 @@ namespace Aethiumian.AI.Nodes
 {
     public abstract partial class Movement
     {
-        private enum CandidateSource { ExistingRoute, PrimaryRequest, LocalFallback }
-
-        private static bool IsIrreversible(NavigationRouteSegment segment)
-            => segment is JumpRouteSegment or FallRouteSegment or DropThroughRouteSegment;
+        private enum CandidateSource
+        {
+            ExistingRoute,
+            PrimaryRequest,
+            LocalFallback
+        }
 
         /// <summary>
         /// Route-reuse comparison. The navigation cell size is the world's own target-motion scale for
@@ -23,13 +25,10 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         private bool SameGoal(NavigationGoalRequest? previous, NavigationGoalRequest latest)
             => previous.HasValue
-                && previous.Value.IsReusableFor(latest, Mathf.Max(NavigationRuntime.CellSize, latest.ArrivalTolerance), NavigationRuntime.CellSize);
-
-        private static bool CompatibleGoal(NavigationGoalRequest previous, NavigationGoalRequest latest)
-            => previous.HasCompatibleSemantics(latest);
+                && previous.Value.IsReusableFor(latest, Mathf.Max(NavigationWorld?.CellSize ?? 1f, latest.ArrivalTolerance), NavigationWorld?.CellSize ?? 1f);
 
         private static bool SamePlanningTarget(NavigationGoalRequest previous, NavigationGoalRequest latest)
-            => CompatibleGoal(previous, latest)
+            => previous.HasCompatibleSemantics(latest)
                 && ((Vector2)(previous.Center - latest.Center)).sqrMagnitude
                     <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
 
@@ -38,7 +37,7 @@ namespace Aethiumian.AI.Nodes
             get
             {
                 NavigationRouteSegment active = ActiveSegment;
-                return active == null || !IsIrreversible(active);
+                return active == null || active.IsReversible;
             }
         }
 
@@ -55,7 +54,7 @@ namespace Aethiumian.AI.Nodes
                 return false;
             }
 
-            if (!CompatibleGoal(previous.Value, goal))
+            if (!previous.Value.HasCompatibleSemantics(goal))
             {
                 intentGoal = goal;
                 ResetActionProgress();
@@ -154,9 +153,7 @@ namespace Aethiumian.AI.Nodes
             // adoptable must not prevent an independent Simple receipt from supplying a
             // reversible action in the same fixed step.  Current Smart results still win
             // naturally because adoption updates the route before this demand check.
-            if (CanReplaceActiveAction
-                && NeedsSimpleAcquisition(goal, body)
-                && TryHandleFallbackResult(goal, anchor, body))
+            if (CanReplaceActiveAction && NeedsSimpleAcquisition(goal, body) && TryHandleFallbackResult(goal, anchor, body))
                 return true;
 
             return false;
@@ -189,7 +186,7 @@ namespace Aethiumian.AI.Nodes
                 // GoalKey is an exact cache identity. Runtime handoff uses the semantic
                 // compatibility contract so harmless collider sampling noise cannot discard a
                 // completed result before it reaches the executor.
-                if (!CompatibleGoal(primary.Goal, goal))
+                if (!primary.Goal.HasCompatibleSemantics(goal))
                 {
                     CancelPrimaryRequest();
                     return false;
@@ -297,7 +294,7 @@ namespace Aethiumian.AI.Nodes
                 return ActionPreparation.Unavailable;
             }
 
-            bool servesCurrentIntent = CompatibleGoal(connected.Goal, goal)
+            bool servesCurrentIntent = connected.Goal.HasCompatibleSemantics(goal)
                 && (SameGoal(connected.Goal, goal)
                     || RouteCoversGoal(connected, 0, body, goal));
 
@@ -325,9 +322,9 @@ namespace Aethiumian.AI.Nodes
             return request != null
                 && active != null
                 && ReferenceEquals(request.CommittedSegment, active)
-                && CompatibleGoal(request.Goal, goal)
+                && request.Goal.HasCompatibleSemantics(goal)
                 && candidate != null
-                && CompatibleGoal(candidate.Goal, goal)
+                && candidate.Goal.HasCompatibleSemantics(goal)
                 && RouteAllowed(request.Goal, request.Start, candidate);
         }
 
@@ -377,7 +374,7 @@ namespace Aethiumian.AI.Nodes
         {
             NavigationRouteSegment active = ActiveSegment;
             if (active == null) return true;
-            if (IsIrreversible(active)) return false;
+            if (!active.IsReversible) return false;
             // A reversible partial action is already supplying movement for this planning
             // target.  Do not stack another Simple request while that action is executing;
             // once it completes, the active-segment check above becomes false and the next
@@ -423,7 +420,7 @@ namespace Aethiumian.AI.Nodes
             }
 
             NavigationRouteSegment predecessor = null;
-            if (action != null && (!changed || IsIrreversible(action)))
+            if (action != null && (!changed || !action.IsReversible))
             {
                 predecessor = action;
             }

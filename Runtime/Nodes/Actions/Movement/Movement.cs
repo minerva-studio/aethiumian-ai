@@ -199,7 +199,7 @@ namespace Aethiumian.AI.Nodes
                     }
                     return;
                 }
-                if ((result.Status == ExecutionStatus.Completed || !IsIrreversible(action))
+                if ((result.Status == ExecutionStatus.Completed || action.IsReversible)
                     && IsGoalSatisfied(goal, body, swept))
                 { EndMovement(true, goal); return; }
                 if (result.Status == ExecutionStatus.Completed)
@@ -231,7 +231,8 @@ namespace Aethiumian.AI.Nodes
                     {
                         if (!retreat.FinalizeTick(body.center, body.size, Time.fixedDeltaTime))
                             EndMovement(false, goal);
-                        else if (!physicalFailure && !IsIrreversible(ActiveSegment) && retreat.HasReachedGoal(body.center, body.size))
+                        else if (!physicalFailure && (ActiveSegment == null || ActiveSegment.IsReversible)
+                            && retreat.HasReachedGoal(body.center, body.size))
                             EndMovement(true, goal);
                     }
                 }
