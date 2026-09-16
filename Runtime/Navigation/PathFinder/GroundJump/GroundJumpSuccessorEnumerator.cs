@@ -52,7 +52,7 @@ namespace Aethiumian.AI.Navigation
         /// non-null values are complete, collision-validated jump edges.
         /// </summary>
         public static IEnumerable<GroundJumpSuccessor> Enumerate(GroundJumpSolver jumpSolver, Vector2 start,
-            NavigationSupport support, NavigationGoalRegion goalRegion, GroundJumpParameters parameters,
+            NavigationSupport support, NavigationGoalRequest goal, GroundJumpParameters parameters,
             NavigationPlanningDiagnostics diagnostics = null,
             bool excludeGroundAdjacent = false, int launchCandidateId = -1)
         {
@@ -93,7 +93,7 @@ namespace Aethiumian.AI.Navigation
             landingSupports = builtLandings;
 
             JumpCandidateHeap candidates = new();
-            float startDistance = goalRegion.DistanceToLowerCenterBody(start, parameters.BodySize);
+            float startDistance = goal.DistanceToLowerCenterBody(start, parameters.BodySize);
             for (int i = 0; i < landingSupports.Count; i++)
             {
                 NavigationSupportCandidate landingCandidate = landingSupports[i];
@@ -116,9 +116,9 @@ namespace Aethiumian.AI.Navigation
                     continue;
                 }
                 candidates.Enqueue(new JumpCandidateDescriptor(landingCandidate.Id, landingCell, landingSupport, landing,
-                    CouldTrajectoryEnterGoal(start, landing, goalRegion, parameters, maximumApexHeight),
-                    startDistance - goalRegion.DistanceToLowerCenterBody(landing, parameters.BodySize),
-                    Mathf.Sign(landing.x - start.x) == Mathf.Sign(goalRegion.Center.x - start.x),
+                    CouldTrajectoryEnterGoal(start, landing, goal, parameters, maximumApexHeight),
+                    startDistance - goal.DistanceToLowerCenterBody(landing, parameters.BodySize),
+                    Mathf.Sign(landing.x - start.x) == Mathf.Sign(goal.Center.x - start.x),
                     Vector2.Distance(start, landing)));
                 yield return null;
             }
@@ -184,7 +184,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         private static bool CouldTrajectoryEnterGoal(Vector2 start, Vector2 landing,
-            NavigationGoalRegion goalRegion, GroundJumpParameters parameters, float maximumApexHeight)
+            NavigationGoalRequest goal, GroundJumpParameters parameters, float maximumApexHeight)
         {
             float minX = Mathf.Min(start.x, landing.x) - parameters.BodySize.x * 0.5f;
             float maxX = Mathf.Max(start.x, landing.x) + parameters.BodySize.x * 0.5f;
@@ -192,9 +192,10 @@ namespace Aethiumian.AI.Navigation
             float maxY = Mathf.Max(start.y, landing.y) + maximumApexHeight + parameters.BodySize.y;
             Bounds envelope = new(new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f),
                 new Vector3(maxX - minX, maxY - minY, 0f));
-            return envelope.Intersects(goalRegion.IsGroundWalk
-                ? goalRegion.GetLowerCenterAcceptanceBounds(parameters.BodySize.x)
-                : goalRegion.TargetBounds);
+            Bounds reachable = goal.IsGroundWalk
+                ? goal.GetLowerCenterAcceptanceBounds(parameters.BodySize.x)
+                : goal.TargetBounds;
+            return envelope.Intersects(reachable);
         }
 
         private static bool CanGenerateJumpEdges(GroundJumpParameters parameters)

@@ -76,7 +76,8 @@ namespace Aethiumian.AI.Navigation.Tests
             WalkNavigationParameters parameters = new(collider.bounds.size, 5f, Physics2D.gravity, GravityScale, LinearDamping, 2.5f, 5f, Time.fixedDeltaTime);
             var planner = new WalkNavigationPlanner(world, 256, new GroundJumpSolver(world));
             var diagnostics = new NavigationPlanningDiagnostics();
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(NavigationGoalRequest.Proximity(new Bounds(PhysicsOrigin + new Vector2(4.5f, 1f), Vector3.zero), DistanceMetric.Euclidean, 0.1f), world);
+            AABB targetBounds = new(PhysicsOrigin + new Vector2(4.5f, 1f), PhysicsOrigin + new Vector2(4.5f, 1f));
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(targetBounds, DistanceMetric.Euclidean, 0.1f);
 
             NavigationRoute route = planner.Plan(observedStart, goal, parameters, CancellationToken.None, diagnostics).Route;
             Assert.That(route, Is.Not.Null,

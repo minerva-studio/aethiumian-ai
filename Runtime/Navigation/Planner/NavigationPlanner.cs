@@ -31,14 +31,14 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Runs planning synchronously against this planner's immutable navigation world.
         /// </summary>
-        public abstract NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null);
+        public abstract NavigationPlanResult Plan(Vector2 start, NavigationGoalRequest goal, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null);
 
         /// <summary>
         /// Attempts to create the first executable route produced by this planner.
         /// </summary>
-        public bool TryPlan(Vector2 start, NavigationGoalRegion goalRegion, TParameters parameters, out NavigationRoute route)
+        public bool TryPlan(Vector2 start, NavigationGoalRequest goal, TParameters parameters, out NavigationRoute route)
         {
-            route = Plan(start, goalRegion, parameters).Route;
+            route = Plan(start, goal, parameters).Route;
             return route != null;
         }
 
@@ -51,22 +51,18 @@ namespace Aethiumian.AI.Navigation
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        public virtual NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRegion goal, TParameters parameters, CancellationToken cancellationToken = default)
+        public virtual NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRequest goal, TParameters parameters, CancellationToken cancellationToken = default)
         {
             return NavigationPlanResult.NoResult;
         }
 
         /// <summary>
-        /// Validates the stable world binding and request-owned common input before mode-specific planning.
+        /// Validates the request-owned common input before mode-specific planning. The goal carries no
+        /// world binding, so this planner's world is the only world a produced route can belong to.
         /// External derived planners should invoke this at the start of their <see cref="Plan"/> override.
         /// </summary>
-        protected void ValidatePlanInputs(Vector2 start, NavigationGoalRegion goalRegion, CancellationToken cancellationToken)
+        protected void ValidatePlanInputs(Vector2 start, CancellationToken cancellationToken)
         {
-            if (goalRegion == null)
-                throw new ArgumentNullException(nameof(goalRegion));
-            if (!ReferenceEquals(goalRegion.Snapshot, World))
-                throw new ArgumentException("The goal region must be bound to this planner's navigation world.", nameof(goalRegion));
-
             cancellationToken.ThrowIfCancellationRequested();
             Validate.Finite(start, nameof(start));
         }

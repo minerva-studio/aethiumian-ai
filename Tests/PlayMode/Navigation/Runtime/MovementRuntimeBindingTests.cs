@@ -131,6 +131,33 @@ namespace Aethiumian.AI.Navigation.Tests
                 DescribeHarness(harness));
         }
 
+        // The harness body rests one contact offset above the authored surface, so a zero reach
+        // distance cannot observe an already-reached target. This case uses a tolerance that admits
+        // that resting gap and isolates the migrated goal-completion entry from the action lifecycle:
+        // a satisfied goal may end the action without launching. The complementary case, where
+        // skipping is disabled and the authored jump must still be performed, remains covered by
+        // FixedJumpReachedTargetStillLaunchesWhenSkipDisabled and is currently red for the unrelated
+        // in-place launch path in FixedJump.TryStartDirectJump.
+        [UnityTest]
+        public IEnumerator ReachedTargetSkipContractCompletesWithoutLaunching()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            FixedJump node = CreateSingleFixedJump(MovementStart);
+            node.reachDistance = (VariableField<float>)0.05f;
+            node.skipReached = (VariableField<bool>)true;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
+                DescribeHarness(harness));
+            Assert.That(harness.Source.JumpCount, Is.Zero,
+                "A satisfied goal with skipReached must complete without launching. " + DescribeHarness(harness));
+        }
+
         private static MapNavigationRuntime CreateGroundRuntime(float y)
         {
             MapNavigationRuntime runtime = new(

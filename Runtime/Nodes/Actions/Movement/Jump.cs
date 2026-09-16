@@ -27,17 +27,17 @@ namespace Aethiumian.AI.Nodes
 
         [NonSerialized] private float nextJumpTime;
         private float EffectiveJumpInterval => jumpInterval / ValidateJumpCadence();
-        protected override NavigationGoalRequest BuildGoal(Bounds target, Bounds body, out Vector2 anchor)
+        protected override NavigationGoalRequest BuildGoal(AABB target, Bounds body, out Vector2 anchor)
         {
             anchor = new Vector2(body.center.x, body.min.y);
             return CreateGoal(target, NavigationGoalGeometry.Proximity);
         }
 
-        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
             operation = null;
             if (purpose == NavigationPlanningPurpose.InitialRoute && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _)) return false;
-            operation = NavigationRuntime.PlanJumpAsync(start, goal.Request, new JumpNavigationParameters(NavigationBodySize, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), extent, cancellation, purpose);
+            operation = NavigationRuntime.PlanJumpAsync(start, goal, new JumpNavigationParameters(NavigationBodySize, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), extent, cancellation, purpose);
             return true;
         }
 
@@ -55,11 +55,12 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept) => goal.IsComplete(body.center, body.size) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _);
+        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, Bounds body, bool swept)
+            => NavigationWorld.IsGoalComplete(goal, body.center, body.size) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _);
 
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body) => reason == ExecutionFailureReason.Obstructed;
+        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, Bounds body) => reason == ExecutionFailureReason.Obstructed;
 
-        protected override void Finish(bool success, NavigationGoalRegion goal) { }
+        protected override void Finish(bool success, NavigationGoalRequest? goal) { }
 
         public override bool EditorCheck(BehaviourTreeData tree)
         {

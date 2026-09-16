@@ -30,15 +30,15 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private int unexpectedLandingRecoveryCount;
         private float NewFixedSpeed => speed * speedModifier;
 
-        protected override NavigationGoalRequest BuildGoal(Bounds target, Bounds body, out Vector2 anchor)
+        protected override NavigationGoalRequest BuildGoal(AABB target, Bounds body, out Vector2 anchor)
         {
             anchor = new Vector2(body.center.x, body.min.y);
             return CreateGoal(target, NavigationGoalGeometry.GroundRange);
         }
 
-        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
-            operation = NavigationRuntime.PlanWalkAsync(start, goal.Request, CreateNavigationParameters(), extent, cancellation, purpose);
+            operation = NavigationRuntime.PlanWalkAsync(start, goal, CreateNavigationParameters(), extent, cancellation, purpose);
             return true;
         }
 
@@ -65,27 +65,35 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept) => goal.IsComplete(body.center, body.size) || swept;
+        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, Bounds body, bool swept) => NavigationWorld.IsGoalComplete(goal, body.center, body.size) || swept;
 
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body)
+        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, Bounds body)
         {
-            if (reason == ExecutionFailureReason.Obstructed) return true;
-            if (reason != ExecutionFailureReason.UnexpectedSupport || unexpectedLandingRecoveryCount >= 2) return false;
-            if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out Vector2 support)
-                || !NavigationRuntime.TryResolvePlanningGroundSupport(support, body.size, out _, out _)) return false;
-            unexpectedLandingRecoveryCount++;
+            switch (reason)
+            {
+                case ExecutionFailureReason.Obstructed:
+                    return true;
+                case ExecutionFailureReason.UnexpectedSupport when unexpectedLandingRecoveryCount < 2:
+                    {
+                        if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out Vector2 support)
+                        || !NavigationRuntime.TryResolvePlanningGroundSupport(support, body.size, out _, out _)) return false;
+                        unexpectedLandingRecoveryCount++;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            MovementReplanDiagnostics.RecordUnexpectedLandingReplan();
+                        MovementReplanDiagnostics.RecordUnexpectedLandingReplan();
 #endif
-            return true;
+                        return true;
+                    }
+                default:
+                    return false;
+            }
         }
 
-        protected override void Finish(bool success, NavigationGoalRegion goal)
+        protected override void Finish(bool success, NavigationGoalRequest? goal)
         {
             StopHorizontalVelocity();
             if (success && setFinalPosition && type == Behaviour.Wander)
             {
-                RigidBody.position += goal.Center - NavigationGroundAnchor;
+                RigidBody.position += goal.Value.Center - NavigationGroundAnchor;
                 RigidBody.linearVelocity = Vector2.zero;
             }
         }

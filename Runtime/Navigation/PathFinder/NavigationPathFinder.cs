@@ -153,7 +153,7 @@ namespace Aethiumian.AI.Navigation
         public INavigationWorld World { get; }
         public Vector2 Start { get; }
         public NavigationSupport StartSupport { get; }
-        public NavigationGoalRegion GoalRegion { get; }
+        public NavigationGoalRequest Goal { get; }
         public Vector2 BodySize { get; }
         public NavigationActions AllowedActions { get; }
         public int MaxExpandedNodes { get; }
@@ -163,13 +163,13 @@ namespace Aethiumian.AI.Navigation
         public NavigationTransitionProvider Transitions { get; }
 
         public NavigationSearchRequest(INavigationWorld world, Vector2 start, NavigationSupport startSupport,
-            NavigationGoalRegion goalRegion, Vector2 bodySize, NavigationActions allowedActions,
+            NavigationGoalRequest goal, Vector2 bodySize, NavigationActions allowedActions,
             int maxExpandedNodes, NavigationNodeIdentity startIdentity,
             NavigationTransitionProvider transitions, Func<Vector2, float> heuristic = null,
             int maxTotalWorkUnits = -1)
         {
             World = world ?? throw new ArgumentNullException(nameof(world));
-            GoalRegion = goalRegion ?? throw new ArgumentNullException(nameof(goalRegion));
+            Goal = goal;
             if (!NavigationNumeric.IsFinite(start) || !NavigationNumeric.IsFinite(bodySize) || bodySize.x <= 0f || bodySize.y <= 0f)
                 throw new ArgumentException("Navigation search coordinates and body size must be finite and positive.");
             if (maxExpandedNodes <= 0) throw new ArgumentOutOfRangeException(nameof(maxExpandedNodes));
@@ -408,7 +408,7 @@ namespace Aethiumian.AI.Navigation
             }
 
             reversed.Reverse();
-            return NavigationRoute.Complete(request.Start, request.GoalRegion,
+            return NavigationRoute.Complete(request.Start, request.Goal, request.World,
                 terminalTransition.DestinationPosition, reversed);
         }
 

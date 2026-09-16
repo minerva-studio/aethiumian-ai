@@ -61,7 +61,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanningOperation operation = new();
             operation.RegisterCancellation(cancellation.Token);
             NavigationRoute route = NavigationRoute.Complete(Vector2.zero,
-                BoundPoint(Vector2.right), Vector2.right,
+                PointGoal(Vector2.right), UnitWorld(), Vector2.right,
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
 
             Assert.That(operation.TryPrepareCompletion(NavigationPlanResult.ResultProduced(route),
@@ -128,10 +128,11 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(() => new NavigationPlanningScheduler(0), Throws.InstanceOf<ArgumentException>());
         }
 
-        private static NavigationGoalRegion BoundPoint(Vector2 point)
-            => NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(point, Vector3.zero), DistanceMetric.Euclidean, 0f),
-                new TestNavigationWorld(new RectInt(-4, -4, 8, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>()));
+        private static TestNavigationWorld UnitWorld()
+            => new(new RectInt(-4, -4, 8, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+
+        private static NavigationGoalRequest PointGoal(Vector2 point)
+            => NavigationGoalRequest.Proximity(new AABB(point, point), DistanceMetric.Euclidean, 0f);
 
         private static void WaitForCompletion(NavigationPlanningOperation operation)
         {
@@ -160,8 +161,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 cancellationToken.ThrowIfCancellationRequested();
                 if (failure != null) throw failure;
                 callback?.Invoke();
-                NavigationGoalRegion region = BoundPoint(goal);
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(start, region, goal,
+                TestNavigationWorld world = UnitWorld();
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(start, PointGoal(goal), world, goal,
                     new[] { new GroundRouteSegment(start, goal) }));
             }
 

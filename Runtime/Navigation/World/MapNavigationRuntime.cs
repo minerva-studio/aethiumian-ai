@@ -216,16 +216,16 @@ namespace Aethiumian.AI.Navigation
             }
             try
             {
-                NavigationGoalRegion goalRegion = request.Descriptor.Bind(world);
+                NavigationGoalRequest goal = request.Descriptor.Goal;
                 NavigationProfileKey profileKey = request.Descriptor.ProfileKey;
-                if (!CanPossiblyReachGoal(goalRegion, request.Descriptor.BodySize, world))
+                if (!CanPossiblyReachGoal(goal, request.Descriptor.BodySize, world))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.NoResult);
                     request.IsScheduled = true;
                     return;
                 }
 
-                if (!TryCreateFailureKey(request.Descriptor.Start, goalRegion, profileKey,
+                if (!TryCreateFailureKey(request.Descriptor.Start, goal, profileKey,
                     request.Descriptor.Purpose, out NavigationFailureKey failureKey))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.NoResult);
@@ -240,7 +240,7 @@ namespace Aethiumian.AI.Navigation
                     return;
                 }
 
-                INavigationPlanningWork work = request.TakeDescriptor().CreateWork(this, goalRegion);
+                INavigationPlanningWork work = request.TakeDescriptor().CreateWork(this);
                 scheduler.PlanWork(work, request.Cancellation.Token, request.Operation);
                 request.IsScheduled = true;
             }
@@ -288,20 +288,19 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Conservatively rejects only goals no body AABB can touch from inside the finite world.
         /// </summary>
-        public static bool CanPossiblyReachGoal(NavigationGoalRegion goalRegion, Vector2 bodySize, INavigationWorld snapshot)
+        public static bool CanPossiblyReachGoal(NavigationGoalRequest goal, Vector2 bodySize, INavigationWorld snapshot)
         {
-            if (goalRegion == null) throw new ArgumentNullException(nameof(goalRegion));
             if (snapshot == null) return true;
-            if (goalRegion.IsRetreat) return true;
-            Bounds goal = goalRegion.IsGroundWalk
-                ? goalRegion.GetLowerCenterAcceptanceBounds(bodySize.x)
-                : goalRegion.TargetBounds;
-            float expansion = Mathf.Max(bodySize.x, bodySize.y) + goalRegion.ArrivalErrorBound;
-            goal.Expand(expansion * 2f);
+            if (goal.IsRetreat) return true;
+            Bounds reachable = goal.IsGroundWalk
+                ? goal.GetLowerCenterAcceptanceBounds(bodySize.x)
+                : goal.TargetBounds;
+            float expansion = Mathf.Max(bodySize.x, bodySize.y) + goal.ArrivalTolerance;
+            reachable.Expand(expansion * 2f);
             Bounds worldBounds = new(
                 snapshot.Origin + new Vector2(snapshot.CellBounds.center.x, snapshot.CellBounds.center.y) * snapshot.CellSize,
                 new Vector2(snapshot.CellBounds.width, snapshot.CellBounds.height) * snapshot.CellSize);
-            return goal.Intersects(worldBounds);
+            return reachable.Intersects(worldBounds);
         }
 
         /// <summary>Owns cancellation resources until one queued operation reaches a terminal outcome.</summary>
@@ -354,9 +353,9 @@ namespace Aethiumian.AI.Navigation
             public abstract Vector2 BodySize { get; }
             public abstract NavigationProfileKey ProfileKey { get; }
             public abstract NavigationPlanningPurpose Purpose { get; }
-            public abstract NavigationGoalRegion Bind(INavigationWorld snapshot);
-            public abstract INavigationPlanningWork CreateWork(MapNavigationRuntime runtime,
-                NavigationGoalRegion goalRegion);
+            /// <summary>Gets the immutable goal this request plans against.</summary>
+            public abstract NavigationGoalRequest Goal { get; }
+            public abstract INavigationPlanningWork CreateWork(MapNavigationRuntime runtime);
         }
 
         private sealed class WalkRequestDescriptor : PlanningRequestDescriptor
@@ -381,17 +380,15 @@ namespace Aethiumian.AI.Navigation
             public override Vector2 BodySize => parameters.BodySize;
             public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, simple ? 4 : 1);
             public override NavigationPlanningPurpose Purpose => purpose;
-            public override NavigationGoalRegion Bind(INavigationWorld snapshot)
-                => NavigationGoalRegion.Bind(goalRequest, snapshot);
+            public override NavigationGoalRequest Goal => goalRequest;
 
-            public override INavigationPlanningWork CreateWork(MapNavigationRuntime runtime,
-                NavigationGoalRegion boundGoalRegion)
+            public override INavigationPlanningWork CreateWork(MapNavigationRuntime runtime)
             {
                 WalkNavigationPlanner planner = runtime.walkPlanner
                     ?? throw new InvalidOperationException("Walk planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => simple
-                    ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken));
+                    ? planner.PlanSingleStep(start, goalRequest, parameters, cancellationToken)
+                    : planner.Plan(start, goalRequest, parameters, cancellationToken));
             }
         }
 
@@ -417,16 +414,15 @@ namespace Aethiumian.AI.Navigation
             public override Vector2 BodySize => parameters.BodySize;
             public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, extent == NavigationPlanningExtent.NextAction ? 5 : 2);
             public override NavigationPlanningPurpose Purpose => purpose;
-            public override NavigationGoalRegion Bind(INavigationWorld snapshot) => NavigationGoalRegion.Bind(goalRequest, snapshot);
+            public override NavigationGoalRequest Goal => goalRequest;
 
-            public override INavigationPlanningWork CreateWork(MapNavigationRuntime runtime,
-                NavigationGoalRegion boundGoalRegion)
+            public override INavigationPlanningWork CreateWork(MapNavigationRuntime runtime)
             {
                 JumpNavigationPlanner planner = runtime.jumpPlanner
                     ?? throw new InvalidOperationException("Jump planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
-                    ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken));
+                    ? planner.PlanSingleStep(start, goalRequest, parameters, cancellationToken)
+                    : planner.Plan(start, goalRequest, parameters, cancellationToken));
             }
         }
 
@@ -452,31 +448,29 @@ namespace Aethiumian.AI.Navigation
             public override Vector2 BodySize => parameters.BodySize;
             public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, extent == NavigationPlanningExtent.NextAction ? 6 : 3);
             public override NavigationPlanningPurpose Purpose => purpose;
-            public override NavigationGoalRegion Bind(INavigationWorld snapshot) => NavigationGoalRegion.Bind(goalRequest, snapshot);
+            public override NavigationGoalRequest Goal => goalRequest;
 
-            public override INavigationPlanningWork CreateWork(MapNavigationRuntime runtime,
-                NavigationGoalRegion boundGoalRegion)
+            public override INavigationPlanningWork CreateWork(MapNavigationRuntime runtime)
             {
                 FlyNavigationPlanner planner = runtime.flyPlanner
                     ?? throw new InvalidOperationException("Fly planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
-                    ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken));
+                    ? planner.PlanSingleStep(start, goalRequest, parameters, cancellationToken)
+                    : planner.Plan(start, goalRequest, parameters, cancellationToken));
             }
         }
 
-        /// <summary>Returns the cell rectangle covered by a goal region in the published snapshot.</summary>
-        internal RectInt GetGoalRegionCellBounds(NavigationGoalRegion goalRegion) => GetGoalRegionCellBounds(goalRegion, Vector2.zero);
+        /// <summary>Returns the cell rectangle covered by a goal in the published snapshot.</summary>
+        internal RectInt GetGoalCellBounds(NavigationGoalRequest goal) => GetGoalCellBounds(goal, Vector2.zero);
 
         /// <summary>Returns the cell rectangle covered by a goal using the supplied body width for Ground Walk.</summary>
-        internal RectInt GetGoalRegionCellBounds(NavigationGoalRegion goalRegion, Vector2 bodySize)
+        internal RectInt GetGoalCellBounds(NavigationGoalRequest goal, Vector2 bodySize)
         {
             ThrowIfDisposed();
-            if (goalRegion == null) throw new ArgumentNullException(nameof(goalRegion));
             if (world == null) return new RectInt();
-            Bounds bounds = goalRegion.IsGroundWalk && bodySize.x > 0f
-                ? goalRegion.GetLowerCenterAcceptanceBounds(bodySize.x)
-                : goalRegion.TargetBounds;
+            Bounds bounds = goal.IsGroundWalk && bodySize.x > 0f
+                ? goal.GetLowerCenterAcceptanceBounds(bodySize.x)
+                : goal.TargetBounds;
             int minX = Mathf.FloorToInt((bounds.min.x - world.Origin.x) / world.CellSize);
             int minY = Mathf.FloorToInt((bounds.min.y - world.Origin.y) / world.CellSize);
             int maxX = bounds.size.x == 0f
@@ -514,16 +508,16 @@ namespace Aethiumian.AI.Navigation
             return world == null ? default : NavigationWorldQueries.WorldToCell(world, position);
         }
 
-        private bool TryCreateFailureKey(Vector2 start, NavigationGoalRegion goalRegion,
+        private bool TryCreateFailureKey(Vector2 start, NavigationGoalRequest goal,
             NavigationProfileKey profileKey, NavigationPlanningPurpose purpose, out NavigationFailureKey key)
         {
             key = default;
-            if (world == null || goalRegion == null) return false;
+            if (world == null) return false;
             Vector2 snappedStart = default;
             NavigationSupport support = default;
             bool hasSupport = profileKey.IsGround && world.TryResolveGroundSupport(start, profileKey.BodySize, out snappedStart, out support);
             key = new NavigationFailureKey(hasSupport, support.Surface, hasSupport ? snappedStart : start,
-                goalRegion, profileKey, purpose);
+                goal, profileKey, purpose);
             return true;
         }
 
@@ -559,19 +553,19 @@ namespace Aethiumian.AI.Navigation
             private readonly NavigationSurfaceId supportSurface;
             private readonly int startX;
             private readonly int startY;
-            private readonly NavigationGoalKey goal;
+            private readonly NavigationGoalRequest goal;
             private readonly NavigationProfileKey profileKey;
             private readonly NavigationPlanningPurpose purpose;
 
             public NavigationProfileKey ProfileKey => profileKey;
             public NavigationFailureKey(bool hasSupport, NavigationSurfaceId supportSurface, Vector2 start,
-                NavigationGoalRegion goalRegion, NavigationProfileKey profileKey, NavigationPlanningPurpose purpose)
+                NavigationGoalRequest goal, NavigationProfileKey profileKey, NavigationPlanningPurpose purpose)
             {
                 this.hasSupport = hasSupport;
                 this.supportSurface = supportSurface;
                 startX = BitConverter.SingleToInt32Bits(start.x);
                 startY = BitConverter.SingleToInt32Bits(start.y);
-                goal = goalRegion.GoalKey;
+                this.goal = goal;
                 this.profileKey = profileKey;
                 this.purpose = purpose;
             }

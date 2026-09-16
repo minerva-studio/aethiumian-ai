@@ -105,8 +105,7 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
-            NavigationGoalRegion completionGoal = NavigationGoalRegion.Bind(
-                CreateCompletionRequest(targetBounds, arrivalTolerance), world);
+            NavigationGoalRequest completionGoal = CreateCompletionRequest(targetBounds, arrivalTolerance);
             if (skipReached && IsReached(completionGoal, start))
             {
                 CompleteAction(true);
@@ -141,12 +140,12 @@ namespace Aethiumian.AI.Nodes
                     requiresLineOfSight);
         }
 
-        private bool IsReached(NavigationGoalRegion completionGoal, Vector2 groundAnchor)
+        private bool IsReached(NavigationGoalRequest completionGoal, Vector2 groundAnchor)
         {
             if (!navigation.TryResolvePlanningGroundSupport(
                 groundAnchor, bodySize, out _, out _)) return false;
             Vector2 center = groundAnchor + Vector2.up * (bodySize.y * 0.5f);
-            return completionGoal.IsComplete(center, bodySize);
+            return NavigationWorld.IsGoalComplete(completionGoal, center, bodySize);
         }
 
         /// <summary>Advances planning or the committed single jump on the fixed-step path.</summary>
@@ -174,9 +173,7 @@ namespace Aethiumian.AI.Nodes
                 {
                     Vector2 currentStart = NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
                     bool currentlyReached = IsReached(
-                        NavigationGoalRegion.Bind(
-                            CreateCompletionRequest(capturedTargetBounds, GetArrivalTolerance()),
-                            NavigationWorld),
+                        CreateCompletionRequest(capturedTargetBounds, GetArrivalTolerance()),
                         currentStart);
                     if (skipReached && currentlyReached)
                     {

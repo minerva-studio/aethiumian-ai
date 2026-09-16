@@ -71,6 +71,18 @@ namespace Aethiumian.AI.Navigation
                 throw new ArgumentException("Goal bounds must be finite and non-negative.", parameterName);
         }
 
+        /// <summary>
+        /// Rejects non-finite or inverted axis-aligned goal geometry. Min and Max have public setters,
+        /// so the ordering guarantee of the constructor cannot be assumed at this boundary.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Aabb(AABB value, string parameterName)
+        {
+            if (!NavigationNumeric.IsFinite(value.Min) || !NavigationNumeric.IsFinite(value.Max)
+                || value.Max.x < value.Min.x || value.Max.y < value.Min.y)
+                throw new ArgumentException("Goal bounds must be finite and non-negative.", parameterName);
+        }
+
 
 
 

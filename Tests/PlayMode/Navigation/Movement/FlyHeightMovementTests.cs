@@ -28,9 +28,9 @@ namespace Aethiumian.AI.Navigation.Tests
                 yield return WaitForTreeCreated(harness);
                 var fly = (HeightQueryFly)harness.AI.BehaviourTree.Head;
                 yield return new WaitForFixedUpdate();
-                Bounds goal = fly.CaptureGoal().TargetBounds;
-                Assert.That(goal.center.y, Is.EqualTo(7f).Within(0.0001f));
-                Assert.That(goal.size, Is.EqualTo(target.GetComponent<Collider2D>().bounds.size));
+                AABB goal = fly.CaptureGoal().TargetBounds;
+                Assert.That(goal.Center.y, Is.EqualTo(7f).Within(0.0001f));
+                Assert.That(goal.Size, Is.EqualTo((Vector2)target.GetComponent<Collider2D>().bounds.size));
 
                 harness.Source.CanMove = true;
                 for (int tick = 0; tick < RuntimeContractTickLimit && harness.Body.linearVelocity.sqrMagnitude < 0.01f; tick++)
@@ -39,14 +39,14 @@ namespace Aethiumian.AI.Navigation.Tests
                 if (path == "Smart")
                 {
                     Assert.That(fly.PlannedGoal.HasValue, Is.True);
-                    Assert.That(fly.PlannedGoal.Value.center.y, Is.EqualTo(7f).Within(0.0001f));
-                    Assert.That(fly.PlannedGoal.Value.size, Is.EqualTo(goal.size));
+                    Assert.That(fly.PlannedGoal.Value.Center.y, Is.EqualTo(7f).Within(0.0001f));
+                    Assert.That(fly.PlannedGoal.Value.Size, Is.EqualTo(goal.Size));
                 }
                 else
                 {
                     Assert.That(fly.PlannedGoal.HasValue, Is.True);
-                    Assert.That(fly.PlannedGoal.Value.center.y, Is.EqualTo(7f).Within(0.0001f));
-                    Assert.That(fly.PlannedGoal.Value.size, Is.EqualTo(goal.size));
+                    Assert.That(fly.PlannedGoal.Value.Center.y, Is.EqualTo(7f).Within(0.0001f));
+                    Assert.That(fly.PlannedGoal.Value.Size, Is.EqualTo(goal.Size));
                 }
                 harness.AI.End(false);
                 Assert.That(runtime.IsDisposed, Is.False);
@@ -65,7 +65,7 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return WaitForTreeCreated(harness);
             var fly = (HeightQueryFly)harness.AI.BehaviourTree.Head;
             yield return new WaitForFixedUpdate();
-            Assert.That(fly.CaptureGoal().TargetBounds.center.y, Is.EqualTo(15f));
+            Assert.That(fly.CaptureGoal().TargetBounds.Center.y, Is.EqualTo(15f));
             harness.AI.End(false);
 
             using MapNavigationRuntime supported = new(8, 4096, 4096);
@@ -78,7 +78,7 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return WaitForTreeCreated(fixedHarness);
             var fixedFly = (HeightQueryFly)fixedHarness.AI.BehaviourTree.Head;
             yield return new WaitForFixedUpdate();
-            Assert.That(fixedFly.CaptureGoal().TargetBounds.center.y, Is.EqualTo(15f));
+            Assert.That(fixedFly.CaptureGoal().TargetBounds.Center.y, Is.EqualTo(15f));
             fixedHarness.AI.End(false);
         }
 
@@ -218,14 +218,14 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             public int WanderSelections { get; private set; }
             public Vector2Int SelectedWander { get; private set; }
-            public Bounds? PlannedGoal { get; private set; }
+            public AABB? PlannedGoal { get; private set; }
             public NavigationGoalRequest CaptureGoal()
             {
-                Bounds target = type == Movement.Behaviour.FixedDestination
-                    ? new Bounds(destination.Vector2Value, Vector3.zero)
+                AABB target = type == Movement.Behaviour.FixedDestination
+                    ? new AABB(destination.Vector2Value, destination.Vector2Value)
                     : tracing != null && tracing.GameObjectValue
-                        ? tracing.GameObjectValue.GetComponent<Collider2D>().bounds
-                        : new Bounds(Vector3.zero, Vector3.zero);
+                        ? (AABB)tracing.GameObjectValue.GetComponent<Collider2D>().bounds
+                        : new AABB(Vector3.zero, Vector3.zero);
                 return BuildGoal(target, NavigationBounds, out _);
             }
 
@@ -236,11 +236,11 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             protected override bool TryRequestRoute(
-                Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent,
+                Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent,
                 NavigationPlanningPurpose purpose,
                 CancellationToken cancellationToken, out NavigationPlanningOperation operation)
             {
-                PlannedGoal = goal.Request.TargetBounds;
+                PlannedGoal = goal.TargetBounds;
                 return base.TryRequestRoute(start, goal, extent, purpose, cancellationToken, out operation);
             }
         }

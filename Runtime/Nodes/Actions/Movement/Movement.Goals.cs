@@ -7,7 +7,7 @@ namespace Aethiumian.AI.Nodes
     {
         [System.NonSerialized] private Vector2? wanderDestination;
 
-        private bool TryReadTarget(out Bounds target, out GameObject targetObject)
+        private bool TryReadTarget(out AABB target, out GameObject targetObject)
         {
             Vector2 point;
             target = default;
@@ -20,8 +20,9 @@ namespace Aethiumian.AI.Nodes
                     targetObject = tracing.GameObjectValue;
                     if (!targetObject) return false;
                     Collider2D[] colliders = NavigationBodyGeometry.GetTargetColliders(targetObject);
-                    target = colliders.Length > 0 ? NavigationBodyGeometry.GetMergedBounds(colliders)
-                        : new Bounds(targetObject.transform.position, Vector3.zero);
+                    Vector2 fallback = targetObject.transform.position;
+                    target = colliders.Length > 0 ? (AABB)NavigationBodyGeometry.GetMergedBounds(colliders)
+                        : new AABB(fallback, fallback);
                     return true;
                 case Behaviour.Wander:
                     wanderDestination ??= GetWanderLocation(GetWanderCenter());
@@ -30,7 +31,7 @@ namespace Aethiumian.AI.Nodes
                 case Behaviour.FixedDestination: point = destination.Vector2Value; break;
                 default: point = NavigationGroundAnchor; break;
             }
-            target = new Bounds(point, Vector3.zero);
+            target = new AABB(point, point);
             return true;
         }
         private Vector2 GetWanderCenter() => wanderMode switch
@@ -40,7 +41,7 @@ namespace Aethiumian.AI.Nodes
             WanderMode.AbsoluteCentered when centerSpace == Space.Self => centerOfWander.Vector2Value + NavigationGroundAnchor,
             _ => Vector2.zero,
         };
-        protected NavigationGoalRequest CreateGoal(Bounds target, NavigationGoalGeometry defaultGeometry)
+        protected NavigationGoalRequest CreateGoal(AABB target, NavigationGoalGeometry defaultGeometry)
         {
             float tolerance = reachDistance;
             if (type == Behaviour.Retreat) return NavigationGoalRequest.Retreat(target, distanceMetric, tolerance);

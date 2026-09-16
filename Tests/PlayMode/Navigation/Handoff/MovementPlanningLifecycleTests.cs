@@ -622,11 +622,11 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2 resolvedGoal = endpoint ?? new Vector2(request.Goal.Center.x, 1f);
             Vector2 logicalStart = new(request.Start.x, 1f);
             Vector2 bodyCenter = resolvedGoal + Vector2.up * (BodyHeight * 0.5f);
-            bool reachesGoal = request.Goal.IsComplete(bodyCenter, new Vector2(BodyWidth, BodyHeight));
+            bool reachesGoal = request.World.IsGoalComplete(request.Goal, bodyCenter, new Vector2(BodyWidth, BodyHeight));
             if (completesGoal)
                 Assert.That(reachesGoal, Is.True,
                     $"Fixture endpoint {resolvedGoal} does not satisfy the captured goal {request.Goal}.");
-            return NavigationRoute.Create(logicalStart, request.Goal, resolvedGoal,
+            return NavigationRoute.Create(logicalStart, request.Goal, request.World, resolvedGoal,
                 new[] { new GroundRouteSegment(logicalStart, resolvedGoal) },
                 reachesGoal);
         }
@@ -644,16 +644,18 @@ namespace Aethiumian.AI.Navigation.Tests
             {
                 internal NavigationPlanningOperation Operation { get; }
                 internal Vector2 Start { get; }
-                internal NavigationGoalRegion Goal { get; }
+                internal NavigationGoalRequest Goal { get; }
+                internal INavigationWorld World { get; }
                 internal NavigationPlanningExtent Extent { get; }
                 internal NavigationPlanningPurpose Purpose { get; }
 
-                internal Request(NavigationPlanningOperation operation, Vector2 start, NavigationGoalRegion goal,
-                    NavigationPlanningExtent extent, NavigationPlanningPurpose purpose)
+                internal Request(NavigationPlanningOperation operation, Vector2 start, NavigationGoalRequest goal,
+                    INavigationWorld world, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose)
                 {
                     Operation = operation;
                     Start = start;
                     Goal = goal;
+                    World = world;
                     Extent = extent;
                     Purpose = purpose;
                 }
@@ -673,7 +675,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             protected override bool TryRequestRoute(
                 Vector2 start,
-                NavigationGoalRegion goal,
+                NavigationGoalRequest goal,
                 NavigationPlanningExtent extent,
                 NavigationPlanningPurpose purpose,
                 System.Threading.CancellationToken cancellationToken,
@@ -681,7 +683,7 @@ namespace Aethiumian.AI.Navigation.Tests
             {
                 operation = new NavigationPlanningOperation();
                 operation.RegisterCancellation(cancellationToken);
-                Requests.Add(new Request(operation, start, goal, extent, purpose));
+                Requests.Add(new Request(operation, start, goal, NavigationWorld, extent, purpose));
                 return true;
             }
         }

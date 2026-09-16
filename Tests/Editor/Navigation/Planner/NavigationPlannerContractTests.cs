@@ -15,7 +15,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             TestNavigationWorld world = NavigationTestWorlds.Ground(0, 6);
             Vector2 bodySize = new(0.8f, 1.5f);
-            NavigationGoalRegion goal = BindGoal(world, new Vector2(5.5f, 1f));
+            NavigationGoalRequest goal = BindGoal(new Vector2(5.5f, 1f));
 
             NavigationPlanResult result = new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world))
                 .Plan(new Vector2(0.5f, 1f), goal, WalkParameters(bodySize));
@@ -23,14 +23,14 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(result.Route, Is.Not.Null);
             Assert.That(result.Route.Segments, Is.Not.Empty);
-            Assert.That(goal.IsComplete(result.Route.ResolvedGoal + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(goal, result.Route.ResolvedGoal + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
         }
 
         [Test]
         public void FlyPlanner_UnreachableGoalReportsNoPath()
         {
             TestNavigationWorld world = new(new RectInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = BindGoal(world, new Vector2(10.5f, 0.5f));
+            NavigationGoalRequest goal = BindGoal(new Vector2(10.5f, 0.5f));
 
             NavigationPlanResult result = new FlyNavigationPlanner(world, 16)
                 .Plan(new Vector2(0.5f, 0.5f), goal, new FlyNavigationParameters(new Vector2(0.8f, 0.8f)));
@@ -46,7 +46,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             TestNavigationWorld world = NavigationTestWorlds.Ground(0, 2);
             Assert.That(() => new WalkNavigationPlanner(world, 16, new GroundJumpSolver(world)).Plan(
-                new Vector2(float.NaN, 1f), BindGoal(world, new Vector2(1.5f, 1f)), WalkParameters(new Vector2(0.8f, 1.5f))),
+                new Vector2(float.NaN, 1f), BindGoal(new Vector2(1.5f, 1f)), WalkParameters(new Vector2(0.8f, 1.5f))),
                 Throws.ArgumentException);
         }
 
@@ -83,9 +83,8 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(support.Position.y, Is.EqualTo(1f));
         }
 
-        private static NavigationGoalRegion BindGoal(INavigationWorld world, Vector2 center)
-            => NavigationGoalRegion.Bind(NavigationGoalRequest.Proximity(new Bounds(center, Vector3.zero),
-                DistanceMetric.Euclidean, 0.1f), world);
+        private static NavigationGoalRequest BindGoal(Vector2 center)
+            => NavigationGoalRequest.Proximity(new AABB(center, center), DistanceMetric.Euclidean, 0.1f);
 
         private static WalkNavigationParameters WalkParameters(Vector2 bodySize)
             => new(bodySize, 5f, Gravity, 1f, 0f, 2f, 4f, 0.02f);

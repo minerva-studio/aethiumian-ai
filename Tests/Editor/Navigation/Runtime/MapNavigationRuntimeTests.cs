@@ -138,7 +138,7 @@ namespace Aethiumian.AI.Navigation.Tests
             using MapNavigationRuntime runtime = CreateRuntime();
             runtime.PublishWorld(CreateOpenWorld());
             NavigationGoalRequest goal = NavigationGoalRequest.Retreat(
-                new Bounds(new Vector3(100f, 2.5f), Vector3.zero), DistanceMetric.Euclidean, 1f);
+                new AABB(new Vector2(100f, 2.5f), new Vector2(100f, 2.5f)), DistanceMetric.Euclidean, 1f);
 
             NavigationPlanningOperation operation = runtime.PlanFlyAsync(
                 new Vector2(1.5f, 2.5f), goal, FlyParameters);
@@ -170,9 +170,9 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(fly.Result, Is.Not.Null);
         }
 
-        /// <summary>Verifies Smart Walk rebinds its raw target against the explicit published cell size.</summary>
+        /// <summary>Verifies Smart Walk plans a pre-publication request against the published world.</summary>
         [Test]
-        public void SmartWalkBindsGoalAtScheduleTime()
+        public void SmartWalkPlansGoalAgainstPublishedWorldAtScheduleTime()
         {
             TestNavigationWorld world = new(
                 new RectInt(0, 0, 6, 5),
@@ -183,22 +183,25 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(world);
 
             NavigationGoalRequest captured = NavigationGoalRequest.GroundRange(
-                new Bounds(new Vector3(2.25f, 0.5f, 0f), new Vector3(2f, 0f, 0f)), 0.1f);
-            NavigationGoalRegion boundCaptured = NavigationGoalRegion.Bind(captured, world);
+                new AABB(new Vector2(1.25f, 0.5f), new Vector2(3.25f, 0.5f)), 0.1f);
             WalkNavigationParameters parameters = new(new Vector2(0.2f, 0.4f), 4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
             Assert.That(world.TryResolveGroundSupport(new Vector2(2.25f, 0.5f), parameters.BodySize,
                 out _, out _, out _), Is.True);
-            Assert.That(boundCaptured.ContainsLowerCenterGoal(new Vector2(2.25f, 0.5f), parameters.BodySize.x), Is.True);
+            Assert.That(world.IsGoalComplete(captured,
+                new Vector2(2.25f, 0.5f) + Vector2.up * (parameters.BodySize.y * 0.5f),
+                parameters.BodySize), Is.True);
             NavigationPlanningOperation operation = runtime.PlanWalkAsync(
                 new Vector2(2.25f, 0.5f), captured, parameters);
             WaitForCompletion(operation);
 
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(operation.Result, Is.Not.Null);
-            Assert.That(operation.Result.GoalRegion.IsGroundWalk, Is.True);
-            Assert.That(operation.Result.GoalRegion.CellSize, Is.EqualTo(0.5f));
-            Assert.That(operation.Result.GoalRegion.Center.y, Is.EqualTo(0.5f));
+            Assert.That(operation.Result.Goal, Is.EqualTo(captured));
+            Assert.That(operation.Result.World, Is.SameAs(world));
+            Assert.That(operation.Result.Goal.IsGroundWalk, Is.True);
+            Assert.That(operation.Result.World.CellSize, Is.EqualTo(0.5f));
+            Assert.That(operation.Result.Goal.Center.y, Is.EqualTo(0.5f));
         }
 
         /// <summary>Verifies an unresolved Smart Walk start is retried by the worker rather than memoized as a terminal failure.</summary>
@@ -211,7 +214,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WalkNavigationParameters parameters = new(new Vector2(0.8f, 1f), 4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
             NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
-                new Bounds(new Vector3(3.5f, 1f), Vector3.zero), 0.1f);
+                new AABB(new Vector2(3.5f, 1f), new Vector2(3.5f, 1f)), 0.1f);
             Vector2 start = new(1.5f, 1f);
 
             NavigationPlanningOperation first = runtime.PlanWalkAsync(start, goal, parameters);
@@ -281,7 +284,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2 walkStart = new(0.5f, 1f);
             NavigationPlanningOperation walk = runtime.PlanWalkAsync(
                 walkStart,
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(4.5f, 1f), Vector3.zero), 0.1f),
+                NavigationGoalRequest.GroundRange(new AABB(new Vector2(4.5f, 1f), new Vector2(4.5f, 1f)), 0.1f),
                 WalkParameters,
                 NavigationPlanningExtent.NextAction);
             NavigationPlanningOperation jump = runtime.PlanJumpAsync(
@@ -327,8 +330,7 @@ namespace Aethiumian.AI.Navigation.Tests
             TestNavigationWorld world = new(new RectInt(0, 0, 41, 8), floor, Array.Empty<Vector2Int>());
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
             using INavigationPlanningWork work = new PlannerWork(token => planner.PlanSingleStep(
-                new Vector2(20.5f, 1f), NavigationGoalRegion.Bind(
-                    Goal(new Vector2(35.5f, 1f)), world), JumpParameters,
+                new Vector2(20.5f, 1f), Goal(new Vector2(35.5f, 1f)), JumpParameters,
                 token));
 
             NavigationPlanResult result = work.Execute(CancellationToken.None);
@@ -386,6 +388,42 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(fly.PlanResult.Termination, Is.Not.EqualTo(NavigationPlanTermination.ResultProduced));
         }
 
+        /// <summary>Verifies failed-request memoization keeps the planning purpose distinct.</summary>
+        [Test]
+        public void FailedRequestMemoizationSeparatesPlanningPurpose()
+        {
+            using MapNavigationRuntime runtime = new(4, 128, 64);
+            TestNavigationWorld world = new(new RectInt(0, 0, 6, 5),
+                new[] { new Vector2Int(0, 0) }, Array.Empty<Vector2Int>());
+            runtime.PublishWorld(world);
+            WalkNavigationParameters groundedOnly = new(new Vector2(0.8f, 1f), 4f,
+                new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
+            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
+                new AABB(new Vector2(4.5f, 1f), new Vector2(4.5f, 1f)), 0f);
+            Vector2 start = new(0.5f, 1f);
+
+            NavigationPlanningOperation continuation = runtime.PlanWalkAsync(start, goal, groundedOnly,
+                NavigationPlanningExtent.Route, default, NavigationPlanningPurpose.EndpointContinuation);
+            WaitForCompletion(continuation);
+            Assert.That(continuation.Result, Is.Null, DescribeRoute(continuation.Result));
+            Assert.That(continuation.PlanResult.Termination,
+                Is.EqualTo(NavigationPlanTermination.SearchExhausted), DescribeRoute(continuation.Result));
+            runtime.ReleaseCompletedOperations();
+
+            NavigationPlanningOperation initialRoute = runtime.PlanWalkAsync(start, goal, groundedOnly,
+                NavigationPlanningExtent.Route, default, NavigationPlanningPurpose.InitialRoute);
+            Assert.That(initialRoute.IsCompleted, Is.False,
+                "Planning purpose is part of the failure identity, so another purpose must still run the planner.");
+            WaitForCompletion(initialRoute);
+            Assert.That(initialRoute.PlanResult.Termination,
+                Is.EqualTo(NavigationPlanTermination.SearchExhausted), DescribeRoute(initialRoute.Result));
+
+            NavigationPlanningOperation repeated = runtime.PlanWalkAsync(start, goal, groundedOnly,
+                NavigationPlanningExtent.Route, default, NavigationPlanningPurpose.EndpointContinuation);
+            Assert.That(repeated.IsCompleted, Is.True,
+                "The identical exhausted request must reuse its memoized failure.");
+        }
+
         /// <summary>Verifies failed-request memoization keeps distance metrics distinct.</summary>
         [Test]
         public void FailedRequestMemoizationSeparatesDistanceMetric()
@@ -393,7 +431,7 @@ namespace Aethiumian.AI.Navigation.Tests
             using MapNavigationRuntime runtime = CreateRuntime();
             TestNavigationWorld world = new(new RectInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             runtime.PublishWorld(world);
-            Bounds target = new(new Vector3(1.1f, 1.1f), Vector3.zero);
+            AABB target = new(new Vector2(1.1f, 1.1f), new Vector2(1.1f, 1.1f));
             Vector2 start = new(0.5f, 0.5f);
 
             NavigationPlanningOperation manhattan = runtime.PlanFlyAsync(start,
@@ -419,7 +457,7 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(world);
             Vector2 start = new(0.5f, 2.5f);
             NavigationGoalRequest goal = NavigationGoalRequest.Retreat(
-                new Bounds(new Vector3(1.5f, 2.5f), Vector3.zero), DistanceMetric.Euclidean, 3f);
+                new AABB(new Vector2(1.5f, 2.5f), new Vector2(1.5f, 2.5f)), DistanceMetric.Euclidean, 3f);
 
             NavigationPlanningOperation constrained = runtime.PlanFlyAsync(
                 start, goal, new FlyNavigationParameters(new Vector2(0.8f, 0.8f), 0.1f));
@@ -433,7 +471,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(relaxed);
             Assert.That(relaxed.Result, Is.Not.Null,
                 "A larger approach budget must not hit the failed-request cache entry for the smaller budget.");
-            Assert.That(relaxed.Result.GoalRegion.IsRetreat, Is.True);
+            Assert.That(relaxed.Result.Goal.IsRetreat, Is.True);
         }
 
         /// <summary>Verifies failed-request memoization keeps line-of-sight requirements distinct.</summary>
@@ -443,7 +481,7 @@ namespace Aethiumian.AI.Navigation.Tests
             using MapNavigationRuntime runtime = CreateRuntime();
             TestNavigationWorld world = new(new RectInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             runtime.PublishWorld(world);
-            Bounds target = new(new Vector3(1.1f, 1.1f), Vector3.zero);
+            AABB target = new(new Vector2(1.1f, 1.1f), new Vector2(1.1f, 1.1f));
             Vector2 start = new(0.5f, 0.5f);
 
             NavigationPlanningOperation requiresLineOfSight = runtime.PlanFlyAsync(start,
@@ -487,7 +525,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 new Vector2(0.5f, 1f), Goal(new Vector2(2.5f, 3.5f)), JumpParameters);
             Assert.That(airborne.IsCompleted, Is.False);
 
-            Bounds partialBounds = new(new Vector3(-0.25f, 2.5f, 0f), new Vector3(1f, 1f, 0f));
+            AABB partialBounds = new(new Vector2(-0.75f, 2f), new Vector2(0.25f, 3f));
             NavigationPlanningOperation partial = runtime.PlanFlyAsync(new Vector2(0.5f, 2.5f),
                 NavigationGoalRequest.Proximity(partialBounds, DistanceMetric.Euclidean, 0f), FlyParameters);
             Assert.That(partial.IsCompleted, Is.False);
@@ -501,13 +539,11 @@ namespace Aethiumian.AI.Navigation.Tests
             TestNavigationWorld world = CreateOpenWorld();
             runtime.PublishWorld(world);
 
-            RectInt exactBoundary = runtime.GetGoalRegionCellBounds(NavigationGoalRegion.Bind(Goal(new Vector2(1f, 1f)), world));
+            RectInt exactBoundary = runtime.GetGoalCellBounds(Goal(new Vector2(1f, 1f)));
             Assert.That(exactBoundary, Is.EqualTo(new RectInt(1, 1, 1, 1)));
 
-            RectInt beforeBoundary = runtime.GetGoalRegionCellBounds(
-                NavigationGoalRegion.Bind(Goal(new Vector2(0.999f, 1f)), world));
-            RectInt afterBoundary = runtime.GetGoalRegionCellBounds(
-                NavigationGoalRegion.Bind(Goal(new Vector2(1.001f, 1f)), world));
+            RectInt beforeBoundary = runtime.GetGoalCellBounds(Goal(new Vector2(0.999f, 1f)));
+            RectInt afterBoundary = runtime.GetGoalCellBounds(Goal(new Vector2(1.001f, 1f)));
             Assert.That(beforeBoundary.xMin, Is.EqualTo(0));
             Assert.That(afterBoundary.xMin, Is.EqualTo(1));
             Assert.That(afterBoundary.width, Is.EqualTo(1));
@@ -594,7 +630,7 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         private static NavigationGoalRequest Goal(Vector2 destination)
-            => NavigationGoalRequest.Proximity(new Bounds(destination, Vector3.zero), DistanceMetric.Euclidean, 0f);
+            => NavigationGoalRequest.Proximity(new AABB(destination, destination), DistanceMetric.Euclidean, 0f);
 
         private static string DescribeRoute(NavigationRoute route)
         {

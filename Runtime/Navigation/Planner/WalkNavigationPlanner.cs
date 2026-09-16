@@ -8,6 +8,8 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Plans bounded walking traversal with ordinary ground, jump, fall, and drop-through successors.</summary>
     public sealed class WalkNavigationPlanner : NavigationPlanner<WalkNavigationParameters>
     {
+        private const NavigationActions AllowedActions = NavigationActions.GroundMove | NavigationActions.Jump | NavigationActions.Fall | NavigationActions.DropThrough;
+
         private readonly GroundJumpSolver jumpSolver;
 
         /// <summary>Creates a planner that shares one immutable world's jump solver.</summary>
@@ -95,7 +97,7 @@ namespace Aethiumian.AI.Navigation
                 {
                     // The immutable world already proved the original segment. Only the
                     // bridge before its start is new geometry; do not rescan the entire tail.
-                    Vector2 connectionEnd = ReferenceEquals(world, route.GoalRegion.Snapshot)
+                    Vector2 connectionEnd = ReferenceEquals(world, route.World)
                         ? (projectedDistance < 0f ? ground.Start : snappedStart) : end;
                     if (!TryValidateGroundConnection(world, snappedStart, connectionEnd, bodySize,
                         supportSnapDistance, groundContactTolerance)) return false;
@@ -130,8 +132,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex + 1; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(start, route.GoalRegion, route.ResolvedGoal, segments)
-                : NavigationRoute.Partial(start, route.GoalRegion, route.ResolvedGoal, segments);
+                ? NavigationRoute.Complete(start, route.Goal, route.World, route.ResolvedGoal, segments)
+                : NavigationRoute.Partial(start, route.Goal, route.World, route.ResolvedGoal, segments);
             return true;
         }
 
@@ -142,8 +144,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(segments[0].Start, route.GoalRegion, route.ResolvedGoal, segments)
-                : NavigationRoute.Partial(segments[0].Start, route.GoalRegion, route.ResolvedGoal, segments);
+                ? NavigationRoute.Complete(segments[0].Start, route.Goal, route.World, route.ResolvedGoal, segments)
+                : NavigationRoute.Partial(segments[0].Start, route.Goal, route.World, route.ResolvedGoal, segments);
             return true;
         }
 
@@ -151,68 +153,60 @@ namespace Aethiumian.AI.Navigation
             => (first - second).sqrMagnitude <= distance * distance
                 + NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
 
-        /// <summary>Builds a Ground Walk region from a physical lower-center goal and plans against it.</summary>
-        public bool TryPlan(Vector2 start, Vector2 physicalGoal,
-            float arrivalErrorBound, WalkNavigationParameters parameters, out NavigationRoute route)
+        /// <summary>Builds a Ground Walk goal from a physical lower-center target and plans against it.</summary>
+        public bool TryPlan(Vector2 start, Vector2 physicalGoal, float arrivalErrorBound, WalkNavigationParameters parameters, out NavigationRoute route)
         {
-            NavigationGoalRequest request = NavigationGoalRequest.GroundRange(
-                new Bounds(physicalGoal, Vector3.zero), arrivalErrorBound);
-            NavigationGoalRegion goalRegion = NavigationGoalRegion.Bind(request, World);
-            return TryPlan(start, goalRegion, parameters, out route);
+            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(AABB.Point(physicalGoal), arrivalErrorBound);
+            return TryPlan(start, goal, parameters, out route);
         }
 
         /// <summary>Runs the shared action-graph search for a Walk request.</summary>
-        public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion,
-            WalkNavigationParameters parameters, CancellationToken cancellationToken = default,
-            NavigationPlanningDiagnostics diagnostics = null)
+        public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRequest goal, WalkNavigationParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null)
         {
-            ValidatePlanInputs(start, goalRegion, cancellationToken);
+            ValidatePlanInputs(start, cancellationToken);
             parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
 
             NavigationPlanResult result;
-            if (!World.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance,
-                out Vector2 resolvedStart, out NavigationSupport startSupport))
-                result = NavigationPlanResult.NoResult;
+            if (!World.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
+            {
+                return NavigationPlanResult.NoResult;
+            }
             else
             {
                 Vector2 startCenter = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
-                if (goalRegion.IsComplete(startCenter, parameters.BodySize))
+                if (World.IsGoalComplete(goal, startCenter, parameters.BodySize))
                 {
-                    result = NavigationPlanResult.ResultProduced(NavigationRoute.Complete(
-                        resolvedStart, goalRegion, resolvedStart, Array.Empty<NavigationRouteSegment>()));
+                    NavigationRoute route = NavigationRoute.Complete(resolvedStart, goal, World, resolvedStart, Array.Empty<NavigationRouteSegment>());
+                    result = NavigationPlanResult.ResultProduced(route);
                 }
-                else if (TryCreateDirectGroundRoute(World, resolvedStart, goalRegion, parameters,
+                else if (TryCreateDirectGroundRoute(World, resolvedStart, goal, parameters,
                     out NavigationRoute directRoute))
                 {
                     result = NavigationPlanResult.ResultProduced(directRoute);
                 }
                 else
                 {
-                    NavigationSearchRequest request = new(World, resolvedStart, startSupport, goalRegion,
-                        parameters.BodySize, NavigationActions.GroundMove | NavigationActions.Jump
-                            | NavigationActions.Fall | NavigationActions.DropThrough,
+                    NavigationSearchRequest request = new(World, resolvedStart, startSupport, goal, parameters.BodySize, AllowedActions,
                         MaxExpandedNodes, NavigationNodeIdentity.Ground(-1),
-                        node => EnumerateSharedTransitions(node, parameters, goalRegion, diagnostics),
-                        position => goalRegion.IsGroundWalk
-                            ? goalRegion.DistanceToLowerCenterGoal(position, parameters.BodySize.x) : 0f);
+                        node => EnumerateSharedTransitions(node, parameters, goal, diagnostics),
+                        position => goal.IsGroundWalk ? goal.DistanceToLowerCenterGoal(position, parameters.BodySize.x) : 0f);
                     result = RunSearch(request, diagnostics, cancellationToken);
                 }
             }
 
-            return result.Route == null ? result : result.WithRoute(
-                PrepareRouteForExecution(result.Route, parameters, cancellationToken));
+            return result.Route == null ? result : result.WithRoute(PrepareRouteForExecution(result.Route, parameters, cancellationToken));
         }
 
         /// <summary>Runs one Simple Walk action without entering Smart search.</summary>
-        public NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRegion goalRegion,
+        public NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRequest goal,
             WalkNavigationParameters parameters, CancellationToken cancellationToken = default,
             NavigationPlanningDiagnostics diagnostics = null)
         {
-            ValidatePlanInputs(start, goalRegion, cancellationToken);
+            ValidatePlanInputs(start, cancellationToken);
             parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
-            foreach (NavigationRoute route in PlanSingleStepIncremental(start, goalRegion, parameters, diagnostics))
+            foreach (NavigationRoute route in PlanSingleStepIncremental(start, goal, parameters, diagnostics))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (route != null)
@@ -227,28 +221,28 @@ namespace Aethiumian.AI.Navigation
         /// Builds the Smart Walk fast path only when the current ground can directly enter
         /// the goal. Unlike Simple Walk, this does not enumerate jump, fall, or local actions.
         /// </summary>
-        private static bool TryCreateDirectGroundRoute(INavigationWorld world, Vector2 start, NavigationGoalRegion goalRegion, WalkNavigationParameters parameters, out NavigationRoute route)
+        private bool TryCreateDirectGroundRoute(INavigationWorld world, Vector2 start, NavigationGoalRequest goal, WalkNavigationParameters parameters, out NavigationRoute route)
         {
             route = null;
-            if (!goalRegion.IsGroundWalk) return false;
-            Vector2 end = new(goalRegion.Center.x, start.y);
+            if (!goal.IsGroundWalk) return false;
+            Vector2 end = new(goal.Center.x, start.y);
             if (!world.TryResolveGroundSupport(end, parameters.BodySize, parameters.SupportSnapDistance,
                 out Vector2 snappedEnd, out _)) return false;
             end = snappedEnd;
             Vector2 endCenter = end + Vector2.up * (parameters.BodySize.y * 0.5f);
-            if (!goalRegion.IsComplete(endCenter, parameters.BodySize)
+            if (!world.IsGoalComplete(goal, endCenter, parameters.BodySize)
                 || !TryValidateGroundConnection(world, start, end, parameters.BodySize,
                     parameters.SupportSnapDistance, parameters.GroundContactTolerance))
                 return false;
 
-            route = NavigationRoute.Complete(start, goalRegion, end,
+            route = NavigationRoute.Complete(start, goal, world, end,
                 new NavigationRouteSegment[] { new GroundRouteSegment(start, end) });
             return true;
         }
 
-        private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, WalkNavigationParameters parameters, NavigationGoalRegion goalRegion, NavigationPlanningDiagnostics diagnostics)
+        private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, WalkNavigationParameters parameters, NavigationGoalRequest goal, NavigationPlanningDiagnostics diagnostics)
         {
-            foreach (Successor successor in EnumerateLocalSuccessors(node.Position, node.Identity.CandidateId, node.Support, parameters, goalRegion, diagnostics))
+            foreach (Successor successor in EnumerateLocalSuccessors(node.Position, node.Identity.CandidateId, node.Support, parameters, goal, diagnostics))
             {
                 yield return NavigationTransitionWork.WorkUnit;
                 if (successor.Step == null) continue;
@@ -259,7 +253,7 @@ namespace Aethiumian.AI.Navigation
                 parameters.LinearDamping, parameters.JumpHeight, parameters.JumpLength, parameters.SimulationTimeStep,
                 parameters.SupportSnapDistance, parameters.GroundContactTolerance);
             foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, node.Position,
-                node.Support, goalRegion, jumpParameters, diagnostics, true, node.Identity.CandidateId))
+                node.Support, goal, jumpParameters, diagnostics, true, node.Identity.CandidateId))
             {
                 yield return NavigationTransitionWork.WorkUnit;
                 if (jump == null) continue;
@@ -269,23 +263,23 @@ namespace Aethiumian.AI.Navigation
                     jump.LandingSupport, jump.CreateSegment(),
                     Vector2.Distance(node.Position, jump.Trajectory.LandingPosition)
                         + jump.Trajectory.FlightDuration + 0.5f,
-                    goalRegion.IsComplete(landingCenter, parameters.BodySize)));
+                    World.IsGoalComplete(goal, landingCenter, parameters.BodySize)));
             }
         }
 
         /// <summary>Expands the current supported position once and returns its best valid action.</summary>
         private IEnumerable<NavigationRoute> PlanSingleStepIncremental(Vector2 start,
-            NavigationGoalRegion goalRegion, WalkNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
+            NavigationGoalRequest goal, WalkNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
         {
             if (!World.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
                 yield break;
 
             Vector2 startCenter = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
-            float startDistance = goalRegion.CompletionDistance(startCenter, parameters.BodySize);
-            float startGuidanceDistance = goalRegion.GuidanceDistance(startCenter, parameters.BodySize);
-            if (goalRegion.IsComplete(startCenter, parameters.BodySize))
+            float startDistance = World.GetGoalCompletionDistance(goal, startCenter, parameters.BodySize);
+            float startGuidanceDistance = goal.GuidanceDistance(startCenter, parameters.BodySize);
+            if (World.IsGoalComplete(goal, startCenter, parameters.BodySize))
             {
-                yield return NavigationRoute.Complete(resolvedStart, goalRegion, resolvedStart,
+                yield return NavigationRoute.Complete(resolvedStart, goal, World, resolvedStart,
                     Array.Empty<NavigationRouteSegment>());
                 yield break;
             }
@@ -293,7 +287,7 @@ namespace Aethiumian.AI.Navigation
             diagnostics?.RecordPathExpansion();
             Successor? best = null;
             foreach (Successor? item in EnumerateSingleStepCandidates(resolvedStart, startSupport,
-                startDistance, startGuidanceDistance, goalRegion, parameters, diagnostics))
+                startDistance, startGuidanceDistance, goal, parameters, diagnostics))
             {
                 yield return null;
                 if (!item.HasValue) continue;
@@ -304,15 +298,15 @@ namespace Aethiumian.AI.Navigation
                 if (!best.HasValue || IsBetterSingleStep(candidate, best.Value)) best = candidate;
             }
 
-            if (best.HasValue) yield return BuildSingleStepPlan(resolvedStart, goalRegion, best.Value);
+            if (best.HasValue) yield return BuildSingleStepPlan(resolvedStart, goal, best.Value);
         }
 
         /// <summary>Enumerates every valid Simple Walk action while retaining incremental work boundaries.</summary>
         private IEnumerable<Successor?> EnumerateSingleStepCandidates(Vector2 start, NavigationSupport startSupport,
-            float startCompletionDistance, float startGuidanceDistance, NavigationGoalRegion goalRegion,
+            float startCompletionDistance, float startGuidanceDistance, NavigationGoalRequest goal,
             WalkNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
         {
-            foreach (Successor local in EnumerateLocalSuccessors(start, -1, startSupport, parameters, goalRegion, diagnostics))
+            foreach (Successor local in EnumerateLocalSuccessors(start, -1, startSupport, parameters, goal, diagnostics))
             {
                 if (local.Step == null)
                 {
@@ -326,7 +320,7 @@ namespace Aethiumian.AI.Navigation
                     if (!local.CompletesGoal
                         && !HasStrictSingleStepProgress(local, startCompletionDistance, startGuidanceDistance))
                         continue;
-                    foreach (Successor? ground in ExtendSimpleGroundMove(World, start, local, goalRegion, parameters))
+                    foreach (Successor? ground in ExtendSimpleGroundMove(World, start, local, goal, parameters))
                         yield return ground;
                     continue;
                 }
@@ -336,27 +330,27 @@ namespace Aethiumian.AI.Navigation
 
             GroundJumpParameters jumpParameters = CreateJumpParameters(parameters);
             foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, start,
-                startSupport, goalRegion, jumpParameters, diagnostics, true, -1))
+                startSupport, goal, jumpParameters, diagnostics, true, -1))
             {
                 yield return null;
                 if (jump == null) continue;
                 yield return CreateSuccessor(new NavigationSupportCandidate(jump.LandingCandidateId, jump.LandingSupport),
                     jump.CreateSegment(), Vector2.Distance(start, jump.Trajectory.LandingPosition)
-                        + jump.Trajectory.FlightDuration + 0.5f, goalRegion, parameters.BodySize);
+                        + jump.Trajectory.FlightDuration + 0.5f, goal, parameters.BodySize);
             }
         }
 
         /// <summary>Extends a validated Ground action and yields its fully scored final successor.</summary>
-        private static IEnumerable<Successor?> ExtendSimpleGroundMove(INavigationWorld world, Vector2 start,
-            Successor current, NavigationGoalRegion goalRegion, WalkNavigationParameters parameters)
+        private IEnumerable<Successor?> ExtendSimpleGroundMove(INavigationWorld world, Vector2 start,
+            Successor current, NavigationGoalRequest goal, WalkNavigationParameters parameters)
         {
             current = CreateSuccessor(current.Position, new GroundRouteSegment(start, current.Position),
-                Mathf.Abs(current.Position.x - start.x), goalRegion, parameters.BodySize);
+                Mathf.Abs(current.Position.x - start.x), goal, parameters.BodySize);
             float direction = Mathf.Sign(current.Position.x - start.x);
             float spacing = Mathf.Min(0.2f, world.CellSize * 0.25f);
-            while (!current.CompletesGoal && direction * (goalRegion.Center.x - current.Position.x) > Tolerance)
+            while (!current.CompletesGoal && direction * (goal.Center.x - current.Position.x) > Tolerance)
             {
-                Vector2 next = new(Mathf.MoveTowards(current.Position.x, goalRegion.Center.x, spacing), current.Position.y);
+                Vector2 next = new(Mathf.MoveTowards(current.Position.x, goal.Center.x, spacing), current.Position.y);
                 NavigationRouteSegment validated = null;
                 foreach (NavigationRouteSegment step in EnumerateGroundMove(world, current.Position, next, parameters))
                 {
@@ -368,7 +362,7 @@ namespace Aethiumian.AI.Navigation
                     break;
                 Successor candidate = CreateSuccessor(validated.End,
                     new GroundRouteSegment(start, validated.End), Mathf.Abs(validated.End.x - start.x),
-                    goalRegion, parameters.BodySize);
+                    goal, parameters.BodySize);
                 if (!candidate.CompletesGoal
                     && !HasStrictSingleStepProgress(candidate, current.CompletionDistance, current.GuidanceDistance))
                     break;
@@ -379,7 +373,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Enumerates nearby real support anchors without collapsing surfaces to cells.</summary>
-        private IEnumerable<Successor> EnumerateLocalSuccessors(Vector2 start, int currentCandidateId, NavigationSupport currentSupport, WalkNavigationParameters parameters, NavigationGoalRegion goalRegion, NavigationPlanningDiagnostics diagnostics)
+        private IEnumerable<Successor> EnumerateLocalSuccessors(Vector2 start, int currentCandidateId, NavigationSupport currentSupport, WalkNavigationParameters parameters, NavigationGoalRequest goal, NavigationPlanningDiagnostics diagnostics)
         {
             Vector2 snappedStart = start;
             Rect anchors = new(snappedStart.x - World.CellSize * 1.5f, World.Origin.y + World.CellBounds.yMin * World.CellSize,
@@ -400,7 +394,7 @@ namespace Aethiumian.AI.Navigation
                 if (step != null && parameters.Speed > Tolerance)
                 {
                     yield return CreateSuccessor(candidate, step, Vector2.Distance(snappedStart, candidate.Support.Position),
-                        goalRegion, parameters.BodySize);
+                        goal, parameters.BodySize);
                     continue;
                 }
                 if (candidate.Support.Position.y >= snappedStart.y - Tolerance) continue;
@@ -410,7 +404,7 @@ namespace Aethiumian.AI.Navigation
                     if (fallStep != null)
                     {
                         yield return CreateSuccessor(candidate, fallStep,
-                            Vector2.Distance(snappedStart, candidate.Support.Position) + 1f, goalRegion, parameters.BodySize);
+                            Vector2.Distance(snappedStart, candidate.Support.Position) + 1f, goal, parameters.BodySize);
                         break;
                     }
                 }
@@ -421,7 +415,7 @@ namespace Aethiumian.AI.Navigation
                     if (dropStep != null)
                     {
                         yield return CreateSuccessor(candidate, dropStep,
-                            Vector2.Distance(snappedStart, candidate.Support.Position) + 0.25f, goalRegion, parameters.BodySize);
+                            Vector2.Distance(snappedStart, candidate.Support.Position) + 0.25f, goal, parameters.BodySize);
                         break;
                     }
                 }
@@ -603,22 +597,22 @@ namespace Aethiumian.AI.Navigation
             yield return null;
         }
 
-        private static Successor CreateSuccessor(NavigationSupportCandidate candidate, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize)
-            => CreateSuccessor(candidate.Id, candidate.Support, step, cost, goalRegion, bodySize);
+        private Successor CreateSuccessor(NavigationSupportCandidate candidate, NavigationRouteSegment step, float cost, NavigationGoalRequest goal, Vector2 bodySize)
+            => CreateSuccessor(candidate.Id, candidate.Support, step, cost, goal, bodySize);
 
-        private static Successor CreateSuccessor(Vector2 position, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize)
-            => CreateSuccessor(-1, default, step, cost, goalRegion, bodySize);
+        private Successor CreateSuccessor(Vector2 position, NavigationRouteSegment step, float cost, NavigationGoalRequest goal, Vector2 bodySize)
+            => CreateSuccessor(-1, default, step, cost, goal, bodySize);
 
-        private static Successor CreateSuccessor(int candidateId, NavigationSupport support, NavigationRouteSegment step, float cost, NavigationGoalRegion goalRegion, Vector2 bodySize)
+        private Successor CreateSuccessor(int candidateId, NavigationSupport support, NavigationRouteSegment step, float cost, NavigationGoalRequest goal, Vector2 bodySize)
         {
             Vector2 position = step.End;
             Vector2 startCenter = step.Start + Vector2.up * (bodySize.y * 0.5f);
             Vector2 endCenter = position + Vector2.up * (bodySize.y * 0.5f);
-            float endpointDistance = goalRegion.CompletionDistance(endCenter, bodySize);
-            bool completesGoal = goalRegion.IsComplete(endCenter, bodySize)
-                || step is GroundRouteSegment && goalRegion.SweptIsComplete(startCenter, endCenter, bodySize);
+            float endpointDistance = World.GetGoalCompletionDistance(goal, endCenter, bodySize);
+            bool completesGoal = World.IsGoalComplete(goal, endCenter, bodySize)
+                || step is GroundRouteSegment && World.IsGoalCompleteAlong(goal, startCenter, endCenter, bodySize);
             return new Successor(candidateId, support, position, step, cost, endpointDistance,
-                goalRegion.GuidanceDistance(endCenter, bodySize), completesGoal);
+                goal.GuidanceDistance(endCenter, bodySize), completesGoal);
         }
 
         /// <summary>Accepts a Simple Walk candidate only when completion or plateau guidance strictly improves.</summary>
@@ -626,8 +620,8 @@ namespace Aethiumian.AI.Navigation
             => IsStrictlyLess(candidate.CompletionDistance, startCompletionDistance) || (IsEquivalent(candidate.CompletionDistance, startCompletionDistance) && IsStrictlyLess(candidate.GuidanceDistance, startGuidanceDistance));
 
         /// <summary>Builds a plan containing exactly one validated local traversal step.</summary>
-        private static NavigationRoute BuildSingleStepPlan(Vector2 start, NavigationGoalRegion goalRegion, Successor successor)
-            => NavigationRoute.Complete(start, goalRegion, successor.Position, new[] { successor.Step });
+        private NavigationRoute BuildSingleStepPlan(Vector2 start, NavigationGoalRequest goal, Successor successor)
+            => NavigationRoute.Complete(start, goal, World, successor.Position, new[] { successor.Step });
 
         /// <summary>Compares Simple Walk actions under the local completion and progress contract.</summary>
         private static bool IsBetterSingleStep(Successor candidate, Successor best)

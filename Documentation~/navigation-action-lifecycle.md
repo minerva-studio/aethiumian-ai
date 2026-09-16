@@ -36,7 +36,7 @@ This is a repeated coordination loop inside the `Executing` phase, not another l
 ```mermaid
 flowchart TD
     A[Permitted fixed step] --> B[Read target once]
-    B --> C[BuildGoal and bind NavigationGoalRegion]
+    B --> C[BuildGoal NavigationGoalRequest]
     C --> D[Acquire or select a route candidate]
     D --> E[Reconnect candidate from the real body anchor]
     E --> F[Prepare one route segment]
@@ -86,7 +86,7 @@ attempt before the tick ends, but never a second physical execution.
 
 Every permitted fixed tick reads the current target once. Trace and Retreat use the current `tracing` object; FixedDestination uses `destination`; Wander lazily selects one nullable point after world readiness and permission, and clears it on restart. The capability then implements `BuildGoal` and binds the resulting request to the action's captured immutable `INavigationWorld`.
 
-`NavigationGoalRegion` is the authoritative goal geometry and identity. It contains the target bounds, metric, tolerance, world snapshot, and request identity used to decide whether a result is still adoptable. `Movement` keeps two non-persisted histories with separate owners: `intentGoal` is the accepted planning intention, while `progressGoal` and its anchor describe the retry and swept-motion sample. Request and route regions are historical delivery data; they are not additional target authorities. A moving target is compared with the remaining route before a rate-limited refresh; a route that still contains a legal arrival position is reused. Updating a progress sample must not overwrite the accepted intention.
+`NavigationGoalRequest` is the single goal definition: continuous `AABB` target geometry, distance metric, arrival/retreat parameters, the line-of-sight requirement, exact identity for cache keys, and the semantic compatibility relation used for route reuse. Pure-geometry completion lives on the request; `INavigationWorld` with `NavigationGoalWorldExtensions` adds line-of-sight and swept sampling on top of it, and performs no environment query when the goal does not require line of sight. `NavigationRoute` carries the goal together with the world it was planned against, so route consumers can still prove route ownership without a bound goal object. `Movement` keeps two non-persisted nullable request histories with separate owners: `intentGoal` is the accepted planning intention, while `progressGoal` and its anchor describe the retry and swept-motion sample. A moving target is compared with the remaining route before a rate-limited refresh; a route that still contains a legal arrival position is reused. Updating a progress sample must not overwrite the accepted intention.
 
 ## Action acquisition
 

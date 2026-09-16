@@ -21,9 +21,9 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Runs jump planning through the shared action-graph search.
         /// </summary>
-        public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion, JumpNavigationParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null)
+        public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRequest goal, JumpNavigationParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null)
         {
-            ValidatePlanInputs(start, goalRegion, cancellationToken);
+            ValidatePlanInputs(start, cancellationToken);
             parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
 
@@ -39,18 +39,18 @@ namespace Aethiumian.AI.Navigation
             else
             {
                 Vector2 startCenter = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
-                if (goalRegion.IsComplete(startCenter, parameters.BodySize))
+                if (World.IsGoalComplete(goal, startCenter, parameters.BodySize))
                 {
-                    var complete = NavigationRoute.Complete(resolvedStart, goalRegion, resolvedStart, Array.Empty<NavigationRouteSegment>());
+                    var complete = NavigationRoute.Complete(resolvedStart, goal, World, resolvedStart, Array.Empty<NavigationRouteSegment>());
                     result = NavigationPlanResult.ResultProduced(complete);
                 }
                 else
                 {
-                    NavigationSearchRequest request = new(World, resolvedStart, startSupport, goalRegion,
+                    NavigationSearchRequest request = new(World, resolvedStart, startSupport, goal,
                         parameters.BodySize, NavigationActions.Jump, MaxExpandedNodes,
                         NavigationNodeIdentity.Jump(-1),
-                        node => EnumerateSharedTransitions(node, goalRegion, parameters, diagnostics),
-                        position => EvaluateGoalHeuristic(position, goalRegion, parameters.BodySize));
+                        node => EnumerateSharedTransitions(node, goal, parameters, diagnostics),
+                        position => EvaluateGoalHeuristic(position, goal, parameters.BodySize));
                     result = RunSearch(request, diagnostics, cancellationToken);
                 }
             }
@@ -59,16 +59,16 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Expands only the actual launch support and returns one validated landing action.</summary>
-        public override NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRegion goal, JumpNavigationParameters parameters, CancellationToken cancellationToken = default)
+        public override NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRequest goal, JumpNavigationParameters parameters, CancellationToken cancellationToken = default)
         {
-            ValidatePlanInputs(start, goal, cancellationToken);
+            ValidatePlanInputs(start, cancellationToken);
             parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
             if (!CanGenerateJumpEdges(parameters) || !World.TryResolveGroundSupport(start, parameters.BodySize,
                 parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support)) return NavigationPlanResult.NoResult;
             Vector2 center = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
-            if (goal.IsComplete(center, parameters.BodySize))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(resolvedStart, goal, resolvedStart, Array.Empty<NavigationRouteSegment>()));
+            if (World.IsGoalComplete(goal, center, parameters.BodySize))
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(resolvedStart, goal, World, resolvedStart, Array.Empty<NavigationRouteSegment>()));
             var node = new NavigationSearchNode(NavigationNodeIdentity.Jump(-1), resolvedStart, support, 0f);
             NavigationTransition? best = null;
             float distance = goal.GuidanceDistance(center, parameters.BodySize);
@@ -89,29 +89,29 @@ namespace Aethiumian.AI.Navigation
             }
             if (!best.HasValue) return budgetReached ? NavigationPlanResult.BudgetReached() : NavigationPlanResult.NoResult;
             NavigationTransition selected = best.Value;
-            NavigationRoute route = NavigationRoute.Create(resolvedStart, goal, selected.DestinationPosition,
+            NavigationRoute route = NavigationRoute.Create(resolvedStart, goal, World, selected.DestinationPosition,
                 new[] { selected.Segment }, selected.CompletesGoal);
             route = PrepareRouteForExecution(route, parameters, cancellationToken);
             return NavigationPlanResult.ResultProduced(route);
         }
 
-        private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRegion goalRegion, JumpNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
+        private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRequest goal, JumpNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
         {
             GroundJumpParameters jumpParameters = parameters.GetGroundJumpParameters();
 
-            if (TryCreateDirectGoalSuccessor(jumpSolver, node.Position, goalRegion, jumpParameters, out Successor nearestGoal))
+            if (TryCreateDirectGoalSuccessor(jumpSolver, node.Position, goal, jumpParameters, out Successor nearestGoal))
             {
                 diagnostics?.RecordTerminalCandidate();
                 yield return NavigationTransitionWork.Edge(NavigationTransition.CompletedJump(nearestGoal.Position, nearestGoal.Step, nearestGoal.Cost));
             }
 
             foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, node.Position,
-                node.Support, goalRegion, jumpParameters, diagnostics, false, node.Identity.CandidateId))
+                node.Support, goal, jumpParameters, diagnostics, false, node.Identity.CandidateId))
             {
                 yield return NavigationTransitionWork.WorkUnit;
                 if (jump == null) continue;
                 Vector2 landingCenter = jump.Trajectory.LandingPosition + Vector2.up * (parameters.BodySize.y * 0.5f);
-                bool completesGoal = goalRegion.IsComplete(landingCenter, parameters.BodySize);
+                bool completesGoal = World.IsGoalComplete(goal, landingCenter, parameters.BodySize);
                 if (completesGoal)
                     diagnostics?.RecordTerminalCandidate();
                 yield return NavigationTransitionWork.Edge(NavigationTransition.JumpLanding(
@@ -125,30 +125,30 @@ namespace Aethiumian.AI.Navigation
         /// Returns an admissible Euclidean lower bound for ordinary approach goals. Goals whose
         /// metric or retreat semantics do not provide that bound retain zero guidance.
         /// </summary>
-        private static float EvaluateGoalHeuristic(Vector2 lowerCenter, NavigationGoalRegion goalRegion, Vector2 bodySize)
+        private float EvaluateGoalHeuristic(Vector2 lowerCenter, NavigationGoalRequest goal, Vector2 bodySize)
         {
-            if (goalRegion.IsRetreat || goalRegion.Request.DistanceMetric != DistanceMetric.Euclidean) return 0f;
+            if (goal.IsRetreat || goal.DistanceMetric != DistanceMetric.Euclidean) return 0f;
 
             Vector2 center = lowerCenter + Vector2.up * (bodySize.y * 0.5f);
-            float completionDistance = goalRegion.CompletionDistance(center, bodySize);
-            float completionTolerance = goalRegion.IsGroundWalk ? NavigationWorldQueries.GeometryEpsilon : goalRegion.ArrivalErrorBound;
-            return Mathf.Max(0f, completionDistance - completionTolerance);
+            float completionDistance = World.GetGoalCompletionDistance(goal, center, bodySize);
+            return Mathf.Max(0f, completionDistance - goal.CompletionTolerance);
         }
 
         /// <summary>Targets the goal within jump range instead of landing on its completion boundary.</summary>
-        private static bool TryCreateDirectGoalSuccessor(GroundJumpSolver jumpSolver, Vector2 start, NavigationGoalRegion goalRegion, GroundJumpParameters parameters, out Successor successor)
+        private static bool TryCreateDirectGoalSuccessor(GroundJumpSolver jumpSolver, Vector2 start, NavigationGoalRequest goal, GroundJumpParameters parameters, out Successor successor)
         {
             successor = default;
             // A boundary-only landing turns ordinary physics contact error into another jump.
             // Aim toward the goal itself; the normal search handles unsupported destinations.
-            Vector2 landing = new(start.x + Mathf.Clamp(goalRegion.Center.x - start.x, -parameters.JumpLength, parameters.JumpLength), start.y);
-            if (Mathf.Abs(landing.x - start.x) <= Tolerance || !goalRegion.ContainsLowerCenterBody(landing, parameters.BodySize))
+            Vector2 landing = new(start.x + Mathf.Clamp(goal.Center.x - start.x, -parameters.JumpLength, parameters.JumpLength), start.y);
+            if (Mathf.Abs(landing.x - start.x) <= Tolerance
+                || !jumpSolver.World.IsGoalComplete(goal, landing + Vector2.up * (parameters.BodySize.y * 0.5f), parameters.BodySize))
                 return false;
             if (!jumpSolver.TrySolve(start, landing, parameters, out JumpTrajectorySolution trajectory))
                 return false;
 
             Vector2 landingCenter = trajectory.LandingPosition + Vector2.up * (parameters.BodySize.y * 0.5f);
-            if (!goalRegion.IsComplete(landingCenter, parameters.BodySize)) return false;
+            if (!jumpSolver.World.IsGoalComplete(goal, landingCenter, parameters.BodySize)) return false;
 
             JumpRouteSegment segment = new(start, trajectory.LandingPosition,
                 Mathf.Max(0f, trajectory.ApexPosition.y - trajectory.StartPosition.y));

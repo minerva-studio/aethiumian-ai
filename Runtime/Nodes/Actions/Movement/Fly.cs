@@ -28,17 +28,23 @@ namespace Aethiumian.AI.Nodes
 
         private float FinalSpeed => speed * speedModifier;
 
-        protected override NavigationGoalRequest BuildGoal(Bounds target, Bounds body, out Vector2 anchor)
+        protected override NavigationGoalRequest BuildGoal(AABB target, Bounds body, out Vector2 anchor)
         {
             anchor = body.center;
             _ = Flexibility;
-            if (type == Behaviour.Trace && neverAboveMaxHeight) target.center = LimitTargetHeight(target.center);
+            if (type == Behaviour.Trace && neverAboveMaxHeight)
+            {
+                Vector2 center = target.Center;
+                Vector2 offset = LimitTargetHeight(center) - center;
+                // target = new AABB(target.Min + offset, target.Max + offset);
+                target = target.Translate(offset);
+            }
             return CreateGoal(target, NavigationGoalGeometry.Proximity);
         }
 
-        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
-            operation = NavigationRuntime.PlanFlyAsync(start, goal.Request,
+            operation = NavigationRuntime.PlanFlyAsync(start, goal,
                 new FlyNavigationParameters(NavigationBodySize, RetreatExecution?.RemainingApproachDistance ?? 0f,
                     RetreatExecution?.HasApproachLimit ?? false), extent, cancellation, purpose);
             return true;
@@ -52,14 +58,14 @@ namespace Aethiumian.AI.Nodes
             {
                 if (candidate.Segments[i] is not FlyRouteSegment step) return false;
                 if (!NavigationRuntime.IsBodyClearFlySegment(body.center, step.End, body.size)) break;
-                if (RetreatExecution != null && !RetreatExecution.AllowsSegment(candidate.GoalRegion, body.center, step.End)) continue;
+                if (RetreatExecution != null && !RetreatExecution.AllowsSegment(candidate.Goal, body.center, step.End)) continue;
                 furthest = i;
             }
             if (furthest < 0) return false;
             var segments = new System.Collections.Generic.List<NavigationRouteSegment>
             { new FlyRouteSegment(body.center, candidate.Segments[furthest].End) };
             for (int i = furthest + 1; i < candidate.Count; i++) segments.Add(candidate.Segments[i]);
-            connected = NavigationRoute.Create(body.center, candidate.GoalRegion, candidate.ResolvedGoal, segments, candidate.ReachesGoal);
+            connected = NavigationRoute.Create(body.center, candidate.Goal, candidate.World, candidate.ResolvedGoal, segments, candidate.ReachesGoal);
             return true;
         }
 
@@ -73,19 +79,19 @@ namespace Aethiumian.AI.Nodes
             return ActionPreparation.Ready;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept)
-            => goal.IsComplete(body.center, body.size) || swept;
+        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, Bounds body, bool swept)
+            => NavigationWorld.IsGoalComplete(goal, body.center, body.size) || swept;
 
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body)
+        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, Bounds body)
             => reason == ExecutionFailureReason.Obstructed;
 
-        protected override void Finish(bool success, NavigationGoalRegion goal)
+        protected override void Finish(bool success, NavigationGoalRequest? goal)
         {
             if (success && type == Behaviour.Wander)
             {
                 if (setFinalPosition)
                 {
-                    RigidBody.position += goal.Center - NavigationCenterAnchor;
+                    RigidBody.position += goal.Value.Center - NavigationCenterAnchor;
                     RigidBody.linearVelocity = Vector2.zero;
                 }
                 return;

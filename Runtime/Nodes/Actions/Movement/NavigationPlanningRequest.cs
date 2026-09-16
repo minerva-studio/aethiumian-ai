@@ -12,12 +12,12 @@ namespace Aethiumian.AI.Nodes
         private const int StaleRefreshTicks = 8;
 
         internal NavigationPlanningRequest(NavigationPlanningOperation operation, Vector2 start,
-            NavigationGoalRegion goal, NavigationPlanningPurpose purpose,
+            NavigationGoalRequest goal, NavigationPlanningPurpose purpose,
             NavigationRouteSegment committedSegment, CancellationTokenSource cancellation)
         {
             Operation = operation;
             Start = start;
-            GoalRegion = goal;
+            Goal = goal;
             Purpose = purpose;
             CommittedSegment = committedSegment;
             this.cancellation = cancellation;
@@ -27,8 +27,8 @@ namespace Aethiumian.AI.Nodes
         public NavigationPlanningOperation Operation { get; }
         /// <summary>The execution anchor captured when planning began.</summary>
         public Vector2 Start { get; }
-        /// <summary>The immutable target and world captured for this request.</summary>
-        public NavigationGoalRegion GoalRegion { get; }
+        /// <summary>The immutable goal captured for this request.</summary>
+        public NavigationGoalRequest Goal { get; }
         /// <summary>Whether this request starts movement or supplies its continuation.</summary>
         public NavigationPlanningPurpose Purpose { get; }
         /// <summary>The action this continuation follows, or null for an initial route.</summary>

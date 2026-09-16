@@ -13,8 +13,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationSearchRejectsDefaultWorkBudget()
         {
             TestNavigationWorld world = new(new RectInt(-2, -2, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(Vector2.right, Vector3.zero), DistanceMetric.Euclidean, 0f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
                 NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
                 _ => Array.Empty<NavigationTransitionWork>());
@@ -28,8 +27,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationSearchAdvancesArtificialTransition()
         {
             TestNavigationWorld world = new(new RectInt(-2, -2, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(Vector2.right, Vector3.zero), DistanceMetric.Euclidean, 0f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
                 NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1), node =>
                     ArtificialTransitions(node));
@@ -47,8 +45,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationSearchCompletesActiveNodeAtExpansionLimit()
         {
             TestNavigationWorld world = new(new RectInt(-2, -2, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(Vector2.right, Vector3.zero), DistanceMetric.Euclidean, 0f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
                 NavigationActions.GroundMove, 1, NavigationNodeIdentity.Ground(-1),
                 ArtificialTransitions);
@@ -67,8 +64,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationSearchContinuesAcrossWorkSlices()
         {
             TestNavigationWorld world = new(new RectInt(-2, -2, 8, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(new Vector3(3f, 0f), Vector3.zero), DistanceMetric.Euclidean, 0f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(3f, 0f)), DistanceMetric.Euclidean, 0f);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
                 NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
                 ArtificialTailTransitions);
@@ -89,8 +85,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationSearchTotalBudgetIsTerminalWithoutRoute()
         {
             TestNavigationWorld world = new(new RectInt(-2, -2, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(Vector2.right, Vector3.zero), DistanceMetric.Euclidean, 0f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
             NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
                 NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
                 ArtificialTransitions, maxTotalWorkUnits: 1);
@@ -112,9 +107,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 new NavigationShapeData(20, 0, NavigationShapeType.Edge,
                     new[] { new Vector2(0f, 1f), new Vector2(7f, 1f) }, 0f,
                     NavigationSurfaceKind.Solid, true));
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(new Vector3(6f, 1f), Vector3.zero), DistanceMetric.Euclidean, 0f), world);
-            NavigationRoute route = NavigationRoute.Create(new Vector2(1f, 1f), goal, new Vector2(6f, 1f),
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(6f, 1f)), DistanceMetric.Euclidean, 0f);
+            NavigationRoute route = NavigationRoute.Create(new Vector2(1f, 1f), goal, world, new Vector2(6f, 1f),
                 new NavigationRouteSegment[]
                 {
                     new GroundRouteSegment(new Vector2(1f, 1f), new Vector2(4f, 1f)),
@@ -138,9 +132,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 new NavigationShapeData(23, 0, NavigationShapeType.Edge,
                     new[] { new Vector2(0f, 1f), new Vector2(7f, 1f) }, 0f,
                     NavigationSurfaceKind.Solid, true));
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(new Vector3(5f, 1f), Vector3.zero), DistanceMetric.Euclidean, 0f), world);
-            NavigationRoute route = NavigationRoute.Create(new Vector2(3f, 1f), goal, new Vector2(5f, 1f),
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(5f, 1f)), DistanceMetric.Euclidean, 0f);
+            NavigationRoute route = NavigationRoute.Create(new Vector2(3f, 1f), goal, world, new Vector2(5f, 1f),
                 new[] { new GroundRouteSegment(new Vector2(3f, 1f), new Vector2(5f, 1f)) }, true);
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
@@ -162,9 +155,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 new NavigationShapeData(22, 0, NavigationShapeType.Edge,
                     new[] { new Vector2(4f, 1f), new Vector2(7f, 1f) }, 0f,
                     NavigationSurfaceKind.Solid, true));
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(new Vector3(6f, 1f), Vector3.zero), DistanceMetric.Euclidean, 0f), world);
-            NavigationRoute route = NavigationRoute.Create(new Vector2(4f, 1f), goal, new Vector2(6f, 1f),
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(6f, 1f)), DistanceMetric.Euclidean, 0f);
+            NavigationRoute route = NavigationRoute.Create(new Vector2(4f, 1f), goal, world, new Vector2(6f, 1f),
                 new[] { new GroundRouteSegment(new Vector2(4f, 1f), new Vector2(6f, 1f)) }, true);
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
@@ -320,7 +312,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationRouteCopiesAndProtectsSegments()
         {
             List<NavigationRouteSegment> source = new() { new GroundRouteSegment(Vector2.zero, Vector2.right) };
-            NavigationRoute route = NavigationRoute.Create(Vector2.zero, BoundPoint(new Vector2(2, 1), 0f), Vector2.right, source, true);
+            NavigationRoute route = NavigationRoute.Create(Vector2.zero, PointGoal(new Vector2(2, 1), 0f), UnitWorld(), Vector2.right, source, true);
             source.Add(new FlyRouteSegment(Vector2.right, new Vector2(2, 1)));
 
             Assert.That(route.Count, Is.EqualTo(1));
@@ -332,7 +324,7 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationRoutePreservesRequestedAndResolvedGoals()
         {
-            NavigationRoute route = NavigationRoute.Create(Vector2.zero, BoundPoint(new Vector2(5, 2), 0f), Vector2.right,
+            NavigationRoute route = NavigationRoute.Create(Vector2.zero, PointGoal(new Vector2(5, 2), 0f), UnitWorld(), Vector2.right,
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) }, true);
 
             Assert.That(route.RequestedGoal, Is.EqualTo(new Vector2(5, 2)));
@@ -343,10 +335,11 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationRouteFactoriesDescribeCompletenessAndPreserveStateWhenReplacingSegments()
         {
-            NavigationGoalRegion goal = BoundPoint(new Vector2(5f, 2f), 0f);
-            NavigationRoute complete = NavigationRoute.Complete(Vector2.zero, goal, Vector2.right,
+            TestNavigationWorld world = UnitWorld();
+            NavigationGoalRequest goal = PointGoal(new Vector2(5f, 2f), 0f);
+            NavigationRoute complete = NavigationRoute.Complete(Vector2.zero, goal, world, Vector2.right,
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
-            NavigationRoute partial = NavigationRoute.Partial(Vector2.zero, goal, Vector2.right,
+            NavigationRoute partial = NavigationRoute.Partial(Vector2.zero, goal, world, Vector2.right,
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
             NavigationRoute replaced = partial.WithSegments(
                 new[] { new FlyRouteSegment(Vector2.zero, Vector2.right) });
@@ -354,7 +347,8 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(complete.ReachesGoal, Is.True);
             Assert.That(partial.ReachesGoal, Is.False);
             Assert.That(replaced.Start, Is.EqualTo(partial.Start));
-            Assert.That(replaced.GoalRegion, Is.SameAs(partial.GoalRegion));
+            Assert.That(replaced.Goal, Is.EqualTo(partial.Goal));
+            Assert.That(replaced.World, Is.SameAs(partial.World));
             Assert.That(replaced.ResolvedGoal, Is.EqualTo(partial.ResolvedGoal));
             Assert.That(replaced.ReachesGoal, Is.False);
             Assert.That(replaced.Segments[0], Is.TypeOf<FlyRouteSegment>());
@@ -364,7 +358,7 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationPlanResultFactoriesPreserveTerminationAndRouteAvailability()
         {
-            NavigationRoute route = NavigationRoute.Complete(Vector2.zero, BoundPoint(Vector2.right, 0f),
+            NavigationRoute route = NavigationRoute.Complete(Vector2.zero, PointGoal(Vector2.right, 0f), UnitWorld(),
                 Vector2.right, new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
 
             Assert.That(NavigationPlanResult.ResultProduced(route).Termination,
@@ -391,7 +385,7 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSearchUpdateFactoriesSetExpectedTerminalState()
         {
-            NavigationRoute route = NavigationRoute.Complete(Vector2.zero, BoundPoint(Vector2.right, 0f),
+            NavigationRoute route = NavigationRoute.Complete(Vector2.zero, PointGoal(Vector2.right, 0f), UnitWorld(),
                 Vector2.right, new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
             NavigationSearchUpdate pending = NavigationSearchUpdate.Pending(3);
             NavigationSearchUpdate completed = NavigationSearchUpdate.CompletedRoute(route, 4, 5);
@@ -428,56 +422,96 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(fly.CompletesGoal, Is.True);
         }
 
-        /// <summary>Verifies rectangular goal regions accept overlap and compute the shortest AABB gap.</summary>
+        /// <summary>Verifies rectangular Proximity goals accept overlap and compute the shortest AABB gap.</summary>
         [Test]
-        public void NavigationGoalRegionUsesRectangularDistance()
+        public void ProximityGoalUsesRectangularDistance()
         {
-            NavigationGoalRegion region = BoundProximity(
-                new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 4f, 0f)), 0.5f);
+            TestNavigationWorld world = UnitWorld();
+            NavigationGoalRequest goal = ProximityGoal(AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 4f)), 0.5f);
 
-            Assert.That(region.DistanceToCenteredBody(new Vector2(1f, 0f), new Vector2(2f, 2f)), Is.EqualTo(2f).Within(0.0001f));
-            Assert.That(region.ContainsCenteredBody(new Vector2(4f, 2f), new Vector2(2f, 2f)), Is.True);
-            Assert.That(BoundPoint(new Vector2(3f, 4f), 1f).DistanceToCenteredBody(new Vector2(1f, 4f), Vector2.one),
+            Assert.That(goal.DistanceToCenteredBody(new Vector2(1f, 0f), new Vector2(2f, 2f)), Is.EqualTo(2f).Within(0.0001f));
+            Assert.That(world.IsGoalComplete(goal, new Vector2(4f, 2f), new Vector2(2f, 2f)), Is.True);
+            Assert.That(PointGoal(new Vector2(3f, 4f), 1f).DistanceToCenteredBody(new Vector2(1f, 4f), Vector2.one),
                 Is.EqualTo(1.5f).Within(0.0001f));
             Assert.That(() => NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(float.NaN, 0f, 0f), Vector3.one), DistanceMetric.Euclidean, 0f),
+                AABB.FromCenterAndSize(new Vector2(float.NaN, 0f), Vector2.one), DistanceMetric.Euclidean, 0f),
                 Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => BoundPoint(Vector2.zero, float.PositiveInfinity), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => PointGoal(Vector2.zero, float.PositiveInfinity), Throws.InstanceOf<ArgumentException>());
         }
 
         /// <summary>Verifies all axial AABB metrics handle overlap, boundaries, and negative coordinates.</summary>
         [Test]
         public void NavigationGoalDistanceSupportsAllMetrics()
         {
-            Bounds first = new(new Vector3(-5f, -2f, 0f), new Vector3(2f, 2f, 0f));
-            Bounds second = new(new Vector3(1f, 3f, 0f), new Vector3(2f, 2f, 0f));
-            Assert.That(NavigationGoalRegion.AabbAxialGapDistance(first, second, DistanceMetric.Euclidean), Is.EqualTo(5f).Within(0.0001f));
-            Assert.That(NavigationGoalRegion.AabbAxialGapDistance(first, second, DistanceMetric.Manhattan), Is.EqualTo(7f));
-            Assert.That(NavigationGoalRegion.AabbAxialGapDistance(first, second, DistanceMetric.Chebyshev), Is.EqualTo(4f));
-            Assert.That(NavigationGoalRegion.AabbAxialGapDistance(first, first, DistanceMetric.Manhattan), Is.EqualTo(0f));
-            Assert.That(() => NavigationGoalRegion.AabbAxialGapDistance(
-                new Bounds(new Vector3(float.NaN, 0f), Vector3.one), first, DistanceMetric.Euclidean),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationGoalRegion.AabbAxialGapDistance(
-                first, second, (DistanceMetric)99), Throws.InstanceOf<ArgumentException>());
+            AABB first = AABB.FromCenterAndSize(new Vector2(-5f, -2f), new Vector2(2f, 2f));
+            AABB second = AABB.FromCenterAndSize(new Vector2(1f, 3f), new Vector2(2f, 2f));
+            Assert.That(DistanceMetric.Euclidean.DistanceToBody(first, second), Is.EqualTo(5f).Within(0.0001f));
+            Assert.That(DistanceMetric.Manhattan.DistanceToBody(first, second), Is.EqualTo(7f));
+            Assert.That(DistanceMetric.Chebyshev.DistanceToBody(first, second), Is.EqualTo(4f));
+            Assert.That(DistanceMetric.Manhattan.DistanceToBody(first, first), Is.EqualTo(0f));
+            Assert.That(() => DistanceMetric.Euclidean.DistanceToBody(new AABB(new Vector2(float.NaN, 0f), new Vector2(float.NaN, 1f)), first), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => ((DistanceMetric)99).DistanceToBody(first, second), Throws.InstanceOf<ArgumentException>());
         }
 
-        /// <summary>Verifies explicit goal requests preserve geometry, metric, LOS, and snapshot identity.</summary>
+        /// <summary>Verifies an explicit goal request keeps its geometry, metric and line-of-sight fields.</summary>
         [Test]
-        public void NavigationGoalRequestBindsExplicitSnapshot()
+        public void NavigationGoalRequestPreservesGeometryMetricAndLineOfSight()
         {
-            NavigationGoalRequest request = NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(-2f, 0f), Vector3.zero), DistanceMetric.Manhattan, 0.25f, true);
+            NavigationGoalRequest request = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(-2f, 0f)), DistanceMetric.Manhattan, 0.25f, true);
             TestNavigationWorld world = new(new RectInt(-4, -4, 8, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(request, world);
 
-            Assert.That(region.Request.DistanceMetric, Is.EqualTo(DistanceMetric.Manhattan));
-            Assert.That(region.RequiresLineOfSight, Is.True);
-            Assert.That(region.Snapshot, Is.SameAs(world));
-            Assert.That(region.CellSize, Is.EqualTo(0.5f));
-            Assert.That(region.GoalKey, Is.EqualTo(new NavigationGoalKey(
-                request.TargetBounds, NavigationGoalGeometry.Proximity, DistanceMetric.Manhattan, true, request.ArrivalTolerance, world.CellSize)));
-            Assert.That(region.IsComplete(new Vector2(-1.75f, 0f), Vector2.one), Is.True);
+            Assert.That(request.DistanceMetric, Is.EqualTo(DistanceMetric.Manhattan));
+            Assert.That(request.RequiresLineOfSight, Is.True);
+            Assert.That(request.Geometry, Is.EqualTo(NavigationGoalGeometry.Proximity));
+            Assert.That(request.ArrivalTolerance, Is.EqualTo(0.25f));
+            Assert.That(world.IsGoalComplete(request, new Vector2(-1.75f, 0f), Vector2.one), Is.True);
+        }
+
+        /// <summary>Verifies exact request identity is component-exact and consistent with its hash code.</summary>
+        [Test]
+        public void NavigationGoalRequestEqualityIsExactAndHashConsistent()
+        {
+            AABB bounds = AABB.FromCenterAndSize(new Vector2(-2f, 3f), new Vector2(2f, 4f));
+            NavigationGoalRequest baseline = NavigationGoalRequest.Proximity(
+                bounds, DistanceMetric.Euclidean, 0.5f);
+            NavigationGoalRequest identical = NavigationGoalRequest.Proximity(
+                bounds, DistanceMetric.Euclidean, 0.5f);
+
+            Assert.That(baseline.Equals(identical), Is.True);
+            Assert.That(baseline == identical, Is.True);
+            Assert.That(baseline.GetHashCode(), Is.EqualTo(identical.GetHashCode()));
+            Assert.That(baseline, Is.EqualTo(identical));
+
+            Assert.That(baseline.Equals(NavigationGoalRequest.GroundRange(bounds, 0.5f)), Is.False);
+            Assert.That(baseline.Equals(NavigationGoalRequest.Proximity(bounds, DistanceMetric.Manhattan, 0.5f)), Is.False);
+            Assert.That(baseline.Equals(NavigationGoalRequest.Proximity(bounds, DistanceMetric.Euclidean, 0.5f, true)), Is.False);
+            Assert.That(baseline.Equals(NavigationGoalRequest.Proximity(bounds, DistanceMetric.Euclidean, 0.6f)), Is.False);
+            Assert.That(baseline.Equals(NavigationGoalRequest.Retreat(bounds, DistanceMetric.Euclidean, 0.5f)), Is.False);
+            Assert.That(baseline.Equals(NavigationGoalRequest.Proximity(
+                AABB.FromCenterAndSize(new Vector2(-2.0001f, 3f), new Vector2(2f, 4f)), DistanceMetric.Euclidean, 0.5f)), Is.False,
+                "Exact request identity must not use Unity's approximate Vector2 comparison.");
+            Assert.That(baseline.HasCompatibleSemantics(NavigationGoalRequest.Proximity(
+                AABB.FromCenterAndSize(new Vector2(-2.0001f, 3f), new Vector2(2f, 4f)), DistanceMetric.Euclidean, 0.5f)), Is.True,
+                "A moved target stays semantically compatible; only the exact identity changes.");
+        }
+
+        /// <summary>Verifies the continuous lower-center anchor of an AABB is never rounded to integers.</summary>
+        [Test]
+        public void AabbLowerCenterKeepsContinuousCoordinates()
+        {
+            AABB centered = AABB.FromCenterAndSize(new Vector2(2.5f, 3.25f), new Vector2(1.5f, 1.5f));
+            Assert.That(centered.LowerCenter, Is.EqualTo(new Vector2(2.5f, 2.5f)));
+
+            AABB offset = new(new Vector2(2.3f, 7.4f), new Vector2(3.9f, 9.6f));
+            Assert.That(offset.LowerCenter, Is.EqualTo(new Vector2(3.1f, 7.4f)));
+
+            AABB zeroSize = AABB.Point(new Vector2(0.35f, -0.75f));
+            Assert.That(zeroSize.Size, Is.EqualTo(Vector2.zero));
+            Assert.That(zeroSize.LowerCenter, Is.EqualTo(new Vector2(0.35f, -0.75f)));
+            Assert.That(zeroSize.Contains(new Vector2(0.35f, -0.75f)), Is.True);
+            Assert.That(zeroSize.Equals(new AABB(new Vector2(0.35f, -0.75f), new Vector2(0.35f, -0.75f))), Is.True);
+            Assert.That(zeroSize.GetHashCode(),
+                Is.EqualTo(new AABB(new Vector2(0.35f, -0.75f), new Vector2(0.35f, -0.75f)).GetHashCode()));
         }
 
         [Test]
@@ -485,41 +519,33 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             Bounds firstBounds = new(new Vector3(5f, 3f, 0f), new Vector3(1.79999971f, 1.5999999f, 0f));
             Bounds sampledBounds = new(new Vector3(5f, 3f, 0f), new Vector3(1.79999971f, 1.60000038f, 0f));
-            NavigationGoalRequest first = NavigationGoalRequest.GroundRange(firstBounds, 1f, true);
-            NavigationGoalRequest sampled = NavigationGoalRequest.GroundRange(sampledBounds, 1f, true);
+            NavigationGoalRequest first = NavigationGoalRequest.GroundRange((AABB)firstBounds, 1f, true);
+            NavigationGoalRequest sampled = NavigationGoalRequest.GroundRange((AABB)sampledBounds, 1f, true);
 
             Assert.That(first.HasCompatibleSemantics(sampled), Is.True);
             Assert.That(first.Equals(sampled), Is.False);
 
-            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(
-                Vector2.zero, 1f, new RectInt(-8, -8, 16, 16),
-                Array.Empty<NavigationShapeData>(), Array.Empty<NavigationRegionData>());
-            NavigationGoalRegion firstRegion = NavigationGoalRegion.Bind(first, world);
-            NavigationGoalRegion sampledRegion = NavigationGoalRegion.Bind(sampled, world);
-            Assert.That(firstRegion.HasCompatibleSemantics(sampledRegion), Is.True);
-            Assert.That(firstRegion.GoalKey, Is.Not.EqualTo(sampledRegion.GoalKey));
-
             NavigationGoalRequest moved = NavigationGoalRequest.GroundRange(
-                new Bounds(new Vector3(5f, 6f, 0f), firstBounds.size), 1f, true);
+                AABB.FromCenterAndSize(new Vector2(5f, 6f), firstBounds.size), 1f, true);
             Assert.That(first.HasCompatibleSemantics(moved), Is.True);
-            Assert.That(first.IsReusableFor(moved, 1f), Is.False);
+            Assert.That(first.IsReusableFor(moved, 1f, 1f), Is.False);
         }
 
         [Test]
         public void NavigationGoalSemanticsRejectRealTargetExtentChange()
         {
-            NavigationGoalRequest first = NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(5f, 3f), new Vector3(2f, 2f)), DistanceMetric.Euclidean, 0.2f);
             float epsilon = NavigationWorldQueries.GeometryEpsilon;
-            NavigationGoalRequest belowBoundary = NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(5f, 3f), new Vector3(2f, 2f + epsilon * 0.5f)), DistanceMetric.Euclidean, 0.2f);
-            NavigationGoalRequest atBoundary = NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(5f, 3f), new Vector3(2f, 2f + epsilon)), DistanceMetric.Euclidean, 0.2f);
-            NavigationGoalRequest changed = NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(5f, 3f), new Vector3(2f, 2.001f)), DistanceMetric.Euclidean, 0.2f);
+            // Every extent below is exact in float arithmetic, so the sampling-noise boundary is
+            // deterministic instead of depending on rounding of a center/size round trip.
+            Vector2 min = new(4f, 0f);
+            NavigationGoalRequest first = ProximityGoal(new AABB(min, new Vector2(6f, 0f)), 0.2f);
+            NavigationGoalRequest belowBoundary = ProximityGoal(new AABB(min, new Vector2(6f, epsilon * 0.5f)), 0.2f);
+            NavigationGoalRequest atBoundary = ProximityGoal(new AABB(min, new Vector2(6f, epsilon)), 0.2f);
+            NavigationGoalRequest changed = ProximityGoal(new AABB(min, new Vector2(6f, epsilon * 2f)), 0.2f);
 
             Assert.That(first.HasCompatibleSemantics(belowBoundary), Is.True);
-            Assert.That(first.HasCompatibleSemantics(atBoundary), Is.True);
+            Assert.That(first.HasCompatibleSemantics(atBoundary), Is.True,
+                "An extent difference exactly at the sampling-noise epsilon must still be tolerated.");
             Assert.That(first.HasCompatibleSemantics(changed), Is.False);
         }
 
@@ -528,37 +554,36 @@ namespace Aethiumian.AI.Navigation.Tests
         public void SharedReachDistanceUsesOppositeApproachAndRetreatDirections()
         {
             TestNavigationWorld world = new(new RectInt(-8, -8, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion retreat = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Retreat(new Bounds(Vector3.zero, Vector3.zero), DistanceMetric.Euclidean, 2f), world);
-            NavigationGoalRegion approach = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(Vector3.zero, Vector3.zero), DistanceMetric.Euclidean, 2f), world);
+            NavigationGoalRequest retreat = NavigationGoalRequest.Retreat(AABB.Point(Vector2.zero), DistanceMetric.Euclidean, 2f);
+            NavigationGoalRequest approach = NavigationGoalRequest.Proximity(AABB.Point(Vector2.zero), DistanceMetric.Euclidean, 2f);
 
             Assert.That(retreat.IsRetreat, Is.True);
-            Assert.That(retreat.ArrivalErrorBound, Is.Zero);
+            Assert.That(retreat.ArrivalTolerance, Is.Zero);
             Assert.That(retreat.RetreatDistance, Is.EqualTo(2f));
-            Assert.That(approach.IsComplete(new Vector2(1.99f, 0f), Vector2.zero), Is.True,
+            Assert.That(world.IsGoalComplete(approach, new Vector2(1.99f, 0f), Vector2.zero), Is.True,
                 "Approach must complete at or below the shared reachDistance.");
-            Assert.That(approach.IsComplete(new Vector2(2.01f, 0f), Vector2.zero), Is.False);
-            Assert.That(retreat.IsComplete(new Vector2(2.01f, 0f), Vector2.zero), Is.True,
+            Assert.That(world.IsGoalComplete(approach, new Vector2(2.01f, 0f), Vector2.zero), Is.False);
+            Assert.That(world.IsGoalComplete(retreat, new Vector2(2.01f, 0f), Vector2.zero), Is.True,
                 "Retreat must complete at or above the shared reachDistance.");
-            Assert.That(retreat.IsComplete(new Vector2(1.99f, 0f), Vector2.zero), Is.False);
-            Assert.That(retreat.SweptIsComplete(new Vector2(1f, 0f), new Vector2(2.01f, 0f), Vector2.zero), Is.True);
+            Assert.That(world.IsGoalComplete(retreat, new Vector2(1.99f, 0f), Vector2.zero), Is.False);
+            Assert.That(world.IsGoalCompleteAlong(retreat, new Vector2(1f, 0f), new Vector2(2.01f, 0f), Vector2.zero), Is.True);
         }
 
         /// <summary>Verifies LOS completion is evaluated against the immutable map snapshot, not dynamic physics.</summary>
         [Test]
         public void LineOfSightGoalRejectsSolidSnapshotCell()
         {
-            NavigationGoalRequest request = NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(2f, 0f), Vector3.zero), DistanceMetric.Euclidean, 1f, true);
-            NavigationGoalRegion clearRegion = NavigationGoalRegion.Bind(request,
-                new TestNavigationWorld(new RectInt(0, -2, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>()));
-            NavigationGoalRegion blockedRegion = NavigationGoalRegion.Bind(request,
-                new TestNavigationWorld(new RectInt(0, -2, 4, 4), new[] { new Vector2Int(1, 0) }, Array.Empty<Vector2Int>()));
+            NavigationGoalRequest request = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(2f, 0f)), DistanceMetric.Euclidean, 1f, true);
+            TestNavigationWorld clearWorld = new(
+                new RectInt(0, -2, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            TestNavigationWorld blockedWorld = new(
+                new RectInt(0, -2, 4, 4), new[] { new Vector2Int(1, 0) }, Array.Empty<Vector2Int>());
 
-            Assert.That(clearRegion.IsComplete(new Vector2(0.5f, 0f), Vector2.one), Is.True);
-            Assert.That(blockedRegion.IsComplete(new Vector2(0.5f, 0f), Vector2.one), Is.False);
-            Assert.That(blockedRegion.ContainsCenteredBody(new Vector2(0.5f, 0f), Vector2.one), Is.False);
+            Assert.That(clearWorld.IsGoalComplete(request, new Vector2(0.5f, 0f), Vector2.one), Is.True);
+            Assert.That(blockedWorld.IsGoalComplete(request, new Vector2(0.5f, 0f), Vector2.one), Is.False,
+                "Satisfied goal geometry must not complete while the required line of sight is blocked.");
+            Assert.That(request.GeometryCompletionDistance(new Vector2(0.5f, 0f), Vector2.one),
+                Is.LessThanOrEqualTo(request.CompletionTolerance));
         }
 
         /// <summary>Verifies LOS sweeps clip geometry before sampling even beyond the former global sample cap.</summary>
@@ -567,19 +592,16 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             const float targetX = 8192.25f;
             RectInt bounds = new(0, 0, 9001, 2);
-            NavigationGoalRequest request = NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(targetX, 0.5f), Vector3.zero), DistanceMetric.Euclidean, 0f, true);
+            NavigationGoalRequest request = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(targetX, 0.5f)), DistanceMetric.Euclidean, 0f, true);
             Vector2 bodySize = new(0.1f, 0.1f);
             Vector2 start = new(0.25f, 0.5f);
             Vector2 end = new(9000.25f, 0.5f);
 
-            NavigationGoalRegion clear = NavigationGoalRegion.Bind(request,
-                new TestNavigationWorld(bounds, Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>()));
-            NavigationGoalRegion blocked = NavigationGoalRegion.Bind(request,
-                new TestNavigationWorld(bounds, new[] { new Vector2Int(8192, 0) }, Array.Empty<Vector2Int>()));
+            TestNavigationWorld clear = new(bounds, Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            TestNavigationWorld blocked = new(bounds, new[] { new Vector2Int(8192, 0) }, Array.Empty<Vector2Int>());
 
-            Assert.That(clear.SweptIsComplete(start, end, bodySize), Is.True);
-            Assert.That(blocked.SweptIsComplete(start, end, bodySize), Is.False);
+            Assert.That(clear.IsGoalCompleteAlong(request, start, end, bodySize), Is.True);
+            Assert.That(blocked.IsGoalCompleteAlong(request, start, end, bodySize), Is.False);
         }
 
         /// <summary>Locks the serialized product-level movement and distance enum values.</summary>
@@ -601,32 +623,28 @@ namespace Aethiumian.AI.Navigation.Tests
         [TestCase(DistanceMetric.Chebyshev, 4f)]
         public void GuidanceDistanceUsesGoalMetricForCenteredGoals(DistanceMetric metric, float expected)
         {
-            TestNavigationWorld world = new(new RectInt(-8, -8, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(
-                    new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 2f, 0f)), metric, 0.1f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(
+                AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 2f)), metric, 0.1f);
 
-            Assert.That(region.GuidanceDistance(new Vector2(1f, 0f), Vector2.one), Is.EqualTo(expected).Within(0.0001f));
+            Assert.That(goal.GuidanceDistance(new Vector2(1f, 0f), Vector2.one), Is.EqualTo(expected).Within(0.0001f));
         }
 
         /// <summary>Verifies Ground Range guidance remains Euclidean to the raw target AABB center.</summary>
         [Test]
         public void GroundRangeGuidanceUsesRawTargetCenter()
         {
-            TestNavigationWorld world = new(new RectInt(-8, -8, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(
-                    new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 2f, 0f)), 0.1f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
+                AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 2f)), 0.1f);
 
-            Assert.That(region.GuidanceDistance(new Vector2(1f, 0f), Vector2.one), Is.EqualTo(5f).Within(0.0001f));
+            Assert.That(goal.GuidanceDistance(new Vector2(1f, 0f), Vector2.one), Is.EqualTo(5f).Within(0.0001f));
         }
 
         /// <summary>Verifies Fly-style bounds replacement preserves every non-bounds goal identity field.</summary>
         [Test]
         public void WithTargetBoundsPreservesGoalIdentity()
         {
-            Bounds originalBounds = new(new Vector3(2f, 3f, 0f), new Vector3(2f, 4f, 0f));
-            Bounds replacementBounds = new(new Vector3(2f, 5f, 0f), new Vector3(2f, 1f, 0f));
+            AABB originalBounds = AABB.FromCenterAndSize(new Vector2(2f, 3f), new Vector2(2f, 4f));
+            AABB replacementBounds = AABB.FromCenterAndSize(new Vector2(2f, 5f), new Vector2(2f, 1f));
             NavigationGoalRequest original = NavigationGoalRequest.Proximity(
                 originalBounds, DistanceMetric.Chebyshev, 0.75f, true);
 
@@ -648,14 +666,13 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             TestNavigationWorld world = new(new RectInt(-8, -8, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
             NavigationGoalRequest request = NavigationGoalRequest.Proximity(
-                new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 2f, 0f)), metric, 0.1f);
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(request, world);
+                AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 2f)), metric, 0.1f);
 
-            Assert.That(region.Request.DistanceMetric, Is.EqualTo(metric));
-            Assert.That(region.CompletionDistance(new Vector2(1f, 0f), Vector2.one),
+            Assert.That(request.DistanceMetric, Is.EqualTo(metric));
+            Assert.That(world.GetGoalCompletionDistance(request, new Vector2(1f, 0f), Vector2.one),
                 Is.EqualTo(expectedBodyDistance).Within(0.0001f));
-            Assert.That(region.IsComplete(new Vector2(1f, 0f), Vector2.one), Is.False);
-            Assert.That(region.DistanceToLowerCenterBodySegment(new Vector2(0f, 0f), new Vector2(2f, 0f), Vector2.one),
+            Assert.That(world.IsGoalComplete(request, new Vector2(1f, 0f), Vector2.one), Is.False);
+            Assert.That(request.DistanceToLowerCenterBodySegment(new Vector2(0f, 0f), new Vector2(2f, 0f), Vector2.one),
                 Is.EqualTo(expectedSegmentDistance).Within(0.0001f));
         }
 
@@ -663,28 +680,30 @@ namespace Aethiumian.AI.Navigation.Tests
         [TestCase(DistanceMetric.Euclidean)]
         [TestCase(DistanceMetric.Manhattan)]
         [TestCase(DistanceMetric.Chebyshev)]
-        public void BoundProximitySweepCompletesAtInteriorClosestPoint(DistanceMetric metric)
+        public void ProximitySweepCompletesAtInteriorClosestPoint(DistanceMetric metric)
         {
             TestNavigationWorld world = new(new RectInt(-8, -8, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(
-                    new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 2f, 0f)), metric, 1f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(
+                AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 2f)), metric, 1f);
 
-            float sweepDistance = region.DistanceToLowerCenterBodySegment(
+            float sweepDistance = goal.DistanceToLowerCenterBodySegment(
                 new Vector2(0f, 0f), new Vector2(10f, 0f), Vector2.one);
 
             Assert.That(sweepDistance, Is.EqualTo(1f).Within(0.0001f));
-            Assert.That(sweepDistance, Is.LessThanOrEqualTo(region.ArrivalErrorBound));
+            Assert.That(sweepDistance, Is.LessThanOrEqualTo(goal.ArrivalTolerance));
+            Assert.That(world.IsGoalCompleteAlong(goal, new Vector2(0f, 2f), new Vector2(10f, 2f), Vector2.one), Is.True,
+                "A body crossing the acceptance region between two samples must still complete.");
+            Assert.That(world.IsGoalCompleteAlong(goal, new Vector2(-10f, 2f), new Vector2(-1f, 2f), Vector2.one), Is.False);
         }
 
         /// <summary>Verifies the legacy point factory keeps Euclidean compatibility.</summary>
         [Test]
         public void PointFactoryUsesEuclideanCompatibilityMetric()
         {
-            NavigationGoalRegion region = BoundPoint(new Vector2(5f, 3f), 0.1f);
+            NavigationGoalRequest goal = PointGoal(new Vector2(5f, 3f), 0.1f);
 
-            Assert.That(region.Request.DistanceMetric, Is.EqualTo(DistanceMetric.Euclidean));
-            Assert.That(region.CompletionDistance(new Vector2(1f, 0f), Vector2.one),
+            Assert.That(goal.DistanceMetric, Is.EqualTo(DistanceMetric.Euclidean));
+            Assert.That(UnitWorld().GetGoalCompletionDistance(goal, new Vector2(1f, 0f), Vector2.one),
                 Is.EqualTo(Mathf.Sqrt(18.5f)).Within(0.0001f));
         }
 
@@ -692,17 +711,16 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void GroundRangeLowerCenterDistanceQueriesValidateInputs()
         {
-            TestNavigationWorld world = new(new RectInt(-8, -8, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 2f, 0f)), 0.1f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
+                AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 2f)), 0.1f);
 
-            Assert.That(() => region.DistanceToLowerCenterGoal(new Vector2(float.NaN, 0f), 1f),
+            Assert.That(() => goal.DistanceToLowerCenterGoal(new Vector2(float.NaN, 0f), 1f),
                 Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => region.DistanceToLowerCenterGoal(new Vector2(float.PositiveInfinity, 0f), 1f),
+            Assert.That(() => goal.DistanceToLowerCenterGoal(new Vector2(float.PositiveInfinity, 0f), 1f),
                 Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => region.DistanceToLowerCenterGoalSegment(Vector2.zero,
+            Assert.That(() => goal.DistanceToLowerCenterGoalSegment(Vector2.zero,
                 new Vector2(float.NegativeInfinity, 0f), 1f), Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => region.DistanceToLowerCenterGoalSegment(new Vector2(float.NaN, 0f),
+            Assert.That(() => goal.DistanceToLowerCenterGoalSegment(new Vector2(float.NaN, 0f),
                 Vector2.one, 1f), Throws.InstanceOf<ArgumentException>());
         }
 
@@ -712,11 +730,10 @@ namespace Aethiumian.AI.Navigation.Tests
         [TestCase(float.PositiveInfinity)]
         public void GroundRangeLowerCenterDistanceRejectsInvalidWidth(float invalidWidth)
         {
-            TestNavigationWorld world = new(new RectInt(-8, -8, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 2f, 0f)), 0.1f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
+                AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 2f)), 0.1f);
 
-            Assert.That(() => region.DistanceToLowerCenterGoal(Vector2.zero, invalidWidth),
+            Assert.That(() => goal.DistanceToLowerCenterGoal(Vector2.zero, invalidWidth),
                 Throws.InstanceOf<ArgumentException>());
         }
 
@@ -726,32 +743,30 @@ namespace Aethiumian.AI.Navigation.Tests
         [TestCase(-1f)]
         public void GroundRangeLowerCenterBodyRejectsInvalidHeight(float invalidHeight)
         {
-            TestNavigationWorld world = new(new RectInt(-8, -8, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 2f, 0f)), 0.1f), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
+                AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 2f)), 0.1f);
 
-            Assert.That(() => region.ContainsLowerCenterBody(Vector2.zero,
+            Assert.That(() => goal.DistanceToLowerCenterBody(Vector2.zero,
                 new Vector2(1f, invalidHeight)), Throws.InstanceOf<ArgumentException>());
         }
 
-        /// <summary>Verifies every key field contributes to exact goal identity and bound snapshots require a cell size.</summary>
+        /// <summary>Verifies goal geometry and request construction reject every malformed input category.</summary>
         [Test]
-        public void NavigationGoalKeyDistinguishesAllFields()
+        public void GoalGeometryValidationRejectsMalformedInput()
         {
-            Bounds bounds = new(new Vector3(-2f, 3f), new Vector3(2f, 4f));
-            NavigationGoalKey baseline = new(bounds, NavigationGoalGeometry.Proximity, DistanceMetric.Euclidean, false, 0.5f, 1f);
-            Assert.That(baseline.Geometry, Is.EqualTo(NavigationGoalGeometry.Proximity));
-            Assert.That(baseline, Is.EqualTo(new NavigationGoalKey(bounds, NavigationGoalGeometry.Proximity, DistanceMetric.Euclidean, false, 0.5f, 1f)));
-            Assert.That(baseline, Is.Not.EqualTo(new NavigationGoalKey(bounds, NavigationGoalGeometry.GroundRange, DistanceMetric.Euclidean, false, 0.5f, 1f)));
-            Assert.That(baseline, Is.Not.EqualTo(new NavigationGoalKey(bounds, NavigationGoalGeometry.Proximity, DistanceMetric.Manhattan, false, 0.5f, 1f)));
-            Assert.That(baseline, Is.Not.EqualTo(new NavigationGoalKey(bounds, NavigationGoalGeometry.Proximity, DistanceMetric.Euclidean, true, 0.5f, 1f)));
-            Assert.That(baseline, Is.Not.EqualTo(new NavigationGoalKey(bounds, NavigationGoalGeometry.Proximity, DistanceMetric.Euclidean, false, 0.6f, 1f)));
-            Assert.That(baseline, Is.Not.EqualTo(new NavigationGoalKey(bounds, NavigationGoalGeometry.Proximity, DistanceMetric.Euclidean, false, 0.5f, 2f)));
-            Bounds differentBounds = new(new Vector3(-1f, 3f), new Vector3(2f, 4f));
-            Assert.That(baseline, Is.Not.EqualTo(new NavigationGoalKey(differentBounds, NavigationGoalGeometry.Proximity, DistanceMetric.Euclidean, false, 0.5f, 1f)));
-            Assert.That(() => NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(bounds, DistanceMetric.Euclidean, 0f), new TestNavigationWorld(
-                    new RectInt(0, 0, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0f)),
+            AABB bounds = AABB.FromCenterAndSize(new Vector2(-2f, 3f), new Vector2(2f, 4f));
+            Assert.That(() => new AABB(new Vector2(1f, 0f), new Vector2(-1f, 0f)),
+                Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => new AABB(new Vector2(0f, 1f), new Vector2(1f, 0f)),
+                Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => NavigationGoalRequest.Proximity(
+                new AABB(new Vector2(float.NaN, 0f), new Vector2(float.NaN, 1f)), DistanceMetric.Euclidean, 0f),
+                Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => NavigationGoalRequest.Proximity(bounds, (DistanceMetric)99, 0f),
+                Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => NavigationGoalRequest.GroundRange(bounds, float.NaN),
+                Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => NavigationGoalRequest.Retreat(bounds, DistanceMetric.Euclidean, float.PositiveInfinity),
                 Throws.InstanceOf<ArgumentException>());
         }
 
@@ -759,11 +774,13 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void GroundRangeRequestFactoryValidatesBounds()
         {
-            Assert.That(() => NavigationGoalRequest.GroundRange(
-                new Bounds(Vector3.zero, new Vector3(-1f, 1f, 0f)), 0f),
+            // AABB exposes settable corners, so an inverted box must still be rejected at the goal boundary.
+            AABB inverted = new(new Vector2(-0.5f, -0.5f), new Vector2(0.5f, 0.5f));
+            inverted.Min = new Vector2(2f, -0.5f);
+            Assert.That(() => NavigationGoalRequest.GroundRange(inverted, 0f),
                 Throws.InstanceOf<ArgumentException>());
             Assert.That(() => NavigationGoalRequest.GroundRange(
-                new Bounds(new Vector3(float.NaN, 0f, 0f), Vector3.one), 0f),
+                new AABB(new Vector2(float.NaN, 0f), new Vector2(float.NaN, 1f)), 0f),
                 Throws.InstanceOf<ArgumentException>());
         }
 
@@ -773,61 +790,60 @@ namespace Aethiumian.AI.Navigation.Tests
         [TestCase(float.PositiveInfinity)]
         public void GroundRangeRequestFactoryRejectsInvalidTolerance(float invalidTolerance)
         {
-            Assert.That(() => NavigationGoalRequest.GroundRange(new Bounds(Vector3.zero, Vector3.zero), invalidTolerance),
-                Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => NavigationGoalRequest.GroundRange(AABB.Point(Vector3.zero), invalidTolerance), Throws.InstanceOf<ArgumentException>());
         }
 
         /// <summary>Verifies public distance queries reject non-finite positions and malformed body sizes.</summary>
         [Test]
         public void NavigationDistanceQueriesValidateInputs()
         {
-            NavigationGoalRegion region = BoundPoint(Vector2.zero, 0f);
-            Assert.That(() => region.DistanceToCenteredBody(new Vector2(float.NaN, 0f), Vector2.one),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => region.DistanceToCenteredBody(Vector2.zero, new Vector2(-1f, 1f)),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => region.DistanceToLowerCenterBody(Vector2.zero, new Vector2(1f, float.PositiveInfinity)),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationGoalRequest.Proximity(
-                new Bounds(Vector3.zero, Vector3.zero), (DistanceMetric)99, 0f),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => new NavigationGoalKey(
-                new Bounds(Vector3.zero, Vector3.zero), NavigationGoalGeometry.Proximity, DistanceMetric.Euclidean, false, 0f, float.NaN),
-                Throws.InstanceOf<ArgumentException>());
+            NavigationGoalRequest goal = PointGoal(Vector2.zero, 0f);
+            Assert.That(() => goal.DistanceToCenteredBody(new Vector2(float.NaN, 0f), Vector2.one), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => goal.DistanceToCenteredBody(Vector2.zero, new Vector2(-1f, 1f)), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => goal.DistanceToLowerCenterBody(Vector2.zero, new Vector2(1f, float.PositiveInfinity)), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => NavigationGoalRequest.Proximity(AABB.Point(Vector3.zero), (DistanceMetric)99, 0f), Throws.InstanceOf<ArgumentException>());
         }
 
-        /// <summary>Verifies Ground Walk acceptance uses horizontal surface gap and one cell of foot-height tolerance.</summary>
+        /// <summary>
+        /// Verifies Ground Walk acceptance is the authored horizontal gap plus a fixed one world unit of
+        /// foot-height difference: both boundaries are inclusive and everything beyond them is rejected.
+        /// </summary>
         [Test]
-        public void GroundWalkGoalUsesLowerCenterAndCellHeightAcceptance()
+        public void GroundWalkGoalUsesLowerCenterAndFixedFootHeightAcceptance()
         {
-            TestNavigationWorld unitWorld = new(new RectInt(0, 0, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            TestNavigationWorld world = new(new RectInt(0, 0, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             NavigationGoalRequest request = NavigationGoalRequest.GroundRange(
-                new Bounds(new Vector3(5f, 9f, 0f), new Vector3(2f, 2f, 0f)), 0.5f);
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(request, unitWorld);
+                AABB.FromCenterAndSize(new Vector2(5f, 9f), new Vector2(2f, 2f)), 0.5f);
 
-            Assert.That(region.Center, Is.EqualTo(new Vector2(5f, 8f)));
-            Assert.That(region.DistanceToLowerCenterGoal(new Vector2(6.9f, 9f), 0.8f), Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(request.Center, Is.EqualTo(new Vector2(5f, 8f)));
+            Assert.That(request.DistanceToLowerCenterGoal(new Vector2(6.9f, 9f), 0.8f), Is.EqualTo(0f).Within(0.0001f));
             Vector2 bodySize = new(0.8f, 1.5f);
             Vector2 acceptedCenter = new(6.9f, 8.75f);
             Vector2 rejectedCenter = new(7.4f, 8.75f);
-            Assert.That(region.IsComplete(acceptedCenter, bodySize), Is.True);
-            Assert.That(region.ContainsLowerCenterBody(new Vector2(6.9f, 8f), bodySize), Is.True);
-            Assert.That(region.SweptIsComplete(new Vector2(7.4f, 8.75f), acceptedCenter, bodySize), Is.True);
-            Assert.That(region.IsComplete(rejectedCenter, bodySize), Is.False,
+            Assert.That(world.IsGoalComplete(request, acceptedCenter, bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(request, new Vector2(6.9f, 8.75f), bodySize), Is.True);
+            Assert.That(world.IsGoalCompleteAlong(request, new Vector2(7.4f, 8.75f), acceptedCenter, bodySize), Is.True,
+                "A fast body that crosses the acceptance band between two samples must still complete.");
+            Assert.That(world.IsGoalComplete(request, rejectedCenter, bodySize), Is.False,
                 "Ground Range arrival tolerance must not be applied outside its authored acceptance bounds.");
-            Assert.That(region.ContainsLowerCenterBody(new Vector2(7.4f, 8f), bodySize), Is.False);
-            Assert.That(region.SweptIsComplete(rejectedCenter, rejectedCenter + Vector2.up * 0.1f, bodySize), Is.False);
-            Assert.That(region.ContainsLowerCenterGoal(new Vector2(7.4f, 8f), 0.8f), Is.False,
+            Assert.That(world.IsGoalComplete(request, new Vector2(7.4f, 8.75f), bodySize), Is.False);
+            Assert.That(world.IsGoalCompleteAlong(request, rejectedCenter, rejectedCenter + Vector2.up * 0.1f, bodySize), Is.False);
+            Assert.That(world.IsGoalComplete(request, new Vector2(7.4f, 8.75f), bodySize), Is.False,
                 "A narrow body must not inherit the wider body's horizontal acceptance.");
-            Assert.That(region.ContainsLowerCenterGoal(new Vector2(7.4f, 8f), 2f), Is.True,
+            Assert.That(world.IsGoalComplete(request, new Vector2(7.4f, 8.75f), new Vector2(2f, 1.5f)), Is.True,
                 "Horizontal acceptance must expand by the supplied body half-width.");
-            Assert.That(region.ContainsLowerCenterGoal(new Vector2(5f, 7f), 0.8f), Is.True);
-            Assert.That(region.ContainsLowerCenterGoal(new Vector2(5f, 9f), 0.8f), Is.True);
-            Assert.That(region.ContainsLowerCenterGoal(new Vector2(5f, 6.9f), 0.8f), Is.False);
-            Assert.That(region.ContainsLowerCenterGoal(new Vector2(5f, 9.1f), 0.8f), Is.False);
-            Assert.That(region.DistanceToLowerCenterGoal(new Vector2(5f, 9f), 0.8f),
-                Is.EqualTo(region.DistanceToLowerCenterGoal(new Vector2(5f, 9f), 4f)).Within(0.0001f));
-            Assert.That(region.DistanceToLowerCenterGoalSegment(new Vector2(0f, 8f), new Vector2(5f, 8f), 0.8f),
+
+            // Vertical acceptance is exactly one world unit of foot-height difference on each side.
+            Assert.That(world.IsGoalComplete(request, new Vector2(5f, 7.75f), bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(request, new Vector2(5f, 9.75f), bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(request, new Vector2(5f, 7.65f), bodySize), Is.False);
+            Assert.That(world.IsGoalComplete(request, new Vector2(5f, 9.85f), bodySize), Is.False);
+            Assert.That(world.IsGoalComplete(request, new Vector2(7.4f, 9.75f), bodySize), Is.False,
+                "Horizontal and vertical acceptance are independent bounds, so both must hold.");
+
+            Assert.That(request.DistanceToLowerCenterGoal(new Vector2(5f, 9f), 0.8f),
+                Is.EqualTo(request.DistanceToLowerCenterGoal(new Vector2(5f, 9f), 4f)).Within(0.0001f));
+            Assert.That(request.DistanceToLowerCenterGoalSegment(new Vector2(0f, 8f), new Vector2(5f, 8f), 0.8f),
                 Is.EqualTo(0f).Within(0.0001f));
         }
 
@@ -838,69 +854,76 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             TestNavigationWorld world = new(new RectInt(0, 0, 8, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             Vector2 bodySize = Vector2.one;
-            NavigationGoalRegion region = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(new Vector3(5f, 1f), Vector3.zero),
-                    DistanceMetric.Euclidean, 0.5f, requiresLineOfSight), world);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(5f, 1f)), DistanceMetric.Euclidean, 0.5f, requiresLineOfSight);
             Vector2 outside = new(3.9999f, 1f);
 
-            Assert.That(region.CompletionDistance(outside, bodySize), Is.GreaterThan(region.ArrivalErrorBound));
-            Assert.That(region.IsComplete(outside, bodySize), Is.False);
-            Assert.That(region.SweptIsComplete(outside, outside, bodySize), Is.False);
+            Assert.That(world.GetGoalCompletionDistance(goal, outside, bodySize), Is.GreaterThan(goal.ArrivalTolerance));
+            Assert.That(world.IsGoalComplete(goal, outside, bodySize), Is.False);
+            Assert.That(world.IsGoalCompleteAlong(goal, outside, outside, bodySize), Is.False);
         }
 
-        /// <summary>Verifies explicit snapshots are the only source of Ground Walk cell-height tolerance.</summary>
+        /// <summary>
+        /// Verifies the Ground Walk foot-height band is fixed goal geometry: two worlds with different
+        /// cell sizes must agree, including inside the band where the smaller cell would formerly reject.
+        /// </summary>
         [Test]
-        public void GroundWalkBinderUsesExplicitSnapshotCellSize()
+        public void GroundWalkAcceptanceIsIndependentOfCellSize()
         {
-            NavigationGoalRequest request = NavigationGoalRequest.GroundRange(
-                new Bounds(new Vector3(2.5f, 3f, 0f), Vector3.zero), 0.25f);
+            NavigationGoalRequest request = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(2.5f, 3f)), 0.25f);
             TestNavigationWorld unitWorld = new(new RectInt(0, 0, 8, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 1f);
             TestNavigationWorld halfWorld = new(new RectInt(0, 0, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
+            TestNavigationWorld largeWorld = new(new RectInt(0, 0, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 2f);
+            Vector2 bodySize = new(0.8f, 1.5f);
 
-            NavigationGoalRegion unitRegion = NavigationGoalRegion.Bind(request, unitWorld);
-            NavigationGoalRegion repeatedRegion = NavigationGoalRegion.Bind(request, unitWorld);
-            NavigationGoalRegion halfRegion = NavigationGoalRegion.Bind(request, halfWorld);
+            Assert.That(unitWorld.CellSize, Is.EqualTo(1f));
+            Assert.That(halfWorld.CellSize, Is.EqualTo(0.5f));
+            Assert.That(largeWorld.CellSize, Is.EqualTo(2f));
+            Assert.That(request.GetLowerCenterAcceptanceBounds(bodySize.x).Size.y, Is.EqualTo(2f).Within(0.0001f));
 
-            Assert.That(unitRegion.CellSize, Is.EqualTo(1f));
-            Assert.That(halfRegion.CellSize, Is.EqualTo(0.5f));
-            Assert.That(unitRegion.IsReusableFor(repeatedRegion, 1f), Is.True);
-            Assert.That(unitRegion.IsReusableFor(halfRegion, 1f), Is.False);
-            Assert.That(unitRegion, Is.Not.SameAs(repeatedRegion));
+            // 0.6 world units above the target feet: inside the fixed one-unit band, outside the old
+            // half-cell band, and inside the old double-cell band.
+            Vector2 insideBand = new(2.5f, 4.35f);
+            Vector2 outsideBand = new(2.5f, 4.76f);
+            Assert.That(unitWorld.IsGoalComplete(request, insideBand, bodySize), Is.True);
+            Assert.That(halfWorld.IsGoalComplete(request, insideBand, bodySize), Is.True,
+                "The foot-height band must not shrink with the navigation cell size.");
+            Assert.That(largeWorld.IsGoalComplete(request, insideBand, bodySize), Is.True);
+            Assert.That(unitWorld.IsGoalComplete(request, outsideBand, bodySize), Is.False);
+            Assert.That(halfWorld.IsGoalComplete(request, outsideBand, bodySize), Is.False);
+            Assert.That(largeWorld.IsGoalComplete(request, outsideBand, bodySize), Is.False,
+                "The foot-height band must not grow with the navigation cell size.");
         }
 
         /// <summary>Verifies same-center goals with different extents cannot reuse a plan.</summary>
         [Test]
         public void GoalReuseRequiresMatchingTargetExtents()
         {
-            NavigationGoalRegion baseline = BoundProximity(
-                new Bounds(new Vector3(5f, 3f, 0f), new Vector3(2f, 2f, 0f)), 0.5f);
-            NavigationGoalRegion differentExtents = BoundProximity(
-                new Bounds(new Vector3(5f, 3f, 0f), new Vector3(4f, 2f, 0f)), 0.5f);
-            NavigationGoalRegion movedSameExtents = BoundProximity(
-                new Bounds(new Vector3(5.25f, 3f, 0f), new Vector3(2f, 2f, 0f)), 0.5f);
+            NavigationGoalRequest baseline = ProximityGoal(AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(2f, 2f)), 0.5f);
+            NavigationGoalRequest differentExtents = ProximityGoal(AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(4f, 2f)), 0.5f);
+            NavigationGoalRequest movedSameExtents = ProximityGoal(AABB.FromCenterAndSize(new Vector2(5.25f, 3f), new Vector2(2f, 2f)), 0.5f);
 
-            Assert.That(baseline.IsReusableFor(differentExtents, 1f), Is.False);
-            Assert.That(baseline.IsReusableFor(movedSameExtents, 1f), Is.True);
+            Assert.That(baseline.IsReusableFor(differentExtents, 1f, 1f), Is.False);
+            Assert.That(baseline.IsReusableFor(movedSameExtents, 1f, 1f), Is.True);
         }
 
-        /// <summary>Verifies Ground Walk replacement separates horizontal tolerance from level changes.</summary>
+        /// <summary>
+        /// Verifies Ground Walk reuse separates the caller's horizontal tolerance from the vertical
+        /// target-motion threshold, and that neither is the fixed foot-height acceptance rule.
+        /// </summary>
         [Test]
-        public void GroundWalkReplacementUsesBoundsAndCellSizeSemantics()
+        public void GroundWalkReuseSeparatesHorizontalToleranceFromLevelChange()
         {
-            TestNavigationWorld world = new(new RectInt(0, 0, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            NavigationGoalRegion baseline = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(5f, 9f, 0f), Vector3.zero), 3f), world);
-            NavigationGoalRegion smallLevelMove = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(5f, 10f, 0f), Vector3.zero), 3f), world);
-            NavigationGoalRegion largeLevelMove = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(5f, 10.0002f, 0f), Vector3.zero), 3f), world);
-            NavigationGoalRegion horizontalMove = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(8f, 9f, 0f), Vector3.zero), 3f), world);
+            NavigationGoalRequest baseline = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(5f, 9f)), 3f);
+            NavigationGoalRequest smallLevelMove = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(5f, 10f)), 3f);
+            NavigationGoalRequest largeLevelMove = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(5f, 10.0002f)), 3f);
+            NavigationGoalRequest horizontalMove = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(8f, 9f)), 3f);
 
-            Assert.That(baseline.IsReusableFor(smallLevelMove, 3f), Is.True);
-            Assert.That(baseline.IsReusableFor(largeLevelMove, 3f), Is.False);
-            Assert.That(baseline.IsReusableFor(horizontalMove, 3f), Is.True);
-            Assert.That(baseline.IsReusableFor(horizontalMove, 0.1f), Is.False);
+            const float horizontalThreshold = 3f;
+            const float verticalThreshold = 1f;
+            Assert.That(baseline.IsReusableFor(smallLevelMove, horizontalThreshold, verticalThreshold), Is.True);
+            Assert.That(baseline.IsReusableFor(largeLevelMove, horizontalThreshold, verticalThreshold), Is.False);
+            Assert.That(baseline.IsReusableFor(horizontalMove, horizontalThreshold, verticalThreshold), Is.True);
+            Assert.That(baseline.IsReusableFor(horizontalMove, 0.1f, verticalThreshold), Is.False);
         }
 
         /// <summary>Verifies empty routes and segment continuity are checked at the factory boundary.</summary>
@@ -908,26 +931,31 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationRouteEnforcesContinuityAndEmptyRouteRules()
         {
             Vector2 microscopicOffset = new(0.000005f, 0f);
-            Assert.DoesNotThrow(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.zero, Array.Empty<NavigationRouteSegment>(), true));
-            Assert.DoesNotThrow(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.right,
+            TestNavigationWorld world = UnitWorld();
+            NavigationGoalRequest goal = PointGoal(Vector2.right, 0f);
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, null, Vector2.right, Array.Empty<NavigationRouteSegment>(), true),
+                Throws.InstanceOf<ArgumentNullException>(),
+                "A route must always retain the world it was planned against.");
+            Assert.DoesNotThrow(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.zero, Array.Empty<NavigationRouteSegment>(), true));
+            Assert.DoesNotThrow(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.right,
                 new NavigationRouteSegment[] { new GroundRouteSegment(new Vector2(0f, 0f), new Vector2(1f, 0f)) }, true));
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up, Array.Empty<NavigationRouteSegment>(), true),
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.up, Array.Empty<NavigationRouteSegment>(), true),
                 Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), microscopicOffset, Array.Empty<NavigationRouteSegment>(), true),
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, world, microscopicOffset, Array.Empty<NavigationRouteSegment>(), true),
                 Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.right,
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.right,
                 new[] { new GroundRouteSegment(Vector2.up, Vector2.right) }, true), Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.right,
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.right,
                 new[] { new GroundRouteSegment(microscopicOffset, Vector2.right) }, true), Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up,
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.up,
                 new NavigationRouteSegment[] { new GroundRouteSegment(Vector2.zero, Vector2.right), new FlyRouteSegment(Vector2.up, Vector2.up) }, true),
                 Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up,
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.up,
                 new NavigationRouteSegment[] { new GroundRouteSegment(Vector2.zero, Vector2.right),
                     new FlyRouteSegment(Vector2.right + microscopicOffset, Vector2.up) }, true), Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.up,
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.up,
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) }, true), Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => NavigationRoute.Create(Vector2.zero, BoundPoint(Vector2.right, 0f), Vector2.right,
+            Assert.That(() => NavigationRoute.Create(Vector2.zero, goal, world, Vector2.right,
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right + microscopicOffset) }, true),
                 Throws.InstanceOf<ArgumentException>());
         }
@@ -974,10 +1002,12 @@ namespace Aethiumian.AI.Navigation.Tests
                 "Approach is charged on the way in, but the later departure does not refund or re-charge it.");
         }
 
-        private static NavigationGoalRegion BoundPoint(Vector2 point, float tolerance)
-            => NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(point, Vector3.zero), DistanceMetric.Euclidean, tolerance),
-                new TestNavigationWorld(new RectInt(-16, -16, 32, 32), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>()));
+        /// <summary>Creates the shared empty test world used by goal-only contract checks.</summary>
+        private static TestNavigationWorld UnitWorld()
+            => new(new RectInt(-16, -16, 32, 32), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+
+        private static NavigationGoalRequest PointGoal(Vector2 point, float tolerance)
+            => NavigationGoalRequest.Proximity(AABB.Point(point), DistanceMetric.Euclidean, tolerance);
 
         private static IEnumerable<NavigationTransitionWork> ArtificialTransitions(NavigationSearchNode node)
         {
@@ -1017,10 +1047,8 @@ namespace Aethiumian.AI.Navigation.Tests
             => NavigationWorldSnapshot.Create(Vector2.zero, 1f, new RectInt(0, 0, 8, 4),
                 shapes, Array.Empty<NavigationRegionData>());
 
-        private static NavigationGoalRegion BoundProximity(Bounds bounds, float tolerance)
-            => NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(bounds, DistanceMetric.Euclidean, tolerance),
-                new TestNavigationWorld(new RectInt(-16, -16, 32, 32), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>()));
+        private static NavigationGoalRequest ProximityGoal(AABB bounds, float tolerance)
+            => NavigationGoalRequest.Proximity(bounds, DistanceMetric.Euclidean, tolerance);
 
         private static JumpTrajectorySolution CreateSolution(Vector2 start, Vector2 landing, float height, float speed)
         {

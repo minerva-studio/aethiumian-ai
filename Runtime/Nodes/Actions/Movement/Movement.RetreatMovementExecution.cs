@@ -21,7 +21,8 @@ namespace Aethiumian.AI.Nodes
             // This clock measures progress away from a threat, not toward a Fly steering
             // point. RetreatExecution owns the corresponding best-progress sample history.
             private float idleDuration;
-            private NavigationGoalRegion tickGoalRegion;
+            private INavigationWorld tickWorld;
+            private NavigationGoalRequest? tickGoal;
             private Vector2 tickStartCenter;
             private bool tickActive;
 
@@ -35,16 +36,17 @@ namespace Aethiumian.AI.Nodes
 
             public float RemainingApproachDistance => execution.RemainingApproachDistance;
             public bool HasApproachLimit => execution.HasApproachLimit;
-            public NavigationGoalRegion CurrentGoalRegion => tickGoalRegion;
+            public NavigationGoalRequest? CurrentGoal => tickGoal;
 
-            /// <summary>Captures the caller's single target and position sample for this permitted tick.</summary>
-            internal bool BeginTick(GameObject target, NavigationGoalRegion goal, Vector2 center)
+            /// <summary>Captures the caller's world, single target and position sample for this permitted tick.</summary>
+            internal bool BeginTick(INavigationWorld world, GameObject target, NavigationGoalRequest goal, Vector2 center)
             {
                 if (!execution.IsCurrentTarget(target)) return false;
 
-                tickGoalRegion = goal;
-                if (tickGoalRegion == null || !tickGoalRegion.IsRetreat) return false;
+                tickGoal = goal;
+                if (!tickGoal.Value.IsRetreat) return false;
 
+                tickWorld = world;
                 tickStartCenter = center;
                 tickActive = true;
                 return true;
@@ -55,16 +57,14 @@ namespace Aethiumian.AI.Nodes
             {
                 if (!tickActive) return true;
                 tickActive = false;
-                if (tickGoalRegion == null) return false;
+                if (!tickGoal.HasValue) return false;
 
-                float startCompletionDistance = tickGoalRegion.CompletionDistance(
-                    tickStartCenter, bodySize);
-                float completionDistance = tickGoalRegion.CompletionDistance(
-                    center, bodySize);
+                float startCompletionDistance = tickWorld.GetGoalCompletionDistance(tickGoal.Value, tickStartCenter, bodySize);
+                float completionDistance = tickWorld.GetGoalCompletionDistance(tickGoal.Value, center, bodySize);
                 if (!execution.TryObserve(
                     tickStartCenter,
                     center,
-                    tickGoalRegion.Center,
+                    tickGoal.Value.Center,
                     startCompletionDistance,
                     completionDistance,
                     out bool madeNewBestProgress))
@@ -86,14 +86,15 @@ namespace Aethiumian.AI.Nodes
             internal void DiscardPendingTick()
             {
                 tickActive = false;
-                tickGoalRegion = null;
+                tickGoal = null;
+                tickWorld = null;
             }
 
             internal bool HasReachedGoal(Vector2 center, Vector2 bodySize)
-                => tickGoalRegion != null
-                    && (tickGoalRegion.IsComplete(center, bodySize)
-                        || tickGoalRegion.SweptIsComplete(
-                            tickStartCenter, center, bodySize));
+                => tickGoal.HasValue && tickWorld != null
+                    && (tickWorld.IsGoalComplete(tickGoal.Value, center, bodySize)
+                        || tickWorld.IsGoalCompleteAlong(
+                            tickGoal.Value, tickStartCenter, center, bodySize));
 
             internal void InvalidateSample()
             {
@@ -103,33 +104,31 @@ namespace Aethiumian.AI.Nodes
             }
 
             /// <summary>Checks caller-selected route endpoints without owning route consumption or planning.</summary>
-            public bool AllowsRoute(
-                NavigationGoalRegion goal,
-                Vector2 anchor,
-                IReadOnlyList<Vector2> suffix)
+            public bool AllowsRoute(NavigationGoalRequest goal, Vector2 anchor, IReadOnlyList<Vector2> suffix)
             {
-                NavigationGoalRegion constraintGoal = tickGoalRegion ?? goal;
-                if (constraintGoal == null || !constraintGoal.IsRetreat
-                    || !execution.HasApproachLimit)
-                    return true;
+                if (!IsRetreatConstraint(goal)) return true;
 
                 return execution.IsWithinRemainingApproachDistance(
                     RetreatNavigationGeometry.RouteApproachDistance(
                         anchor,
-                        constraintGoal.Center,
+                        tickGoal.Value.Center,
                         suffix));
             }
 
-            public bool AllowsSegment(NavigationGoalRegion goal, Vector2 anchor, Vector2 endpoint)
+            public bool AllowsSegment(NavigationGoalRequest goal, Vector2 anchor, Vector2 endpoint)
             {
-                NavigationGoalRegion constraintGoal = tickGoalRegion ?? goal;
-                if (constraintGoal == null || !constraintGoal.IsRetreat
-                    || !execution.HasApproachLimit)
-                    return true;
+                if (!IsRetreatConstraint(goal)) return true;
 
                 return execution.IsWithinRemainingApproachDistance(
                     RetreatNavigationGeometry.SegmentApproachDistance(
-                        anchor, endpoint, constraintGoal.Center));
+                        anchor, endpoint, tickGoal.Value.Center));
+            }
+
+            /// <summary>Resolves the retreat constraint to this tick's sample when one exists.</summary>
+            private bool IsRetreatConstraint(NavigationGoalRequest goal)
+            {
+                NavigationGoalRequest constraint = tickGoal ?? goal;
+                return constraint.IsRetreat && execution.HasApproachLimit;
             }
         }
 

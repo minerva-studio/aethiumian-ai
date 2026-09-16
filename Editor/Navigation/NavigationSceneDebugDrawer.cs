@@ -184,16 +184,6 @@ namespace Aethiumian.AI.Navigation.Editor
                 out supportPoint);
         }
 
-        /// <summary>Draws the authored target or Ground Walk acceptance bounds.</summary>
-        private static void DrawGoal(NavigationGoalRegion goal, float bodyWidth)
-        {
-            Bounds bounds = goal.IsGroundWalk
-                ? goal.GetLowerCenterAcceptanceBounds(bodyWidth)
-                : goal.TargetBounds;
-            Handles.color = Color.cyan;
-            DrawBounds(bounds);
-        }
-
         /// <summary>Draws a solved trajectory without running the solver.</summary>
         private static void DrawTrajectory(JumpTrajectorySolution trajectory, float width)
         {

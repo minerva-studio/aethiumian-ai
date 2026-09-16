@@ -75,9 +75,10 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private Vector2? retryAnchor;
         // The accepted intent and the progress sample have different lifetimes. The former
         // remains stable while an irreversible segment carries historical route metadata;
-        // the latter is refreshed when retry/sweep evidence is reset.
-        [NonSerialized] private NavigationGoalRegion intentGoal;
-        [NonSerialized] private NavigationGoalRegion progressGoal;
+        // the latter is refreshed when retry/sweep evidence is reset. A null value means no
+        // goal has been sampled yet in this run.
+        [NonSerialized] private NavigationGoalRequest? intentGoal;
+        [NonSerialized] private NavigationGoalRequest? progressGoal;
         [NonSerialized] private int simpleWaitTicks;
         [NonSerialized] private int retries;
         [NonSerialized] private float executionTime;
@@ -141,14 +142,13 @@ namespace Aethiumian.AI.Nodes
         protected sealed override void TickAction()
         {
             Bounds body = NavigationBounds;
-            if (!TryReadTarget(out Bounds target, out GameObject targetObject))
+            if (!TryReadTarget(out AABB target, out GameObject targetObject))
             {
                 EndMovement(false, null); return;
             }
-            NavigationGoalRequest goalRequest = BuildGoal(target, body, out Vector2 anchor);
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(goalRequest, NavigationWorld);
+            NavigationGoalRequest goal = BuildGoal(target, body, out Vector2 anchor);
             executionTime += Time.fixedDeltaTime;
-            bool firstGoalSample = intentGoal == null;
+            bool firstGoalSample = !intentGoal.HasValue;
             bool planningInvalidated = false;
             bool physicalFailure = false;
             bool faulted = false;
@@ -160,13 +160,14 @@ namespace Aethiumian.AI.Nodes
                 if (goal.IsRetreat)
                 {
                     retreat ??= new RetreatMovementExecution(targetObject, MaxApproachDistance, path == PathMode.Smart ? 0f : MaximumIdleDuration);
-                    if (!retreat.BeginTick(targetObject, goal, body.center))
+                    if (!retreat.BeginTick(NavigationWorld, targetObject, goal, body.center))
                     { EndMovement(false, goal); return; }
                 }
                 bool swept = !planningInvalidated
                     && previousCenter.HasValue
+                    && progressGoal.HasValue
                     && SameGoal(progressGoal, goal)
-                    && goal.SweptIsComplete(previousCenter.Value, body.center, body.size);
+                    && NavigationWorld.IsGoalCompleteAlong(goal, previousCenter.Value, body.center, body.size);
                 RefreshProgressBaseline(goal, anchor, planningInvalidated);
                 bool fallbackReceiptConsumed = TryAcquireAction(goal, anchor, body);
                 if (IsComplete) return;
@@ -249,12 +250,12 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Creates this ability's geometric goal and planning anchor from the tick sample.
         /// </summary>
-        protected abstract NavigationGoalRequest BuildGoal(Bounds target, Bounds body, out Vector2 anchor);
+        protected abstract NavigationGoalRequest BuildGoal(AABB target, Bounds body, out Vector2 anchor);
 
         /// <summary>
         /// False means temporary physical prerequisites are missing; true supplies the requested planning horizon.
         /// </summary>
-        protected abstract bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
+        protected abstract bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
 
         /// <summary>
         /// Returns a route reconnected to actual physics; performs no executor or lease mutation.
@@ -268,23 +269,28 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Confirms the entire objective, including ability-specific support requirements.
         /// </summary>
-        protected abstract bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept);
+        protected abstract bool IsGoalSatisfied(NavigationGoalRequest goal, Bounds body, bool swept);
 
         /// <summary>
         /// Authorizes recovery after a normal physical failure; never ends the node itself.
         /// </summary>
-        protected abstract bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body);
+        protected abstract bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, Bounds body);
 
         /// <summary>
-        /// Applies final physics effects. Failure may arrive before a target was available.
+        /// Applies final physics effects. Failure may arrive before a target was available,
+        /// so the goal is absent on that path.
         /// </summary>
-        protected abstract void Finish(bool success, NavigationGoalRegion goal);
+        protected abstract void Finish(bool success, NavigationGoalRequest? goal);
 
-        private void EndMovement(bool success, NavigationGoalRegion goal)
+        /// <summary>
+        /// Settles one terminal movement outcome. A failed run may have no sampled goal at all,
+        /// for example when the target disappeared before the first permitted tick.
+        /// </summary>
+        private void EndMovement(bool success, NavigationGoalRequest? goal)
         {
             if (success && retreat != null && !retreat.FinalizeTick(NavigationCenterAnchor, NavigationBodySize, Time.fixedDeltaTime))
                 success = false;
-            if (success) Finish(true, goal);
+            if (success && goal.HasValue) Finish(true, goal);
             CompleteAction(success);
         }
         protected sealed override void OnActionCompleting(bool success)
