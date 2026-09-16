@@ -109,7 +109,7 @@ namespace Aethiumian.AI.Navigation.Tests
             for (int tick = 0; tick < RuntimeContractTickLimit && fly.WanderSelections == 0; tick++)
                 yield return new WaitForFixedUpdate();
             Assert.That(fly.WanderSelections, Is.EqualTo(1));
-            Assert.That(fly.SelectedWander, Is.EqualTo(new Vector2Int(50, 7)));
+            Assert.That(fly.SelectedWander, Is.EqualTo(new Vector2(50f, 7f)));
             harness.AI.End(false);
             Assert.That(runtime.IsDisposed, Is.False);
         }
@@ -147,7 +147,7 @@ namespace Aethiumian.AI.Navigation.Tests
             }
         }
 
-        /// <summary>Lowering and rounding a Wander point must not place the body inside its support.</summary>
+        /// <summary>Lowering a Wander point must not place the body inside its support.</summary>
         [UnityTest]
         public IEnumerator FlyHeight_WanderRechecksBodyClearanceAfterLowering()
         {
@@ -163,7 +163,7 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return new WaitForFixedUpdate();
             Assert.That(fly.WanderSelections, Is.EqualTo(1));
             Assert.That(fly.SelectedWander.x, Is.Not.EqualTo(50),
-                "The corrected center at y=5 intersects the solid support and must use the existing fallback.");
+                "The lowered center at y=5.25 intersects the solid support and must use the existing fallback.");
             harness.AI.End(false);
         }
 
@@ -217,7 +217,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public sealed class HeightQueryFly : Fly
         {
             public int WanderSelections { get; private set; }
-            public Vector2Int SelectedWander { get; private set; }
+            public Vector2 SelectedWander { get; private set; }
             public AABB? PlannedGoal { get; private set; }
             public NavigationGoalRequest CaptureGoal()
             {
@@ -229,7 +229,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 return BuildGoal(target, NavigationBounds, out _);
             }
 
-            protected override Vector2Int GetWanderLocation(Vector2 center)
+            protected override Vector2 GetWanderLocation(Vector2 center)
             {
                 WanderSelections++;
                 return SelectedWander = base.GetWanderLocation(center);

@@ -144,23 +144,22 @@ namespace Aethiumian.AI.Nodes
                 NavigationColliders, MaximumIdleDuration);
         }
 
-        protected override Vector2Int GetWanderLocation(Vector2 center)
+        protected override Vector2 GetWanderLocation(Vector2 center)
         {
             INavigationWorld world = NavigationWorld;
             for (int index = 0; index < MaximumWanderLocationTrials; index++)
             {
                 Vector2 point = behaviourTree.RandomSources.Resolve(this).NextUnitCircleDirection() * wanderDistance;
-                Vector2Int candidate = Vector2Int.FloorToInt(center + point);
-                candidate = Vector2Int.FloorToInt(LimitTargetHeight(candidate));
-                // Fly destinations are body centers. Lowering and integer rounding may put
-                // the body inside geometry, so validate the final point rather than the sample.
+                Vector2 candidate = LimitTargetHeight(center + point);
+                // Fly destinations are body centers. Lowering an authored sample may put the
+                // body inside geometry, so validate the final point rather than the sample.
                 if (world.AreInSameRegion(NavigationCenterAnchor, candidate)
-                    && world.IsBodyClear(new Rect((Vector2)candidate - NavigationBodySize * 0.5f,
+                    && world.IsBodyClear(new Rect(candidate - NavigationBodySize * 0.5f,
                         NavigationBodySize), 0f))
                     return candidate;
             }
             Debug.LogWarning("Cannot find valid wander location around. Is the entity outside the room?");
-            return Vector2Int.FloorToInt(transform.position);
+            return transform.position;
         }
     }
 }

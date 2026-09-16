@@ -12,8 +12,6 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public sealed class GroundTraversalExecutor : MovementExecutor
     {
-        private const float GroundProbeDistance = 0.08f;
-        private const float MinimumMotion = 0.0001f;
         private const int HitCapacity = 8;
 
         // Tick records action-specific progress; only the base consumes it and advances timeout.
@@ -232,26 +230,35 @@ namespace Aethiumian.AI.Navigation
             float displacement = actionEnd.x - currentX;
             progress = RecordProgress(Mathf.Sign(actionEnd.x - actionStart.x) * currentX) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
             float plannedDisplacement = actionEnd.x - actionStart.x;
-            float completionDistance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(speed, deltaTime);
-            // Ground planner support snapping deliberately permits a contact-gap-sized
-            // correction. Also accept one fixed-step's travel distance so static friction
-            // cannot leave a sub-step connector permanently active.
-            if (Mathf.Abs(displacement) <= completionDistance
-                || plannedDisplacement > completionDistance
-                    && (currentX - actionStart.x) >= plannedDisplacement
-                || plannedDisplacement < -completionDistance
-                    && (currentX - actionStart.x) <= plannedDisplacement)
+            // Arrival is directional and one-sided: a ground move travels along x from actionStart to
+            // actionEnd, so it may only report complete once the body has reached actionEnd travelling
+            // that way. Overshooting is deliberately unbounded - what happens after arrival belongs to
+            // the caller and the planner, not to this predicate. A symmetric band would let the move
+            // report complete while the body is still short of its endpoint, which is how an action
+            // ends with its goal unmet.
+            if (plannedDisplacement == 0f
+                || Mathf.Sign(plannedDisplacement) * (currentX - actionEnd.x) >= 0f)
             {
                 return ExecutionResult.Completed;
             }
 
-            if (!IsGrounded() || HasObstacle(Mathf.Sign(displacement), speed * deltaTime + GroundProbeDistance))
+            if (!IsGrounded() || HasObstacle(Mathf.Sign(displacement), speed * deltaTime + NavigationTolerances.GroundProbeDistance))
                 return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
 
-            float expectedSpeed = Mathf.Min(speed, Mathf.Abs(displacement) / deltaTime);
-            float expectedVelocity = Mathf.Sign(displacement) * expectedSpeed;
+            // A remaining distance the body can cover in one step is landed exactly instead of being
+            // driven by velocity: writing a proportional velocity decelerates asymptotically and can
+            // never arrive, raising the speed instead overshoots and can carry the body off its
+            // platform, and falling slower than the executor motion floor stalls the move in place. Landing exactly
+            // keeps arrival one-sided with no residual and no overshoot.
+            if (Mathf.Abs(displacement) <= speed * deltaTime)
+            {
+                body.position = new Vector2(actionEnd.x, body.position.y);
+                return ExecutionResult.Completed;
+            }
+
+            float expectedVelocity = Mathf.Sign(displacement) * speed;
             float horizontalVelocity = Mathf.Lerp(body.linearVelocityX, expectedVelocity, accelerationRate);
-            if (Mathf.Abs(horizontalVelocity) <= MinimumMotion) return ExecutionResult.Running;
+            if (Mathf.Abs(horizontalVelocity) <= NavigationTolerances.MinimumMotion) return ExecutionResult.Running;
 
             body.linearVelocity = new Vector2(horizontalVelocity, body.linearVelocityY);
             onWalk?.Invoke();
@@ -336,12 +343,12 @@ namespace Aethiumian.AI.Navigation
                 float ledgeExitTolerance = GroundTraversalEndpointPolicy.GetHorizontalTransitionTolerance(speed, deltaTime);
                 if (Mathf.Abs(displacement) > ledgeExitTolerance)
                 {
-                    if (HasObstacle(Mathf.Sign(displacement), speed * deltaTime + GroundProbeDistance))
+                    if (HasObstacle(Mathf.Sign(displacement), speed * deltaTime + NavigationTolerances.GroundProbeDistance))
                         return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
                     float expectedSpeed = Mathf.Min(speed, Mathf.Abs(displacement) / deltaTime);
                     float expectedVelocity = Mathf.Sign(displacement) * expectedSpeed;
                     float horizontalVelocity = Mathf.Lerp(body.linearVelocityX, expectedVelocity, accelerationRate);
-                    if (Mathf.Abs(horizontalVelocity) > MinimumMotion)
+                    if (Mathf.Abs(horizontalVelocity) > NavigationTolerances.MinimumMotion)
                     {
                         body.linearVelocity = new Vector2(horizontalVelocity, body.linearVelocityY);
                         onWalk?.Invoke();
@@ -539,7 +546,7 @@ namespace Aethiumian.AI.Navigation
 
         private bool TryGetGroundSupport(out RaycastHit2D nearest)
         {
-            int count = bodyCollider.Cast(Vector2.down, terrainFilter, hits, GroundProbeDistance);
+            int count = bodyCollider.Cast(Vector2.down, terrainFilter, hits, NavigationTolerances.GroundProbeDistance);
             float nearestDistance = float.PositiveInfinity;
             nearest = default;
             for (int index = 0; index < count; index++)
@@ -561,7 +568,7 @@ namespace Aethiumian.AI.Navigation
             {
                 RaycastHit2D hit = hits[index];
                 Collider2D collider = hit.collider;
-                if (collider && collider != bodyCollider && hit.normal.x * horizontalDirection < -MinimumMotion)
+                if (collider && collider != bodyCollider && hit.normal.x * horizontalDirection < -NavigationTolerances.ObstacleNormalThreshold)
                 {
                     return true;
                 }

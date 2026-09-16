@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -230,7 +230,7 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Cooperatively advances one action-graph search without owning Unity objects.</summary>
     internal sealed class NavigationSearch : IDisposable
     {
-        private const float Tolerance = 0.0001f;
+        private const float Tolerance = NavigationTolerances.Epsilon;
         private readonly NavigationSearchRequest request;
         private readonly Dictionary<NavigationNodeIdentity, NavigationSearchNode> nodes = new();
         private readonly NavigationMinHeap<NavigationNodeIdentity> open = new(Comparer<NavigationNodeIdentity>.Create(CompareIdentity));

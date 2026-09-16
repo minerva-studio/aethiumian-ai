@@ -238,12 +238,26 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Assert.That(() => JumpTrajectory.TrySolve(default, out _), Throws.InstanceOf<ArgumentException>());
         }
 
+        /// <summary>Verifies the discrete recurrence supports a damped body.</summary>
         [Test]
-        public void AcceptsDiscreteDampingAndRejectsNonVerticalGravity()
+        public void AcceptsDiscreteLinearDamping()
         {
-            Assert.DoesNotThrow(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, new Vector2(0, -9.81f), 1, 0.1f, 2, 0.02f), out _));
-            Assert.Throws<NotSupportedException>(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, new Vector2(1, -9.81f), 1, 0, 2, 0.02f), out _));
-            Assert.That(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, Vector2.zero, 1, 0, 2, 0.02f), out _), Throws.InstanceOf<ArgumentException>());
+            JumpTrajectoryInput damped = new(Vector2.zero, Vector2.right, new Vector2(0f, -9.81f), 1f, 0.1f, 2f, 0.02f);
+
+            Assert.That(JumpTrajectory.TrySolve(damped, out _), Is.True);
+        }
+
+        /// <summary>Verifies a profile without authored height or effective gravity reports no trajectory.</summary>
+        [Test]
+        public void ReportsNoTrajectoryWithoutHeightOrEffectiveGravity()
+        {
+            JumpTrajectoryInput noHeight = new(Vector2.zero, Vector2.right, new Vector2(0f, -9.81f), 1f, 0f, 0f, 0.02f);
+            JumpTrajectoryInput noGravity = new(Vector2.zero, Vector2.right, Vector2.zero, 1f, 0f, 2f, 0.02f);
+
+            Assert.That(JumpTrajectory.TrySolve(noHeight, out JumpTrajectorySolution solution), Is.False);
+            Assert.That(solution, Is.Null);
+            Assert.That(JumpTrajectory.TrySolve(noGravity, out solution), Is.False);
+            Assert.That(solution, Is.Null);
         }
 
         [Test]

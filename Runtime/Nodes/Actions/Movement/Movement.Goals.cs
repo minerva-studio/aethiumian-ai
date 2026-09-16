@@ -52,8 +52,8 @@ namespace Aethiumian.AI.Nodes
                 : NavigationGoalRequest.Proximity(target, distanceMetric, tolerance, sight);
         }
         /// <summary>Chooses a destination once per run, using the ability's valid landing geometry.</summary>
-        protected abstract Vector2Int GetWanderLocation(Vector2 center);
-        protected bool IsValidNavigationWanderLocation(Vector2Int target, bool requireSupport)
+        protected abstract Vector2 GetWanderLocation(Vector2 center);
+        protected bool IsValidNavigationWanderLocation(Vector2 target, bool requireSupport)
         {
             INavigationWorld world = NavigationWorld;
             Vector2 targetFeet = target;

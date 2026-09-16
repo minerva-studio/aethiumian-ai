@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,7 +7,7 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Managed immutable navigation snapshot backed by captured geometry and spatial buckets.</summary>
     public sealed class NavigationWorldSnapshot : NavigationWorld
     {
-        private const float Epsilon = 0.0001f;
+        private const float Epsilon = NavigationTolerances.Epsilon;
         private readonly Vector2 origin;
         private readonly float cellSize;
         private readonly RectInt cellBounds;

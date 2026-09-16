@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using Aethiumian.AI.Navigation;
@@ -9,7 +9,7 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Builds execution-ready grounded-jump route segments without owning search policy.</summary>
     public static class GroundJumpGeometry
     {
-        private const float Tolerance = 0.0001f;
+        private const float Tolerance = NavigationTolerances.Epsilon;
 
         /// <summary>
         /// Re-solves one selected jump and confirms the planned apex is still the exact

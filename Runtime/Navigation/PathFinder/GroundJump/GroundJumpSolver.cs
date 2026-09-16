@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using UnityEngine;
 
@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public sealed class GroundJumpSolver
     {
-        private const float Tolerance = 0.0001f;
+        private const float Tolerance = NavigationTolerances.Epsilon;
         private const int MaximumPlannerFlightTicks = 512;
         private readonly JumpTrajectoryCache trajectoryCache;
 

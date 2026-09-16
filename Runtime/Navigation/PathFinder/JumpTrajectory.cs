@@ -118,12 +118,12 @@ namespace Aethiumian.AI.Navigation
             }
 
             float time = Mathf.Min(elapsedSeconds, FlightDuration);
-            int fullTicks = Mathf.FloorToInt((time + 0.0000001f) / simulationTimeStep);
+            int fullTicks = Mathf.FloorToInt((time + NavigationTolerances.DegenerateAxis) / simulationTimeStep);
             float remainder = time - fullTicks * simulationTimeStep;
             fullTicks = Mathf.Clamp(fullTicks, 0, flightTickCount);
             EvaluateFullTicks(fullTicks, out position, out velocity);
 
-            if (remainder > 0.0000001f)
+            if (remainder > NavigationTolerances.DegenerateAxis)
             {
                 Advance(ref position, ref velocity, remainder);
             }
@@ -194,7 +194,7 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Solves bounded fixed-step jump trajectories with Unity 2D gravity and damping.</summary>
     public static class JumpTrajectory
     {
-        private const float Tolerance = 0.000001f;
+        private const float Tolerance = NavigationTolerances.SolverEpsilon;
         private const float DefaultMinimumApexRatio = 0.5f;
 
         private const float MaximumApexHeadroom = 0.25f;
@@ -259,9 +259,10 @@ namespace Aethiumian.AI.Navigation
             if (maxFlightTicks <= 0 || maxFlightTicks > MaximumFlightTicks)
                 throw new ArgumentOutOfRangeException(nameof(maxFlightTicks),
                     $"Flight ticks must be between 1 and {MaximumFlightTicks}.");
+            solution = null;
+            if (!CanProduceTrajectory(input.JumpHeight, input.Gravity.y * input.GravityScale)) return false;
             if (!IsApexHeightAllowed(input.JumpHeight, minimumApexHeight))
                 throw new ArgumentOutOfRangeException(nameof(minimumApexHeight));
-            solution = null;
 
             float gravityMagnitude = Mathf.Abs(input.Gravity.y * input.GravityScale);
             float verticalDirection = -Mathf.Sign(input.Gravity.y);
@@ -353,26 +354,25 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        /// <summary>Validates the complete fixed-step trajectory input domain.</summary>
+        /// <summary>
+        /// Returns whether an authored profile can produce any trajectory: a positive authored height
+        /// and a non-zero effective gravity. The recurrence models gravity along its vertical axis
+        /// only, so the authored horizontal component is not part of this domain; a profile without
+        /// height or effective gravity has no solution rather than malformed input.
+        /// </summary>
+        public static bool CanProduceTrajectory(float jumpHeight, float effectiveGravity)
+            => jumpHeight > 0f && Mathf.Abs(effectiveGravity) > Tolerance;
+
+        /// <summary>Validates the authored values the fixed-step recurrence cannot represent.</summary>
         private static void ValidateInput(JumpTrajectoryInput input)
         {
             if (!NavigationNumeric.IsFinite(input.StartPosition) || !NavigationNumeric.IsFinite(input.LandingPosition)
-                || !NavigationNumeric.IsFinite(input.Gravity) || !NavigationNumeric.IsFinite(input.GravityScale) || input.GravityScale <= 0f
+                || !NavigationNumeric.IsFinite(input.Gravity) || !NavigationNumeric.IsFinite(input.GravityScale) || input.GravityScale < 0f
                 || !NavigationNumeric.IsFinite(input.LinearDamping) || input.LinearDamping < 0f
-                || !NavigationNumeric.IsFinite(input.JumpHeight) || input.JumpHeight <= 0f
+                || !NavigationNumeric.IsFinite(input.JumpHeight) || input.JumpHeight < 0f
                 || !NavigationNumeric.IsFinite(input.SimulationTimeStep) || input.SimulationTimeStep <= 0f)
             {
                 throw new ArgumentException("Jump trajectory input contains malformed values.", nameof(input));
-            }
-
-            if (Mathf.Abs(input.Gravity.x) > Tolerance)
-            {
-                throw new NotSupportedException("The jump trajectory supports only vertical gravity.");
-            }
-
-            if (Mathf.Abs(input.Gravity.y * input.GravityScale) <= Tolerance)
-            {
-                throw new ArgumentException("Jump trajectory requires nonzero effective gravity.", nameof(input));
             }
         }
 

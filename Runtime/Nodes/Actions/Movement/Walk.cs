@@ -50,7 +50,11 @@ namespace Aethiumian.AI.Nodes
                 return TryReconnectNavigationRoute(candidate, NavigationGroundAnchor, out connected);
             if (candidate.Segments[0] is JumpRouteSegment)
             {
-                Vector2 offset = candidate.Start - NavigationGroundAnchor;
+                // A plan speaks in support space, while the body anchor rests one contact gap above
+                // the surface it stands on; resolve the anchor before comparing the two positions.
+                if (!NavigationRuntime.TryResolvePlanningGroundSupport(NavigationGroundAnchor, NavigationBodySize, out _, out NavigationSupport currentSupport))
+                    return false;
+                Vector2 offset = candidate.Start - currentSupport.Position;
                 float horizontalTolerance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(
                     NewFixedSpeed, Time.fixedDeltaTime);
                 if (Mathf.Abs(offset.x) > horizontalTolerance
@@ -205,30 +209,26 @@ namespace Aethiumian.AI.Nodes
                 jumpLength,
                 Time.fixedDeltaTime);
 
-        protected override Vector2Int GetWanderLocation(Vector2 center)
+        protected override Vector2 GetWanderLocation(Vector2 center)
         {
             const int MAX_WANDER_LOCATION_TRIAL = 20;
 
-            Vector2 wanderPosition;
             if (wanderDistance <= 0)
             {
                 // Preserve zero-range wander behavior without calling RNG.NextFloat(0, 0).
-                return Vector2Int.RoundToInt(center);
+                return center;
             }
 
             for (int i = 0; i < MAX_WANDER_LOCATION_TRIAL; i++)
             {
                 var random = behaviourTree.RandomSources.Resolve(this);
                 var x = random.NextFloat(-1f, 1f) * random.NextFloat(wanderDistance * 0.5f, wanderDistance * 1.5f);
-                //wanderPosition = Vector2Int.RoundToInt(new Vector2(center.x + x, center.y));
-                wanderPosition = center;
-                wanderPosition.x += x;
-                var fixedPosition = Vector2Int.RoundToInt(wanderPosition);
-                if (IsValidNavigationWanderLocation(fixedPosition, true))
-                    return fixedPosition;
+                var candidate = new Vector2(center.x + x, center.y);
+                if (IsValidNavigationWanderLocation(candidate, true))
+                    return candidate;
             }
             Debug.LogWarning("Cannot find valid wander location around. is the entity outside the room?");
-            return Vector2Int.FloorToInt(center);
+            return center;
         }
 
         private void StopHorizontalVelocity()

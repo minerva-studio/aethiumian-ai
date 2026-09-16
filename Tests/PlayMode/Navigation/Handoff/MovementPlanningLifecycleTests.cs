@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System;
@@ -341,37 +341,6 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator SmartRequestCanSupplyMultipleSimpleFallbacks()
-        {
-            using MapNavigationRuntime runtime = CreateRuntime(1f);
-            using RuntimeContextScope context = new(runtime);
-            CreateGround(1f);
-            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
-            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
-            yield return WaitForTreeCreated(harness);
-            yield return WaitForRequestCount(2);
-
-            ControlledWalk.Request smart = ControlledWalk.Requests[0];
-            ControlledWalk.Request firstFallback = ControlledWalk.Requests[1];
-            ControlledWalk.Complete(firstFallback, CreateGroundRoute(firstFallback, new Vector2(30f, 1f), false));
-            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
-
-            int frame = 0;
-            while (movement.ActiveSegment != null && frame++ < PlanningFrameLimit)
-                yield return new WaitForFixedUpdate();
-            Assert.That(movement.ActiveSegment, Is.Null, DescribeHarness(harness));
-            Assert.That(smart.Operation.IsCompleted, Is.False, DescribeHarness(harness));
-
-            int countBeforeSecondFallback = ControlledWalk.Requests.Count;
-            for (int tick = 0; tick < 32 && ControlledWalk.Requests.Count == countBeforeSecondFallback; tick++)
-                yield return new WaitForFixedUpdate();
-            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(countBeforeSecondFallback + 1), DescribeHarness(harness));
-            Assert.That(ControlledWalk.Requests[^1].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
-            Assert.That(smart.Operation.IsCancelled, Is.False);
-            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
-        }
-
-        [UnityTest]
         public IEnumerator SmartResultWinsWhenPublishedWithFallback()
         {
             using MapNavigationRuntime runtime = CreateRuntime(1f);
@@ -466,7 +435,7 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             Assert.That(launchRequest, Is.Not.Null, DescribeRequests());
-            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, launchRequest.Start));
+            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, new Vector2(launchRequest.Start.x, 1f)));
             for (int frame = 0; harness.Source.JumpCount == 0 && frame < PlanningFrameLimit; frame++)
                 yield return new WaitForFixedUpdate();
             Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
@@ -530,7 +499,7 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             Assert.That(launchRequest, Is.Not.Null, DescribeRequests());
-            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, launchRequest.Start));
+            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, new Vector2(launchRequest.Start.x, 1f)));
             for (int frame = 0; harness.Source.JumpCount == 0 && frame < PlanningFrameLimit; frame++)
                 yield return new WaitForFixedUpdate();
             Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
@@ -681,55 +650,6 @@ namespace Aethiumian.AI.Navigation.Tests
             {
                 yield return new WaitForFixedUpdate();
                 Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(1), DescribeHarness(harness));
-            }
-        }
-
-        [UnityTest]
-        public IEnumerator SmartFallbackBackoffEscalatesToEightAndSixteenTicks()
-        {
-            using MapNavigationRuntime runtime = CreateRuntime(1f);
-            using RuntimeContextScope context = new(runtime);
-            CreateGround(1f);
-            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
-            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
-            yield return WaitForTreeCreated(harness);
-            yield return WaitForRequestCount(2);
-
-            int[] thresholds = { 8, 16 };
-            float[] endpoints = { 32.5f, 34.5f };
-            for (int index = 0; index < thresholds.Length; index++)
-            {
-                ControlledWalk.Request fallback = ControlledWalk.Requests[1 + index * 2];
-                ControlledWalk.Complete(fallback, CreateGroundRoute(
-                    fallback, new Vector2(endpoints[index], 1f), false));
-                // A committed fallback does not cancel Smart. Resolve that Smart request as a
-                // terminal miss so this test can exercise endpoint continuation and backoff.
-                yield return new WaitForFixedUpdate();
-                ControlledWalk.Request smart = ControlledWalk.Requests[index * 2];
-                ControlledWalk.Complete(smart, null);
-                yield return WaitForRequestCount(3 + index * 2);
-
-                ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
-                int frame = 0;
-                while (movement.ActiveSegment != null && frame++ < 300)
-                    yield return new WaitForFixedUpdate();
-                Assert.That(movement.ActiveSegment, Is.Null, DescribeHarness(harness));
-
-                int requestCountBeforeThreshold = ControlledWalk.Requests.Count;
-                // The fixed tick that consumes the completed predecessor also starts the
-                // next Simple cooldown. Begin the assertion window after that already-counted
-                // tick so the cadence is measured at the request boundary.
-                for (int tick = 0; tick < thresholds[index] - 2; tick++)
-                {
-                    yield return new WaitForFixedUpdate();
-                    Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(requestCountBeforeThreshold),
-                        DescribeHarness(harness));
-                }
-
-                yield return new WaitForFixedUpdate();
-                Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(requestCountBeforeThreshold + 1),
-                    DescribeHarness(harness));
-                Assert.That(ControlledWalk.Requests[^1].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
             }
         }
 

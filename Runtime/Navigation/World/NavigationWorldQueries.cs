@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,8 +7,8 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Small coordinate and compatibility helpers around the world-space contract.</summary>
     public static class NavigationWorldQueries
     {
-        public const float GeometryEpsilon = 0.0001f;
-        public static float SupportSnapDistance => 2f * Physics2D.defaultContactOffset + GeometryEpsilon;
+        public const float GeometryEpsilon = NavigationTolerances.Epsilon;
+        public static float SupportSnapDistance => NavigationTolerances.SupportSnap;
 
         /// <summary>Finds physical support among candidates selected by the caller's terrain filter.</summary>
         public static bool TryGetGroundSupportPoint(Collider2D bodyCollider, ContactFilter2D supportFilter, out Vector2 supportPoint)

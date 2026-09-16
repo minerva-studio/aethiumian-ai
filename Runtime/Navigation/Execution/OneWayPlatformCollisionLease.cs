@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,7 +7,7 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Owns temporary, exact body-to-platform collision overrides for one planned jump.</summary>
     public sealed class OneWayPlatformCollisionLease : IDisposable
     {
-        private const float GeometryEpsilon = 0.0001f;
+        private const float GeometryEpsilon = NavigationTolerances.Epsilon;
 
         private readonly Collider2D bodyCollider;
         private readonly List<Entry> entries;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
@@ -32,10 +32,6 @@ namespace Aethiumian.AI.Navigation
             {
                 result = NavigationPlanResult.NoResult;
             }
-            else if (!CanGenerateJumpEdges(parameters))
-            {
-                result = NavigationPlanResult.NoResult;
-            }
             else
             {
                 Vector2 startCenter = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
@@ -64,7 +60,7 @@ namespace Aethiumian.AI.Navigation
             ValidatePlanInputs(start, cancellationToken);
             parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
-            if (!CanGenerateJumpEdges(parameters) || !World.TryResolveGroundSupport(start, parameters.BodySize,
+            if (!World.TryResolveGroundSupport(start, parameters.BodySize,
                 parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support)) return NavigationPlanResult.NoResult;
             Vector2 center = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
             if (World.IsGoalComplete(goal, center, parameters.BodySize))
@@ -156,19 +152,12 @@ namespace Aethiumian.AI.Navigation
             return true;
         }
 
-        /// <summary>Checks whether the configured profile produces a usable vertical trajectory.</summary>
-        private static bool CanGenerateJumpEdges(JumpNavigationParameters parameters)
-            => Mathf.Abs(parameters.Gravity.x) <= 0.001f
-                && Mathf.Abs(parameters.Gravity.y * parameters.GravityScale) > 0.001f
-                && parameters.JumpHeight > Tolerance
-                && parameters.JumpLength >= 0f;
-
         private static void ValidateParameters(JumpNavigationParameters profile)
         {
             Validate.PositiveVector(profile.BodySize, nameof(profile));
             Validate.NonNegativeFinite(profile.GravityScale, nameof(profile));
             Validate.NonNegativeFinite(profile.LinearDamping, nameof(profile));
-            Validate.NonNegativeFinite(profile.JumpHeight, nameof(profile));
+            Validate.PositiveFinite(profile.JumpHeight, nameof(profile));
             Validate.NonNegativeFinite(profile.JumpLength, nameof(profile));
             Validate.PositiveFinite(profile.SimulationTimeStep, nameof(profile));
             Validate.Finite(profile.Gravity, nameof(profile));

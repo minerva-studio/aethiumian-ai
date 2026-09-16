@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 #endif
@@ -69,10 +69,10 @@ namespace Aethiumian.AI.Navigation
 
         private bool IsBefore(Entry left, Entry right)
         {
-            if (left.Score < right.Score - 0.0001f) return true;
-            if (Mathf.Abs(left.Score - right.Score) > 0.0001f) return false;
-            if (left.Heuristic < right.Heuristic - 0.0001f) return true;
-            if (Mathf.Abs(left.Heuristic - right.Heuristic) > 0.0001f) return false;
+            if (left.Score < right.Score - NavigationTolerances.Epsilon) return true;
+            if (Mathf.Abs(left.Score - right.Score) > NavigationTolerances.Epsilon) return false;
+            if (left.Heuristic < right.Heuristic - NavigationTolerances.Epsilon) return true;
+            if (Mathf.Abs(left.Heuristic - right.Heuristic) > NavigationTolerances.Epsilon) return false;
             return keyComparer.Compare(left.Key, right.Key) < 0;
         }
 

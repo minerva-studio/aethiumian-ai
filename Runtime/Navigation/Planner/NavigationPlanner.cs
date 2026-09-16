@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using UnityEngine;
 
@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public abstract class NavigationPlanner<TParameters>
     {
-        protected const float Tolerance = 0.0001f;
+        protected const float Tolerance = NavigationTolerances.Epsilon;
 
 
         protected NavigationPlanner(INavigationWorld world, int maxExpandedNodes)

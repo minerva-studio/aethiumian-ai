@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -97,33 +97,49 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(blockedResult.FailureReason, Is.EqualTo(ExecutionFailureReason.Obstructed));
         }
 
-        /// <summary>Verifies collider anchoring and the shared endpoint boundary as one observable contract.</summary>
-        [TestCase("centered", 0f, 0f, 0.005f, ExecutionStatus.Completed)]
-        [TestCase("offset", 0.75f, -0.25f, 0.005f, ExecutionStatus.Completed)]
-        [TestCase("support-snap", 0f, 0f, 0.03f, ExecutionStatus.Completed)]
-        [TestCase("endpoint-inside", 0f, 0f, 0.2f, ExecutionStatus.Completed)]
-        [TestCase("endpoint-outside", 0f, 0f, 0.201f, ExecutionStatus.Running)]
-        public void GroundMoveArrivalBoundaryUsesPhysicalAnchor(
-            string caseName, float colliderOffsetX, float colliderOffsetY,
-            float endpointDistance, ExecutionStatus expectedStatus)
+        /// <summary>Verifies a ground move cannot report complete while the body is still short of its endpoint.</summary>
+        [TestCase("centered", 0f, 0f)]
+        [TestCase("offset", 0.75f, -0.25f)]
+        public void GroundMove_DoesNotCompleteWhileShortOfItsEndpoint(
+            string caseName, float colliderOffsetX, float colliderOffsetY)
         {
             (Rigidbody2D body, BoxCollider2D collider) = CreateBody(Vector2.zero);
             collider.offset = new Vector2(colliderOffsetX, colliderOffsetY);
-            if (caseName is "endpoint-inside" or "endpoint-outside")
-                CreateFloor(new Vector2(0f, -0.56f), new Vector2(4f, 0.1f), NavigationPhysicsTestLayers.GeometryLayer);
+            CreateFloor(new Vector2(0f, -0.56f), new Vector2(4f, 0.1f), NavigationPhysicsTestLayers.GeometryLayer);
             Physics2D.SyncTransforms();
             Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
-            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(),
-                expectedStatus == ExecutionStatus.Running ? 0f : 4f, 0.5f);
-            executor.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * endpointDistance);
+            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f);
+            executor.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.2f);
 
-            Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(expectedStatus));
-            Assert.That(NavigationBodyGeometry.GetGroundAnchor(collider).x,
-                Is.EqualTo(groundAnchor.x).Within(0.0001f));
-            if (expectedStatus == ExecutionStatus.Completed)
-                Assert.AreEqual(Vector2.zero, body.linearVelocity);
+            Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running),
+                "Arrival is directional: the move may only complete once the body has reached its endpoint.");
         }
 
+        /// <summary>Verifies a sub-tick ground connector can still travel and complete.</summary>
+        [UnityTest]
+        public IEnumerator GroundMove_CompletesAfterTravellingASubTickConnector()
+        {
+            (Rigidbody2D body, BoxCollider2D collider) = CreateBody(Vector2.zero);
+            CreateFloor(new Vector2(0f, -0.56f), new Vector2(4f, 0.1f), NavigationPhysicsTestLayers.GeometryLayer);
+            Physics2D.SyncTransforms();
+            yield return new WaitForFixedUpdate();
+            Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
+            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f);
+            executor.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.03f);
+
+            ExecutionStatus status = ExecutionStatus.Running;
+            for (int tick = 0; tick < 30 && status == ExecutionStatus.Running; tick++)
+            {
+                yield return new WaitForFixedUpdate();
+                status = executor.Tick(Time.fixedDeltaTime).Status;
+            }
+
+            Assert.That(status, Is.EqualTo(ExecutionStatus.Completed),
+                "A sub-tick connector must still be able to travel and complete.");
+            Assert.That(NavigationBodyGeometry.GetGroundAnchor(collider).x,
+                Is.GreaterThanOrEqualTo(groundAnchor.x + 0.03f - 0.0001f),
+                "Completion requires actually reaching the endpoint, so the anchor must have moved.");
+        }
         /// <summary>Verifies that a jump applies its shared launch solution exactly once from Tick.</summary>
         [UnityTest]
         public IEnumerator Jump_LaunchesOnceFromTick()

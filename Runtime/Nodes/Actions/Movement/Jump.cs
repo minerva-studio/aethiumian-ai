@@ -149,21 +149,21 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        protected override Vector2Int GetWanderLocation(Vector2 center)
+        protected override Vector2 GetWanderLocation(Vector2 center)
         {
             const int MaximumTrials = 20;
-            if (wanderDistance <= 0f) return Vector2Int.RoundToInt(center);
+            if (wanderDistance <= 0f) return center;
 
             for (int index = 0; index < MaximumTrials; index++)
             {
                 var random = behaviourTree.RandomSources.Resolve(this);
                 float x = random.NextFloat(-1f, 1f)
                     * random.NextFloat(wanderDistance * 0.5f, wanderDistance * 1.5f);
-                Vector2Int candidate = Vector2Int.RoundToInt(center + Vector2.right * x);
+                Vector2 candidate = center + Vector2.right * x;
                 if (IsValidNavigationWanderLocation(candidate, true)) return candidate;
             }
             Debug.LogWarning("Cannot find valid wander location around. Is the entity outside the room?");
-            return Vector2Int.FloorToInt(center);
+            return center;
         }
     }
 }

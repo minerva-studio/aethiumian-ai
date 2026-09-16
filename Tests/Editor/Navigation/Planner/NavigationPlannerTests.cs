@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using NUnit.Framework;
@@ -496,22 +496,16 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
         }
 
-        /// <summary>Verifies jump parameters without usable edges exit before creating a search frontier.</summary>
+        /// <summary>Verifies a Jump request rejects an authored profile that cannot jump at all.</summary>
         [Test]
-        public void JumpPlannerDoesNotRecordExhaustionWhenJumpEdgesAreUnavailable()
+        public void JumpPlannerRejectsNonPositiveAuthoredJumpHeight()
         {
             TestNavigationWorld world = GroundWorld(0, 3);
-            NavigationPlanningDiagnostics diagnostics = new();
-            JumpNavigationParameters noEdges = new(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 0f, 0f, 0.02f);
+            JumpNavigationParameters noJump = new(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 0f, 0f, 0.02f);
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.Plan(
-                new Vector2(0.5f, 1f), Goal(new Vector2(2.5f, 1f), 0.1f), noEdges,
-                cancellationToken, diagnostics));
 
-            NavigationPlanResult result = work.Execute(CancellationToken.None);
-            Assert.That(result.Route, Is.Null);
-            Assert.That(diagnostics.ExpansionCount, Is.Zero);
-            Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
+            Assert.Throws<ArgumentException>(() => planner.Plan(
+                new Vector2(0.5f, 1f), Goal(new Vector2(2.5f, 1f), 0.1f), noJump));
         }
 
         /// <summary>Verifies a one-way launch can use a bounded upward arc to reach a much lower support.</summary>

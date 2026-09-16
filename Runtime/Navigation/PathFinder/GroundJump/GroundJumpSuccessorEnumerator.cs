@@ -58,7 +58,12 @@ namespace Aethiumian.AI.Navigation
         {
             if (jumpSolver == null) throw new ArgumentNullException(nameof(jumpSolver));
             INavigationWorld world = jumpSolver.World;
-            if (!CanGenerateJumpEdges(parameters)) yield break;
+            // A profile that cannot produce any trajectory has no jump edges. Asking the trajectory
+            // owner keeps a Walk profile authored without jump capability planable instead of letting
+            // the search fail on malformed trajectory input.
+            if (!JumpTrajectory.CanProduceTrajectory(parameters.JumpHeight,
+                parameters.Gravity.y * parameters.GravityScale))
+                yield break;
 
             float maximumApexHeight = JumpTrajectory.GetMaximumAllowedApexHeight(parameters.JumpHeight);
             Vector2Int supportCell = NavigationWorldQueries.WorldToCell(world, support.Position);
@@ -197,12 +202,6 @@ namespace Aethiumian.AI.Navigation
                 : goal.TargetBounds;
             return envelope.Intersects(reachable);
         }
-
-        private static bool CanGenerateJumpEdges(GroundJumpParameters parameters)
-            => Mathf.Abs(parameters.Gravity.x) <= 0.000001f
-                && Mathf.Abs(parameters.Gravity.y * parameters.GravityScale) > 0.000001f
-                && parameters.JumpHeight > Tolerance
-                && parameters.JumpLength >= 0f;
 
         private static void AddUnique(List<NavigationSupportCandidate> supports, NavigationSupportCandidate candidate)
         {
