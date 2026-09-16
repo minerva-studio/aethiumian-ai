@@ -200,7 +200,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(operation.Result.Goal, Is.EqualTo(captured));
             Assert.That(operation.Result.World, Is.SameAs(world));
             Assert.That(operation.Result.Goal.IsGroundWalk, Is.True);
-            Assert.That(operation.Result.World.CellSize, Is.EqualTo(0.5f));
+            Assert.That(operation.Result.World.WorldBounds, Is.EqualTo(new Rect(0f, 0f, 3f, 2.5f)));
             Assert.That(operation.Result.Goal.Center.y, Is.EqualTo(0.5f));
         }
 
@@ -232,9 +232,9 @@ namespace Aethiumian.AI.Navigation.Tests
                 "The second unresolved request must enter the worker instead of hitting failed-request memoization.");
         }
 
-        /// <summary>Verifies planning support resolves canonical NavWorld cells across an integer boundary.</summary>
+        /// <summary>Verifies planning support resolves the captured surface across an integer boundary.</summary>
         [Test]
-        public void PlanningGroundSupportUsesCanonicalSupportCell()
+        public void PlanningGroundSupportResolvesCapturedSurface()
         {
             Vector2Int canonicalCell = new(1, 8);
             Vector2Int otherCell = new(1, 5);
@@ -251,13 +251,11 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(world);
 
             Vector2 observedLowerCenter = new(1.5f, 9.004980f);
-            Assert.That(runtime.GetPlanningStartCell(observedLowerCenter).y, Is.EqualTo(9));
             Assert.That(runtime.TryResolvePlanningGroundSupport(
                 observedLowerCenter,
                 new Vector2(0.8f, 0.8f),
                 out Vector2 snappedLowerCenter,
                 out NavigationSupport support), Is.True);
-            Assert.That(NavigationWorldQueries.WorldToCell(world, support.Position), Is.EqualTo(canonicalCell));
             Assert.That(support.Kind, Is.EqualTo(NavigationSurfaceKind.OneWay));
             Assert.That(snappedLowerCenter.y, Is.EqualTo(8.999982f).Within(0.0001f));
 
@@ -267,9 +265,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 new Vector2(0.8f, 0.8f),
                 out Vector2 otherSnappedLowerCenter,
                 out NavigationSupport otherSupport), Is.True);
-            Vector2Int otherSupportCell = NavigationWorldQueries.WorldToCell(world, otherSupport.Position);
-            Assert.That(otherSupportCell, Is.EqualTo(otherCell));
-            Assert.That(otherSupportCell, Is.Not.EqualTo(canonicalCell));
+            Assert.That(otherSupport.Surface, Is.Not.EqualTo(support.Surface));
             Assert.That(otherSupport.Kind, Is.EqualTo(NavigationSurfaceKind.OneWay));
             Assert.That(otherSnappedLowerCenter.y, Is.EqualTo(5.999982f).Within(0.0001f));
         }
@@ -315,7 +311,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Complete(runtime, operation);
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(operation.Result, Is.Not.Null);
-            Assert.That(operation.Result.Segments, Has.Count.EqualTo(1));
+            Assert.That(operation.Result.Segments.Count, Is.EqualTo(1));
             Assert.That(operation.Result.Segments[0], Is.TypeOf(expectedSegmentType));
             Assert.That(operation.Result.Segments[0].Start.Equals(start), Is.True);
             Assert.That(operation.Result.Segments[0].End.Equals(start), Is.False);
@@ -335,7 +331,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Complete(runtime, first);
             Assert.That(first.Result, Is.Not.Null, DescribeRoute(first.Result));
             Assert.That(first.Result.ReachesGoal, Is.True, DescribeRoute(first.Result));
-            Assert.That(first.Result.Segments, Has.Count.GreaterThan(1), DescribeRoute(first.Result));
+            Assert.That(first.Result.Segments.Count, Is.GreaterThan(1), DescribeRoute(first.Result));
             Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
                 DescribeRoute(first.Result));
         }
@@ -510,24 +506,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(partial.IsCompleted, Is.False);
         }
 
-        /// <summary>Verifies point goals map to one cell, including exact and cross-boundary coordinates.</summary>
-        [Test]
-        public void PointGoalCellBoundsIncludePointCellAndTrackBoundaryCrossing()
-        {
-            using MapNavigationRuntime runtime = CreateRuntime();
-            TestNavigationWorld world = CreateOpenWorld();
-            runtime.PublishWorld(world);
-
-            RectInt exactBoundary = runtime.GetGoalCellBounds(Goal(new Vector2(1f, 1f)));
-            Assert.That(exactBoundary, Is.EqualTo(new RectInt(1, 1, 1, 1)));
-
-            RectInt beforeBoundary = runtime.GetGoalCellBounds(Goal(new Vector2(0.999f, 1f)));
-            RectInt afterBoundary = runtime.GetGoalCellBounds(Goal(new Vector2(1.001f, 1f)));
-            Assert.That(beforeBoundary.xMin, Is.EqualTo(0));
-            Assert.That(afterBoundary.xMin, Is.EqualTo(1));
-            Assert.That(afterBoundary.width, Is.EqualTo(1));
-        }
-
         /// <summary>Verifies cancellation is finalized during the wait-for-world phase.</summary>
         [Test]
         public void CancellationWorksBeforeWorldPublication()
@@ -624,9 +602,7 @@ namespace Aethiumian.AI.Navigation.Tests
         private sealed class CountingNavigationWorld : INavigationWorld
         {
             private readonly TestNavigationWorld world;
-            public Vector2 Origin => world.Origin;
-            public float CellSize => world.CellSize;
-            public RectInt CellBounds => world.CellBounds;
+            public Rect WorldBounds => world.WorldBounds;
             public int SupportQueryCount => Volatile.Read(ref supportQueryCount);
             private int supportQueryCount;
 

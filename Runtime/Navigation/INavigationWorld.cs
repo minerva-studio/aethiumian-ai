@@ -171,16 +171,19 @@ namespace Aethiumian.AI.Navigation
 
     }
 
-    /// <summary>Maps a non-overlapping cell region to a captured project region identity.</summary>
+    /// <summary>Maps a non-overlapping world-space region rectangle to a captured project region identity.</summary>
     public readonly struct NavigationRegionData
     {
-        public RectInt CellBounds { get; }
+        /// <summary>Gets the world-space rectangle covered by this region. The rectangle is half-open.</summary>
+        public Rect WorldBounds { get; }
         public int RegionId { get; }
 
-        public NavigationRegionData(RectInt cellBounds, int regionId)
+        public NavigationRegionData(Rect worldBounds, int regionId)
         {
-            if (cellBounds.width <= 0 || cellBounds.height <= 0) throw new ArgumentException("Region bounds must be positive.", nameof(cellBounds));
-            CellBounds = cellBounds;
+            if (!NavigationNumeric.IsFinite(worldBounds.min) || !NavigationNumeric.IsFinite(worldBounds.max)
+                || worldBounds.width <= 0f || worldBounds.height <= 0f)
+                throw new ArgumentException("Region bounds must be positive and finite.", nameof(worldBounds));
+            WorldBounds = worldBounds;
             RegionId = regionId;
         }
     }
@@ -193,19 +196,9 @@ namespace Aethiumian.AI.Navigation
     public interface INavigationWorld
     {
         /// <summary>
-        /// World-space origin used for cell coordinate conversion.
+        /// World-space rectangle of the captured finite world. Geometry outside it is never navigable.
         /// </summary>
-        Vector2 Origin { get; }
-
-        /// <summary>
-        /// World-space size of one navigation cell.
-        /// </summary>
-        float CellSize { get; }
-
-        /// <summary>
-        /// Cell coordinate bounds of the captured world.
-        /// </summary>
-        RectInt CellBounds { get; }
+        Rect WorldBounds { get; }
 
         /// <summary>
         /// Checks body clearance against captured geometry with the supplied contact tolerance.

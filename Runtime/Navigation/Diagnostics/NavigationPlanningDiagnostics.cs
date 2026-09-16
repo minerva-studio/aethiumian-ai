@@ -23,14 +23,9 @@ namespace Aethiumian.AI.Navigation
         public int JumpCandidateValidatedCount { get; private set; }
         public int CacheHitCount { get; private set; }
         public int CacheMissCount { get; private set; }
-        private HashSet<Vector2Int> exploredSupportCells;
-        /// <summary>Gets support cells recorded after explicit exploration diagnostics were requested.</summary>
-        public IReadOnlyCollection<Vector2Int> ExploredSupportCells
-            => exploredSupportCells ?? (IReadOnlyCollection<Vector2Int>)Array.Empty<Vector2Int>();
         public int BranchBoundCount { get; private set; }
         public int TopologyCacheHitCount { get; private set; }
         public int TopologyCacheMissCount { get; private set; }
-        public int FallScanCount { get; private set; }
 
         /// <summary>Records one search expansion.</summary>
         public void RecordExpansion() => ExpansionCount++;
@@ -46,17 +41,12 @@ namespace Aethiumian.AI.Navigation
         public void RecordCacheHit() => CacheHitCount++;
         /// <summary>Records one snapshot geometry cache miss.</summary>
         public void RecordCacheMiss() => CacheMissCount++;
-        /// <summary>Records one canonical support state expanded by a ground planner.</summary>
-        public void RecordExploredSupport(Vector2Int supportCell)
-            => (exploredSupportCells ??= new HashSet<Vector2Int>()).Add(supportCell);
         /// <summary>Records one proven open-frontier branch-bound termination.</summary>
         public void RecordBranchBound() => BranchBoundCount++;
         /// <summary>Records one reusable topology cache hit.</summary>
         public void RecordTopologyCacheHit() => TopologyCacheHitCount++;
         /// <summary>Records one reusable topology cache miss.</summary>
         public void RecordTopologyCacheMiss() => TopologyCacheMissCount++;
-        /// <summary>Records one newly inspected fall-landing cell.</summary>
-        public void RecordFallScan() => FallScanCount++;
 
         public void RecordPathExpansion()
         {

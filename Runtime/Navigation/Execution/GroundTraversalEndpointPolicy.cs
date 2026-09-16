@@ -6,10 +6,10 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Provides shared physical tolerances for ground traversal endpoint decisions.</summary>
     public static class GroundTraversalEndpointPolicy
     {
-        internal const float MinimumHorizontalCompletionTolerance = NavigationTolerances.ArrivalFloor;
+        internal const float MinimumHorizontalCompletionTolerance = NavigationConstant.ArrivalFloor;
 
         /// <summary>Gets the vertical tolerance used when resolving physical support.</summary>
-        public static float VerticalSupportTolerance => NavigationTolerances.SupportResidual;
+        public static float VerticalSupportTolerance => NavigationConstant.SupportResidual;
 
         /// <summary>Gets the physical horizontal tolerance for a completed traversal endpoint.</summary>
         public static float GetHorizontalCompletionTolerance(float horizontalSpeed, float simulationTimeStep)

@@ -242,7 +242,7 @@ namespace Aethiumian.AI.Navigation
                 return ExecutionResult.Completed;
             }
 
-            if (!IsGrounded() || HasObstacle(Mathf.Sign(displacement), speed * deltaTime + NavigationTolerances.GroundProbeDistance))
+            if (!IsGrounded() || HasObstacle(Mathf.Sign(displacement), speed * deltaTime + NavigationConstant.GroundProbeDistance))
                 return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
 
             // A remaining distance the body can cover in one step is landed exactly instead of being
@@ -258,7 +258,7 @@ namespace Aethiumian.AI.Navigation
 
             float expectedVelocity = Mathf.Sign(displacement) * speed;
             float horizontalVelocity = Mathf.Lerp(body.linearVelocityX, expectedVelocity, accelerationRate);
-            if (Mathf.Abs(horizontalVelocity) <= NavigationTolerances.MinimumMotion) return ExecutionResult.Running;
+            if (Mathf.Abs(horizontalVelocity) <= NavigationConstant.MinimumMotion) return ExecutionResult.Running;
 
             body.linearVelocity = new Vector2(horizontalVelocity, body.linearVelocityY);
             onWalk?.Invoke();
@@ -343,12 +343,12 @@ namespace Aethiumian.AI.Navigation
                 float ledgeExitTolerance = GroundTraversalEndpointPolicy.GetHorizontalTransitionTolerance(speed, deltaTime);
                 if (Mathf.Abs(displacement) > ledgeExitTolerance)
                 {
-                    if (HasObstacle(Mathf.Sign(displacement), speed * deltaTime + NavigationTolerances.GroundProbeDistance))
+                    if (HasObstacle(Mathf.Sign(displacement), speed * deltaTime + NavigationConstant.GroundProbeDistance))
                         return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
                     float expectedSpeed = Mathf.Min(speed, Mathf.Abs(displacement) / deltaTime);
                     float expectedVelocity = Mathf.Sign(displacement) * expectedSpeed;
                     float horizontalVelocity = Mathf.Lerp(body.linearVelocityX, expectedVelocity, accelerationRate);
-                    if (Mathf.Abs(horizontalVelocity) > NavigationTolerances.MinimumMotion)
+                    if (Mathf.Abs(horizontalVelocity) > NavigationConstant.MinimumMotion)
                     {
                         body.linearVelocity = new Vector2(horizontalVelocity, body.linearVelocityY);
                         onWalk?.Invoke();
@@ -546,7 +546,7 @@ namespace Aethiumian.AI.Navigation
 
         private bool TryGetGroundSupport(out RaycastHit2D nearest)
         {
-            int count = bodyCollider.Cast(Vector2.down, terrainFilter, hits, NavigationTolerances.GroundProbeDistance);
+            int count = bodyCollider.Cast(Vector2.down, terrainFilter, hits, NavigationConstant.GroundProbeDistance);
             float nearestDistance = float.PositiveInfinity;
             nearest = default;
             for (int index = 0; index < count; index++)
@@ -568,7 +568,7 @@ namespace Aethiumian.AI.Navigation
             {
                 RaycastHit2D hit = hits[index];
                 Collider2D collider = hit.collider;
-                if (collider && collider != bodyCollider && hit.normal.x * horizontalDirection < -NavigationTolerances.ObstacleNormalThreshold)
+                if (collider && collider != bodyCollider && hit.normal.x * horizontalDirection < -NavigationConstant.ObstacleNormalThreshold)
                 {
                     return true;
                 }

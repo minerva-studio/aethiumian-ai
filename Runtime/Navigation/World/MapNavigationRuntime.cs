@@ -146,7 +146,7 @@ namespace Aethiumian.AI.Navigation
         public bool IsBodyClearFlySegment(Vector2 start, Vector2 end, Vector2 bodySize)
         {
             ThrowIfDisposed();
-            return world != null && world.IsCenteredBodySegmentClear(start, end, bodySize, 0.2f);
+            return world != null && world.IsCenteredBodySegmentClear(start, end, bodySize);
         }
 
         /// <summary>Cancels pending requests and releases the published world at the Map cleanup boundary.</summary>
@@ -297,9 +297,7 @@ namespace Aethiumian.AI.Navigation
                 : goal.TargetBounds;
             float expansion = Mathf.Max(bodySize.x, bodySize.y) + goal.ArrivalTolerance;
             reachable.Expand(expansion * 2f);
-            Bounds worldBounds = new(
-                snapshot.Origin + new Vector2(snapshot.CellBounds.center.x, snapshot.CellBounds.center.y) * snapshot.CellSize,
-                new Vector2(snapshot.CellBounds.width, snapshot.CellBounds.height) * snapshot.CellSize);
+            Bounds worldBounds = new(snapshot.WorldBounds.center, snapshot.WorldBounds.size);
             return reachable.Intersects(worldBounds);
         }
 
@@ -460,34 +458,6 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        /// <summary>Returns the cell rectangle covered by a goal in the published snapshot.</summary>
-        internal RectInt GetGoalCellBounds(NavigationGoalRequest goal) => GetGoalCellBounds(goal, Vector2.zero);
-
-        /// <summary>Returns the cell rectangle covered by a goal using the supplied body width for Ground Walk.</summary>
-        internal RectInt GetGoalCellBounds(NavigationGoalRequest goal, Vector2 bodySize)
-        {
-            ThrowIfDisposed();
-            if (world == null) return new RectInt();
-            Bounds bounds = goal.IsGroundWalk && bodySize.x > 0f
-                ? goal.GetLowerCenterAcceptanceBounds(bodySize.x)
-                : goal.TargetBounds;
-            int minX = Mathf.FloorToInt((bounds.min.x - world.Origin.x) / world.CellSize);
-            int minY = Mathf.FloorToInt((bounds.min.y - world.Origin.y) / world.CellSize);
-            int maxX = bounds.size.x == 0f
-                ? minX
-                : Mathf.CeilToInt((bounds.max.x - world.Origin.x) / world.CellSize) - 1;
-            int maxY = bounds.size.y == 0f
-                ? minY
-                : Mathf.CeilToInt((bounds.max.y - world.Origin.y) / world.CellSize) - 1;
-            int xMin = Mathf.Max(minX, world.CellBounds.xMin);
-            int yMin = Mathf.Max(minY, world.CellBounds.yMin);
-            int xMax = Mathf.Min(maxX, world.CellBounds.xMax - 1);
-            int yMax = Mathf.Min(maxY, world.CellBounds.yMax - 1);
-            return xMax < xMin || yMax < yMin
-                ? new RectInt()
-                : new RectInt(xMin, yMin, xMax - xMin + 1, yMax - yMin + 1);
-        }
-
         /// <summary>Resolves one planning launch support against the current published NavWorld.</summary>
         public bool TryResolvePlanningGroundSupport(Vector2 observedLowerCenter, Vector2 bodySize, out Vector2 snappedLowerCenter, out NavigationSupport support)
         {
@@ -496,13 +466,6 @@ namespace Aethiumian.AI.Navigation
             if (isDisposed || world == null) return false;
             return world.TryResolveGroundSupport(observedLowerCenter, bodySize,
                 NavigationWorldQueries.SupportSnapDistance, out snappedLowerCenter, out support);
-        }
-
-        /// <summary>Returns the cell containing a planning anchor in the published snapshot.</summary>
-        internal Vector2Int GetPlanningStartCell(Vector2 position)
-        {
-            ThrowIfDisposed();
-            return world == null ? default : NavigationWorldQueries.WorldToCell(world, position);
         }
 
         private bool TryCreateFailureKey(Vector2 start, NavigationGoalRequest goal,

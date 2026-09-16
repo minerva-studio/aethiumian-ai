@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public abstract class NavigationPlanner<TParameters>
     {
-        protected const float Tolerance = NavigationTolerances.Epsilon;
+        protected const float Tolerance = NavigationConstant.Epsilon;
 
 
         protected NavigationPlanner(INavigationWorld world, int maxExpandedNodes)

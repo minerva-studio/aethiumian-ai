@@ -82,7 +82,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationRoute route = planner.Plan(observedStart, goal, parameters, CancellationToken.None, diagnostics).Route;
             Assert.That(route, Is.Not.Null,
                 $"Walk planning failed from observed contact anchor {observedStart}; "
-                + $"expansions={diagnostics.ExpansionCount}, supports={diagnostics.ExploredSupportCells.Count}, "
+                + $"expansions={diagnostics.ExpansionCount}, terminals={diagnostics.TerminalCandidateCount}, "
                 + $"generatedJumps={diagnostics.JumpCandidateGeneratedCount}, validatedJumps={diagnostics.JumpCandidateValidatedCount}.");
             Assert.That(ContainsSegment<JumpRouteSegment>(route), Is.True, "The physical obstacle must require a planned JumpRouteSegment.");
 
@@ -248,14 +248,8 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             private readonly NavigationWorldSnapshot snapshot;
 
-            /// <summary>Gets the world origin.</summary>
-            public Vector2 Origin => snapshot.Origin;
-
-            /// <summary>Gets the uniform one-unit cell size.</summary>
-            public float CellSize => snapshot.CellSize;
-
-            /// <summary>Gets the finite navigation bounds.</summary>
-            public RectInt CellBounds => snapshot.CellBounds;
+            /// <summary>Gets the captured finite world rectangle.</summary>
+            public Rect WorldBounds => snapshot.WorldBounds;
 
             /// <summary>Creates an immutable test world from exact solid cell coordinates.</summary>
             public PhysicsAlignedNavigationWorld(Vector2 origin, RectInt cellBounds, IEnumerable<Vector2Int> solidCells)
@@ -271,7 +265,8 @@ namespace Aethiumian.AI.Navigation.Tests
                         new[] { min, new Vector2(max.x, min.y), max, new Vector2(min.x, max.y) },
                         0f, NavigationSurfaceKind.Solid, true));
                 }
-                snapshot = NavigationWorldSnapshot.Create(origin, 1f, cellBounds, shapes,
+                snapshot = NavigationWorldSnapshot.Create(new Rect(origin.x + cellBounds.xMin,
+                    origin.y + cellBounds.yMin, cellBounds.width, cellBounds.height), shapes,
                     Array.Empty<NavigationRegionData>());
             }
 

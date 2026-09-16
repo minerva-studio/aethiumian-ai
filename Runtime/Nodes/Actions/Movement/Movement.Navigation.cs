@@ -19,18 +19,14 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>
-        /// Route-reuse comparison. The navigation cell size is the world's own target-motion scale for
-        /// horizontal and vertical drift and is deliberately unrelated to the goal's fixed Ground Range
-        /// foot-height acceptance rule.
+        /// Route-reuse comparison. Target-motion tolerance is a re-planning policy expressed in world
+        /// units and is deliberately unrelated to the goal's fixed Ground Range foot-height acceptance rule.
         /// </summary>
-        private bool SameGoal(NavigationGoalRequest? previous, NavigationGoalRequest latest)
-            => previous.HasValue
-                && previous.Value.IsReusableFor(latest, Mathf.Max(NavigationWorld?.CellSize ?? 1f, latest.ArrivalTolerance), NavigationWorld?.CellSize ?? 1f);
+        private static bool SameGoal(NavigationGoalRequest? previous, NavigationGoalRequest latest)
+            => previous.HasValue && previous.Value.IsReusableFor(latest, Mathf.Max(NavigationConstant.TargetMotionTolerance, latest.ArrivalTolerance), NavigationConstant.TargetMotionTolerance);
 
         private static bool SamePlanningTarget(NavigationGoalRequest previous, NavigationGoalRequest latest)
-            => previous.HasCompatibleSemantics(latest)
-                && ((Vector2)(previous.Center - latest.Center)).sqrMagnitude
-                    <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
+            => previous.HasCompatibleSemantics(latest) && ((Vector2)(previous.Center - latest.Center)).sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
 
         private bool CanReplaceActiveAction
         {

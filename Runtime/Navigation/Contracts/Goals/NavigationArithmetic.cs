@@ -63,7 +63,7 @@ namespace Aethiumian.AI.Navigation
         /// <returns></returns>
         public static bool ClipOpenAxis(float origin, float direction, float min, float max, ref float lower, ref float upper)
         {
-            if (Mathf.Abs(direction) <= NavigationTolerances.DegenerateAxis)
+            if (Mathf.Abs(direction) <= NavigationConstant.DegenerateAxis)
                 return origin > min && origin < max;
 
             float first = (min - origin) / direction;
@@ -121,7 +121,7 @@ namespace Aethiumian.AI.Navigation
         /// <returns></returns>
         public static bool ClipClosedAxis(float origin, float direction, float min, float max, ref float lower, ref float upper)
         {
-            if (Mathf.Abs(direction) <= NavigationTolerances.DegenerateAxis) return origin >= min && origin <= max;
+            if (Mathf.Abs(direction) <= NavigationConstant.DegenerateAxis) return origin >= min && origin <= max;
             float first = (min - origin) / direction;
             float second = (max - origin) / direction;
             if (first > second) (first, second) = (second, first);
@@ -141,7 +141,7 @@ namespace Aethiumian.AI.Navigation
         {
             Vector2 direction = end - start;
             float lengthSquared = direction.sqrMagnitude;
-            float projection = lengthSquared <= NavigationTolerances.DegenerateAxis
+            float projection = lengthSquared <= NavigationConstant.DegenerateAxis
                 ? 0f
                 : Mathf.Clamp01(Vector2.Dot(point - start, direction) / lengthSquared);
             return Vector2.Distance(point, start + direction * projection);

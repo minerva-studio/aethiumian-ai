@@ -118,12 +118,12 @@ namespace Aethiumian.AI.Navigation
             }
 
             float time = Mathf.Min(elapsedSeconds, FlightDuration);
-            int fullTicks = Mathf.FloorToInt((time + NavigationTolerances.DegenerateAxis) / simulationTimeStep);
+            int fullTicks = Mathf.FloorToInt((time + NavigationConstant.DegenerateAxis) / simulationTimeStep);
             float remainder = time - fullTicks * simulationTimeStep;
             fullTicks = Mathf.Clamp(fullTicks, 0, flightTickCount);
             EvaluateFullTicks(fullTicks, out position, out velocity);
 
-            if (remainder > NavigationTolerances.DegenerateAxis)
+            if (remainder > NavigationConstant.DegenerateAxis)
             {
                 Advance(ref position, ref velocity, remainder);
             }
@@ -194,7 +194,7 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Solves bounded fixed-step jump trajectories with Unity 2D gravity and damping.</summary>
     public static class JumpTrajectory
     {
-        private const float Tolerance = NavigationTolerances.SolverEpsilon;
+        private const float Tolerance = NavigationConstant.SolverEpsilon;
         private const float DefaultMinimumApexRatio = 0.5f;
 
         private const float MaximumApexHeadroom = 0.25f;

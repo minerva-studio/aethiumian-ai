@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 #endif
@@ -7,15 +7,15 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>Deterministic binary min-heap used by incremental navigation searches.</summary>
-    internal sealed class NavigationMinHeap<T>
+    internal sealed class NavigationMinHeap<T> where T : IComparable<T>
     {
-        private readonly IComparer<T> keyComparer;
         private readonly List<Entry> entries = new();
 
-        /// <summary>Creates a deterministic score heap with an explicit key tie-breaker.</summary>
-        public NavigationMinHeap(IComparer<T> keyComparer)
+        /// <summary>
+        /// Creates a deterministic score heap; ties fall back to the key's natural ordering.
+        /// </summary>
+        public NavigationMinHeap()
         {
-            this.keyComparer = keyComparer ?? throw new ArgumentNullException(nameof(keyComparer));
         }
 
         /// <summary>Gets whether the heap contains no entries.</summary>
@@ -69,11 +69,11 @@ namespace Aethiumian.AI.Navigation
 
         private bool IsBefore(Entry left, Entry right)
         {
-            if (left.Score < right.Score - NavigationTolerances.Epsilon) return true;
-            if (Mathf.Abs(left.Score - right.Score) > NavigationTolerances.Epsilon) return false;
-            if (left.Heuristic < right.Heuristic - NavigationTolerances.Epsilon) return true;
-            if (Mathf.Abs(left.Heuristic - right.Heuristic) > NavigationTolerances.Epsilon) return false;
-            return keyComparer.Compare(left.Key, right.Key) < 0;
+            if (left.Score < right.Score - NavigationConstant.Epsilon) return true;
+            if (Mathf.Abs(left.Score - right.Score) > NavigationConstant.Epsilon) return false;
+            if (left.Heuristic < right.Heuristic - NavigationConstant.Epsilon) return true;
+            if (Mathf.Abs(left.Heuristic - right.Heuristic) > NavigationConstant.Epsilon) return false;
+            return left.Key.CompareTo(right.Key) < 0;
         }
 
         private readonly struct Entry

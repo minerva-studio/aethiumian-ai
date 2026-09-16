@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,19 +7,15 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Managed immutable navigation snapshot backed by captured geometry and spatial buckets.</summary>
     public sealed class NavigationWorldSnapshot : NavigationWorld
     {
-        private const float Epsilon = NavigationTolerances.Epsilon;
-        private readonly Vector2 origin;
-        private readonly float cellSize;
-        private readonly RectInt cellBounds;
+        private const float Epsilon = NavigationConstant.Epsilon;
+        private readonly Rect worldBounds;
         private readonly Shape[] shapes;
         private readonly Dictionary<Vector2Int, int[]> buckets;
         private readonly NavigationSupportCandidate[] supportCandidates;
         private readonly Dictionary<Vector2Int, int[]> supportCandidateBuckets;
         private readonly Dictionary<Vector2Int, int> regions;
 
-        private NavigationWorldSnapshot(Vector2 origin,
-            float cellSize,
-            RectInt cellBounds,
+        private NavigationWorldSnapshot(Rect worldBounds,
             Shape[] shapes,
             Dictionary<Vector2Int, int[]> buckets,
             NavigationSupportCandidate[] supportCandidates,
@@ -29,9 +25,7 @@ namespace Aethiumian.AI.Navigation
             int supportCacheCandidateLimit)
             : base(supportCacheEntryLimit, supportCacheCandidateLimit)
         {
-            this.origin = origin;
-            this.cellSize = cellSize;
-            this.cellBounds = cellBounds;
+            this.worldBounds = worldBounds;
             this.shapes = shapes;
             this.buckets = buckets;
             this.supportCandidates = supportCandidates;
@@ -39,22 +33,21 @@ namespace Aethiumian.AI.Navigation
             this.regions = regions;
         }
 
-        public override Vector2 Origin => origin;
-        public override float CellSize => cellSize;
-        public override RectInt CellBounds => cellBounds;
+        public override Rect WorldBounds => worldBounds;
 
         /// <summary>Copies detached geometry and builds immutable spatial and region indexes.</summary>
-        public static NavigationWorldSnapshot Create(Vector2 origin, float cellSize, RectInt cellBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData)
-            => Create(origin, cellSize, cellBounds, shapeData, regionData, SupportCandidateCache.DefaultEntryLimit, SupportCandidateCache.DefaultCandidateLimit);
+        public static NavigationWorldSnapshot Create(Rect worldBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData)
+            => Create(worldBounds, shapeData, regionData, NavigationConstant.SupportAnchorSpacing, SupportCandidateCache.DefaultEntryLimit, SupportCandidateCache.DefaultCandidateLimit);
 
-        /// <summary>Builds a snapshot with package-internal cache limits for focused cache validation.</summary>
-        internal static NavigationWorldSnapshot Create(Vector2 origin, float cellSize, RectInt cellBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData, int supportCacheEntryLimit, int supportCacheCandidateLimit)
+        /// <summary>Builds a snapshot with package-internal discretization and cache limits for focused cache validation.</summary>
+        internal static NavigationWorldSnapshot Create(Rect worldBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData, float supportAnchorSpacing, int supportCacheEntryLimit, int supportCacheCandidateLimit)
         {
-            Validate.Finite(origin, nameof(origin));
-            if (!NavigationNumeric.IsFinite(cellSize) || cellSize <= 0f) throw new ArgumentOutOfRangeException(nameof(cellSize));
-            if (cellBounds.width <= 0 || cellBounds.height <= 0) throw new ArgumentException("Navigation bounds must be positive.", nameof(cellBounds));
+            if (!NavigationNumeric.IsFinite(worldBounds.min) || !NavigationNumeric.IsFinite(worldBounds.max)
+                || worldBounds.width <= 0f || worldBounds.height <= 0f) throw new ArgumentException("Navigation bounds must be positive and finite.", nameof(worldBounds));
+            if (!NavigationNumeric.IsFinite(supportAnchorSpacing) || supportAnchorSpacing <= 0f) throw new ArgumentOutOfRangeException(nameof(supportAnchorSpacing));
             if (shapeData == null) throw new ArgumentNullException(nameof(shapeData));
             if (regionData == null) throw new ArgumentNullException(nameof(regionData));
+            RectInt indexBounds = GetIndexBounds(worldBounds);
 
             Shape[] shapes = new Shape[shapeData.Count];
             Dictionary<Vector2Int, List<int>> mutableBuckets = new();
@@ -62,7 +55,8 @@ namespace Aethiumian.AI.Navigation
             {
                 Shape shape = new(shapeData[index]);
                 shapes[index] = shape;
-                GetCellRange(shape.Min, shape.Max, origin, cellSize, cellBounds, out int minX, out int maxX, out int minY, out int maxY);
+                GetIndexRange(shape.Min, shape.Max, worldBounds, out int minX, out int maxX, out int minY, out int maxY);
+                ClampToIndexBounds(ref minX, ref maxX, ref minY, ref maxY, indexBounds);
                 for (int y = minY; y <= maxY; y++)
                     for (int x = minX; x <= maxX; x++)
                     {
@@ -84,8 +78,9 @@ namespace Aethiumian.AI.Navigation
             for (int index = 0; index < regionData.Count; index++)
             {
                 NavigationRegionData region = regionData[index];
-                for (int y = region.CellBounds.yMin; y < region.CellBounds.yMax; y++)
-                    for (int x = region.CellBounds.xMin; x < region.CellBounds.xMax; x++)
+                GetIndexRangeExclusive(region.WorldBounds.min, region.WorldBounds.max, worldBounds, out int minX, out int maxX, out int minY, out int maxY);
+                for (int y = minY; y <= maxY; y++)
+                    for (int x = minX; x <= maxX; x++)
                     {
                         Vector2Int key = new(x, y);
                         if (regions.ContainsKey(key)) throw new ArgumentException("Navigation regions must not overlap.", nameof(regionData));
@@ -95,34 +90,33 @@ namespace Aethiumian.AI.Navigation
 
             List<NavigationSupport> supports = new();
             for (int shapeIndex = 0; shapeIndex < shapes.Length; shapeIndex++)
-                BuildSupportCandidates(shapes[shapeIndex], origin, cellSize, cellBounds, supports);
+                BuildSupportCandidates(shapes[shapeIndex], worldBounds, supportAnchorSpacing, supports);
 
             supports.Sort();
             NavigationSupportCandidate[] supportCandidates = new NavigationSupportCandidate[supports.Count];
             Dictionary<Vector2Int, List<int>> mutableCandidateBuckets = new();
-            for (int index = 0; index < supports.Count; index++)
+            for (int i = 0; i < supports.Count; i++)
             {
-                NavigationSupportCandidate candidate = new(index, supports[index]);
-                supportCandidates[index] = candidate;
-                Vector2Int cell = WorldToCell(candidate.Support.Position, origin, cellSize, cellBounds);
-                if (!mutableCandidateBuckets.TryGetValue(cell, out List<int> entries))
-                    mutableCandidateBuckets.Add(cell, entries = new List<int>());
-                entries.Add(index);
+                NavigationSupportCandidate candidate = new(i, supports[i]);
+                supportCandidates[i] = candidate;
+                Vector2Int worldIndex = WorldToIndex(candidate.Support.Position, worldBounds, indexBounds);
+                if (!mutableCandidateBuckets.TryGetValue(worldIndex, out List<int> entries))
+                    mutableCandidateBuckets.Add(worldIndex, entries = new List<int>());
+                entries.Add(i);
             }
 
             Dictionary<Vector2Int, int[]> supportCandidateBuckets = new();
             foreach (KeyValuePair<Vector2Int, List<int>> pair in mutableCandidateBuckets)
                 supportCandidateBuckets.Add(pair.Key, pair.Value.ToArray());
 
-            return new NavigationWorldSnapshot(origin, cellSize, cellBounds, shapes, buckets, supportCandidates, supportCandidateBuckets, regions, supportCacheEntryLimit, supportCacheCandidateLimit);
+            return new NavigationWorldSnapshot(worldBounds, shapes, buckets, supportCandidates, supportCandidateBuckets, regions, supportCacheEntryLimit, supportCacheCandidateLimit);
         }
 
         public override bool IsBodyClear(Rect body, float surfaceContactTolerance)
         {
             Validate.PositiveRect(body, nameof(body));
             Validate.NonNegativeFinite(surfaceContactTolerance, nameof(surfaceContactTolerance));
-            Rect world = GetWorldBounds();
-            if (!world.Contains(body.min) || !world.Contains(body.max)) return false;
+            if (!worldBounds.Contains(body.min) || !worldBounds.Contains(body.max)) return false;
             Rect tested = body;
             tested.yMin += surfaceContactTolerance;
             if (tested.height <= Epsilon) return true;
@@ -136,7 +130,7 @@ namespace Aethiumian.AI.Navigation
             Validate.PositiveRect(startBody, nameof(startBody));
             Validate.Finite(displacement, nameof(displacement));
             Validate.NonNegativeFinite(surfaceContactTolerance, nameof(surfaceContactTolerance));
-            int samples = Mathf.Max(1, Mathf.CeilToInt(displacement.magnitude / Mathf.Max(Epsilon, cellSize * 0.25f)));
+            int samples = Mathf.Max(1, Mathf.CeilToInt(displacement.magnitude / Mathf.Max(Epsilon, NavigationConstant.BodySweepSampleSpacing)));
             for (int index = 0; index <= samples; index++)
             {
                 Rect body = startBody;
@@ -150,8 +144,7 @@ namespace Aethiumian.AI.Navigation
         {
             Validate.Finite(start, nameof(start));
             Validate.Finite(end, nameof(end));
-            Rect world = GetWorldBounds();
-            if (!world.Contains(start) || !world.Contains(end)) return false;
+            if (!worldBounds.Contains(start) || !worldBounds.Contains(end)) return false;
             Vector2 min = Vector2.Min(start, end);
             Vector2 max = Vector2.Max(start, end);
             Rect query = new(min, max - min);
@@ -181,7 +174,6 @@ namespace Aethiumian.AI.Navigation
         {
             Validate.Finite(position, nameof(position));
             support = default;
-            Rect worldBounds = GetWorldBounds();
             if (position.x < worldBounds.xMin || position.x > worldBounds.xMax
                 || position.y < worldBounds.yMin - Epsilon) return false;
 
@@ -309,7 +301,7 @@ namespace Aethiumian.AI.Navigation
             results.Clear();
             Vector2 delta = currentFeet - previousFeet;
             if (delta.sqrMagnitude <= Epsilon * Epsilon) return;
-            int steps = Mathf.Max(8, Mathf.CeilToInt(delta.magnitude / Mathf.Max(Epsilon, cellSize * 0.2f)));
+            int steps = Mathf.Max(8, Mathf.CeilToInt(delta.magnitude / Mathf.Max(Epsilon, NavigationConstant.OneWayCrossingSampleSpacing)));
             float halfWidth = bodyWidth * 0.5f;
             Rect sweptBounds = Rect.MinMaxRect(
                 Mathf.Min(previousFeet.x, currentFeet.x) - halfWidth - Epsilon,
@@ -370,15 +362,16 @@ namespace Aethiumian.AI.Navigation
 
         private bool TryGetRegion(Vector2 position, out int region)
         {
-            Vector2 local = (position - origin) / cellSize;
-            Vector2Int cell = new(Mathf.FloorToInt(local.x), Mathf.FloorToInt(local.y));
-            return regions.TryGetValue(cell, out region);
+            Vector2 local = (position - worldBounds.min) / NavigationConstant.SpatialIndexBucketSize;
+            Vector2Int worldIndex = new(Mathf.FloorToInt(local.x), Mathf.FloorToInt(local.y));
+            return regions.TryGetValue(worldIndex, out region);
         }
 
         private IEnumerable<int> QueryShapeIndexes(Rect bounds)
         {
             HashSet<int> seen = new();
-            GetCellRange(bounds.min, bounds.max, origin, cellSize, cellBounds, out int minX, out int maxX, out int minY, out int maxY);
+            GetIndexRange(bounds.min, bounds.max, worldBounds, out int minX, out int maxX, out int minY, out int maxY);
+            ClampToIndexBounds(ref minX, ref maxX, ref minY, ref maxY, GetIndexBounds(worldBounds));
             for (int y = minY; y <= maxY; y++)
                 for (int x = minX; x <= maxX; x++)
                     if (buckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
@@ -388,15 +381,14 @@ namespace Aethiumian.AI.Navigation
 
         private IEnumerable<int> QuerySupportCandidateIds(Rect bounds)
         {
-            GetCellRange(bounds.min, bounds.max, origin, cellSize, cellBounds, out int minX, out int maxX, out int minY, out int maxY);
+            GetIndexRange(bounds.min, bounds.max, worldBounds, out int minX, out int maxX, out int minY, out int maxY);
+            ClampToIndexBounds(ref minX, ref maxX, ref minY, ref maxY, GetIndexBounds(worldBounds));
             for (int y = minY; y <= maxY; y++)
                 for (int x = minX; x <= maxX; x++)
                     if (supportCandidateBuckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
                         for (int index = 0; index < entries.Length; index++)
                             yield return entries[index];
         }
-
-        private Rect GetWorldBounds() => new(origin + new Vector2(cellBounds.xMin, cellBounds.yMin) * cellSize, new Vector2(cellBounds.width, cellBounds.height) * cellSize);
 
         private static bool IsAllowedSupport(Shape shape, Vector2 normal)
             => normal.y > Epsilon && (shape.Kind != NavigationSurfaceKind.OneWay || Vector2.Dot(normal, shape.OneWayDirection) >= shape.OneWayCosHalfArc - Epsilon);
@@ -632,19 +624,19 @@ namespace Aethiumian.AI.Navigation
             results.Add(candidate);
         }
 
-        private static void BuildSupportCandidates(Shape shape, Vector2 origin, float cellSize, RectInt cellBounds, List<NavigationSupport> results)
+        private static void BuildSupportCandidates(Shape shape, Rect worldBounds, float supportAnchorSpacing, List<NavigationSupport> results)
         {
             if (!shape.HasSupport) return;
 
             List<NavigationSupport> surfaceCandidates = new();
             List<float> ordinarySamples = new();
-            int firstCell = Mathf.CeilToInt((shape.Min.x - origin.x) / cellSize - 0.5f);
-            int lastCell = Mathf.FloorToInt((shape.Max.x - origin.x) / cellSize - 0.5f);
-            firstCell = Mathf.Max(firstCell, cellBounds.xMin);
-            lastCell = Mathf.Min(lastCell, cellBounds.xMax - 1);
-            for (int cell = firstCell; cell <= lastCell; cell++)
+            int firstAnchor = Mathf.CeilToInt((shape.Min.x - worldBounds.xMin) / supportAnchorSpacing - 0.5f);
+            int lastAnchor = Mathf.FloorToInt((shape.Max.x - worldBounds.xMin) / supportAnchorSpacing - 0.5f);
+            firstAnchor = Mathf.Max(firstAnchor, 0);
+            lastAnchor = Mathf.Min(lastAnchor, Mathf.Max(0, Mathf.CeilToInt(worldBounds.width / supportAnchorSpacing) - 1));
+            for (int anchor = firstAnchor; anchor <= lastAnchor; anchor++)
             {
-                float x = origin.x + (cell + 0.5f) * cellSize;
+                float x = worldBounds.xMin + (anchor + 0.5f) * supportAnchorSpacing;
                 ordinarySamples.Add(x);
                 TryAddSupportAtX(shape, x, surfaceCandidates);
             }
@@ -690,12 +682,12 @@ namespace Aethiumian.AI.Navigation
                 shape.Kind, new Vector2(x, y), normal));
         }
 
-        private static Vector2Int WorldToCell(Vector2 position, Vector2 origin, float cellSize, RectInt cellBounds)
+        private static Vector2Int WorldToIndex(Vector2 position, Rect worldBounds, RectInt indexBounds)
         {
-            Vector2 local = (position - origin) / cellSize;
+            Vector2 local = (position - worldBounds.min) / NavigationConstant.SpatialIndexBucketSize;
             return new Vector2Int(
-                Mathf.Clamp(Mathf.FloorToInt(local.x), cellBounds.xMin, cellBounds.xMax - 1),
-                Mathf.Clamp(Mathf.FloorToInt(local.y), cellBounds.yMin, cellBounds.yMax - 1));
+                Mathf.Clamp(Mathf.FloorToInt(local.x), indexBounds.xMin, indexBounds.xMax - 1),
+                Mathf.Clamp(Mathf.FloorToInt(local.y), indexBounds.yMin, indexBounds.yMax - 1));
         }
 
         private static void AddUnique(List<NavigationSurfaceCrossing> results, NavigationSurfaceCrossing candidate)
@@ -708,12 +700,38 @@ namespace Aethiumian.AI.Navigation
         private static int CompareShape(Shape left, Shape right)
             => new NavigationSurfaceId(left.SourceId, left.FeatureId).CompareTo(new NavigationSurfaceId(right.SourceId, right.FeatureId));
 
-        private static void GetCellRange(Vector2 min, Vector2 max, Vector2 origin, float cellSize, RectInt bounds, out int minX, out int maxX, out int minY, out int maxY)
+        private static RectInt GetIndexBounds(Rect worldBounds)
         {
-            minX = Mathf.Clamp(Mathf.FloorToInt((min.x - origin.x - Epsilon) / cellSize), bounds.xMin, bounds.xMax - 1);
-            maxX = Mathf.Clamp(Mathf.FloorToInt((max.x - origin.x + Epsilon) / cellSize), bounds.xMin, bounds.xMax - 1);
-            minY = Mathf.Clamp(Mathf.FloorToInt((min.y - origin.y - Epsilon) / cellSize), bounds.yMin, bounds.yMax - 1);
-            maxY = Mathf.Clamp(Mathf.FloorToInt((max.y - origin.y + Epsilon) / cellSize), bounds.yMin, bounds.yMax - 1);
+            float bucket = NavigationConstant.SpatialIndexBucketSize;
+            return new RectInt(0, 0,
+                Mathf.Max(1, Mathf.CeilToInt(worldBounds.width / bucket)),
+                Mathf.Max(1, Mathf.CeilToInt(worldBounds.height / bucket)));
+        }
+
+        private static void GetIndexRange(Vector2 min, Vector2 max, Rect worldBounds, out int minX, out int maxX, out int minY, out int maxY)
+        {
+            float bucket = NavigationConstant.SpatialIndexBucketSize;
+            minX = Mathf.FloorToInt((min.x - worldBounds.xMin - Epsilon) / bucket);
+            maxX = Mathf.FloorToInt((max.x - worldBounds.xMin + Epsilon) / bucket);
+            minY = Mathf.FloorToInt((min.y - worldBounds.yMin - Epsilon) / bucket);
+            maxY = Mathf.FloorToInt((max.y - worldBounds.yMin + Epsilon) / bucket);
+        }
+
+        private static void GetIndexRangeExclusive(Vector2 min, Vector2 max, Rect worldBounds, out int minX, out int maxX, out int minY, out int maxY)
+        {
+            float bucket = NavigationConstant.SpatialIndexBucketSize;
+            minX = Mathf.FloorToInt((min.x - worldBounds.xMin) / bucket);
+            maxX = Mathf.CeilToInt((max.x - worldBounds.xMin) / bucket) - 1;
+            minY = Mathf.FloorToInt((min.y - worldBounds.yMin) / bucket);
+            maxY = Mathf.CeilToInt((max.y - worldBounds.yMin) / bucket) - 1;
+        }
+
+        private static void ClampToIndexBounds(ref int minX, ref int maxX, ref int minY, ref int maxY, RectInt indexBounds)
+        {
+            minX = Mathf.Clamp(minX, indexBounds.xMin, indexBounds.xMax - 1);
+            maxX = Mathf.Clamp(maxX, indexBounds.xMin, indexBounds.xMax - 1);
+            minY = Mathf.Clamp(minY, indexBounds.yMin, indexBounds.yMax - 1);
+            maxY = Mathf.Clamp(maxY, indexBounds.yMin, indexBounds.yMax - 1);
         }
 
         private static float Cross(Vector2 left, Vector2 right) => left.x * right.y - left.y * right.x;

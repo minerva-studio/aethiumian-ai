@@ -37,7 +37,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(update.Status, Is.EqualTo(NavigationSearchStatus.CompleteRoute));
             Assert.That(update.Route, Is.Not.Null);
-            Assert.That(update.Route.Segments, Has.Count.EqualTo(1));
+            Assert.That(update.Route.Segments.Count, Is.EqualTo(1));
         }
 
         /// <summary>Verifies the node expansion limit does not truncate the active node's successor stream.</summary>
@@ -77,7 +77,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(first.Status, Is.EqualTo(NavigationSearchStatus.Pending));
             Assert.That(second.Status, Is.EqualTo(NavigationSearchStatus.Pending));
             Assert.That(third.Status, Is.EqualTo(NavigationSearchStatus.CompleteRoute));
-            Assert.That(third.Route.Segments, Has.Count.EqualTo(3));
+            Assert.That(third.Route.Segments.Count, Is.EqualTo(3));
         }
 
         /// <summary>Verifies a total search budget is terminal and never publishes a frontier route.</summary>
@@ -169,8 +169,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSupportCandidatesRemainStableAcrossShiftedWindows()
         {
-            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(Vector2.zero, 1f,
-                new RectInt(0, 0, 32, 4),
+            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(
+                new Rect(0, 0, 32, 4),
                 new[]
                 {
                     new NavigationShapeData(1, 0, NavigationShapeType.Edge,
@@ -195,8 +195,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSupportCandidateExpansionIsFiniteAndClosed()
         {
-            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(Vector2.zero, 1f,
-                new RectInt(0, 0, 8, 4),
+            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(
+                new Rect(0, 0, 8, 4),
                 new[]
                 {
                     new NavigationShapeData(2, 0, NavigationShapeType.Edge,
@@ -225,8 +225,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSupportCandidatesPreserveShortAndOverlappingSurfaces()
         {
-            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(Vector2.zero, 1f,
-                new RectInt(0, 0, 5, 5),
+            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(
+                new Rect(0, 0, 5, 5),
                 new[]
                 {
                     new NavigationShapeData(3, 0, NavigationShapeType.Edge,
@@ -316,8 +316,8 @@ namespace Aethiumian.AI.Navigation.Tests
             source.Add(new FlyRouteSegment(Vector2.right, new Vector2(2, 1)));
 
             Assert.That(route.Count, Is.EqualTo(1));
+            Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments, Is.Not.SameAs(source));
-            Assert.Throws<NotSupportedException>(() => ((IList<NavigationRouteSegment>)route.Segments)[0] = null);
         }
 
         /// <summary>Verifies requested and resolved goals remain distinct route values.</summary>
@@ -863,35 +863,28 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         /// <summary>
-        /// Verifies the Ground Walk foot-height band is fixed goal geometry: two worlds with different
-        /// cell sizes must agree, including inside the band where the smaller cell would formerly reject.
+        /// Verifies the Ground Walk foot-height band is fixed goal geometry: it is stated in world
+        /// units and never derived from the terrain model of the world that evaluates it.
         /// </summary>
         [Test]
-        public void GroundWalkAcceptanceIsIndependentOfCellSize()
+        public void GroundWalkAcceptanceIsFixedGoalGeometry()
         {
             NavigationGoalRequest request = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(2.5f, 3f)), 0.25f);
-            TestNavigationWorld unitWorld = new(new RectInt(0, 0, 8, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 1f);
-            TestNavigationWorld halfWorld = new(new RectInt(0, 0, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
-            TestNavigationWorld largeWorld = new(new RectInt(0, 0, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 2f);
+            TestNavigationWorld world = new(new RectInt(0, 0, 8, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            TestNavigationWorld fineTerrainWorld = new(new RectInt(0, 0, 16, 16), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), 0.5f);
             Vector2 bodySize = new(0.8f, 1.5f);
 
-            Assert.That(unitWorld.CellSize, Is.EqualTo(1f));
-            Assert.That(halfWorld.CellSize, Is.EqualTo(0.5f));
-            Assert.That(largeWorld.CellSize, Is.EqualTo(2f));
             Assert.That(request.GetLowerCenterAcceptanceBounds(bodySize.x).Size.y, Is.EqualTo(2f).Within(0.0001f));
 
-            // 0.6 world units above the target feet: inside the fixed one-unit band, outside the old
-            // half-cell band, and inside the old double-cell band.
+            // 0.6 world units above the target feet: inside the fixed one-unit band.
             Vector2 insideBand = new(2.5f, 4.35f);
             Vector2 outsideBand = new(2.5f, 4.76f);
-            Assert.That(unitWorld.IsGoalComplete(request, insideBand, bodySize), Is.True);
-            Assert.That(halfWorld.IsGoalComplete(request, insideBand, bodySize), Is.True,
-                "The foot-height band must not shrink with the navigation cell size.");
-            Assert.That(largeWorld.IsGoalComplete(request, insideBand, bodySize), Is.True);
-            Assert.That(unitWorld.IsGoalComplete(request, outsideBand, bodySize), Is.False);
-            Assert.That(halfWorld.IsGoalComplete(request, outsideBand, bodySize), Is.False);
-            Assert.That(largeWorld.IsGoalComplete(request, outsideBand, bodySize), Is.False,
-                "The foot-height band must not grow with the navigation cell size.");
+            Assert.That(world.IsGoalComplete(request, insideBand, bodySize), Is.True);
+            Assert.That(fineTerrainWorld.IsGoalComplete(request, insideBand, bodySize), Is.True,
+                "The foot-height band must not depend on the world's terrain resolution.");
+            Assert.That(world.IsGoalComplete(request, outsideBand, bodySize), Is.False);
+            Assert.That(fineTerrainWorld.IsGoalComplete(request, outsideBand, bodySize), Is.False,
+                "The foot-height band must not depend on the world's terrain resolution.");
         }
 
         /// <summary>Verifies same-center goals with different extents cannot reuse a plan.</summary>
@@ -1044,7 +1037,7 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         private static NavigationWorldSnapshot CreateGroundWorld(params NavigationShapeData[] shapes)
-            => NavigationWorldSnapshot.Create(Vector2.zero, 1f, new RectInt(0, 0, 8, 4),
+            => NavigationWorldSnapshot.Create(new Rect(0, 0, 8, 4),
                 shapes, Array.Empty<NavigationRegionData>());
 
         private static NavigationGoalRequest ProximityGoal(AABB bounds, float tolerance)

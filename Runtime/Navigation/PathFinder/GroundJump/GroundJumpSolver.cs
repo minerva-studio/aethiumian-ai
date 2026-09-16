@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using UnityEngine;
 
@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public sealed class GroundJumpSolver
     {
-        private const float Tolerance = NavigationTolerances.Epsilon;
+        private const float Tolerance = NavigationConstant.Epsilon;
         private const int MaximumPlannerFlightTicks = 512;
         private readonly JumpTrajectoryCache trajectoryCache;
 
@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Navigation
             float minimumApex = snappedEnd.y <= snappedStart.y + Tolerance
                 ? JumpTrajectory.GetDefaultMinimumApexHeight(parameters.JumpHeight)
                 : Mathf.Max(JumpTrajectory.GetDefaultMinimumApexHeight(parameters.JumpHeight),
-                    snappedEnd.y + World.CellSize - snappedStart.y);
+                    snappedEnd.y + NavigationConstant.LandingApexClearance - snappedStart.y);
             if (!JumpTrajectory.IsApexHeightAllowed(parameters.JumpHeight, minimumApex)
                 || minimumApex > maximumApex + Tolerance) return;
 

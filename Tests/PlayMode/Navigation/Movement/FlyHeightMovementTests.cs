@@ -207,8 +207,8 @@ namespace Aethiumian.AI.Navigation.Tests
                     solid ? NavigationShapeType.Polygon : NavigationShapeType.Edge, vertices, 0f,
                     solid ? NavigationSurfaceKind.Solid : NavigationSurfaceKind.OneWay, true, Vector2.up) };
             }
-            RectInt bounds = new(0, 0, 80, 40);
-            return NavigationWorldSnapshot.Create(Vector2.zero, 1f, bounds, shapes,
+            Rect bounds = new(0f, 0f, 80f, 40f);
+            return NavigationWorldSnapshot.Create(bounds, shapes,
                 new[] { new NavigationRegionData(bounds, 0) });
         }
 

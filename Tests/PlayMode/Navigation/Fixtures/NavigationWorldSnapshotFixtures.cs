@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation.Tests
@@ -10,12 +10,10 @@ namespace Aethiumian.AI.Navigation.Tests
     /// </summary>
     internal static class NavigationWorldSnapshotFixtures
     {
-        private static readonly RectInt DefaultBounds = new(-100, -100, 200, 200);
+        private static readonly Rect DefaultBounds = new(-100f, -100f, 200f, 200f);
 
         public static NavigationWorldSnapshot Open()
             => NavigationWorldSnapshot.Create(
-                Vector2.zero,
-                1f,
                 DefaultBounds,
                 Array.Empty<NavigationShapeData>(),
                 new[] { new NavigationRegionData(DefaultBounds, 0) });
@@ -41,8 +39,6 @@ namespace Aethiumian.AI.Navigation.Tests
                 NavigationSurfaceKind.Solid,
                 true);
             return NavigationWorldSnapshot.Create(
-                Vector2.zero,
-                1f,
                 DefaultBounds,
                 new[] { floor },
                 new[] { new NavigationRegionData(DefaultBounds, 0) });
@@ -60,8 +56,6 @@ namespace Aethiumian.AI.Navigation.Tests
                 true,
                 Vector2.up);
             return NavigationWorldSnapshot.Create(
-                Vector2.zero,
-                1f,
                 DefaultBounds,
                 new[] { ground },
                 new[] { new NavigationRegionData(DefaultBounds, 0) });

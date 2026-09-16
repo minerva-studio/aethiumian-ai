@@ -45,7 +45,7 @@ namespace Aethiumian.AI.Navigation
             if (!goal.TryGetGeometryCompletionInterval(startCenter, endCenter, bodySize, out float entry, out float exit))
                 return false;
 
-            float spacing = Mathf.Max(NavigationWorldQueries.GeometryEpsilon, world.CellSize * 0.5f);
+            float spacing = Mathf.Max(NavigationWorldQueries.GeometryEpsilon, NavigationConstant.LineOfSightSweepSpacing);
             double deltaX = (double)endCenter.x - startCenter.x;
             double deltaY = (double)endCenter.y - startCenter.y;
             double intervalLength = Math.Sqrt(deltaX * deltaX + deltaY * deltaY) * (exit - entry);

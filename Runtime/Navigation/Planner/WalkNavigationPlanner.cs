@@ -33,7 +33,7 @@ namespace Aethiumian.AI.Navigation
         {
             return TryReconnectGroundRoute(world, route, observedStart, bodySize,
                 supportSnapDistance, groundContactTolerance,
-                Mathf.Max(0.2f, supportSnapDistance + NavigationWorldQueries.GeometryEpsilon),
+                Mathf.Max(NavigationConstant.ArrivalFloor, supportSnapDistance + NavigationWorldQueries.GeometryEpsilon),
                 out reconnectedRoute);
         }
 
@@ -347,7 +347,7 @@ namespace Aethiumian.AI.Navigation
             current = CreateSuccessor(current.Position, new GroundRouteSegment(start, current.Position),
                 Mathf.Abs(current.Position.x - start.x), goal, parameters.BodySize);
             float direction = Mathf.Sign(current.Position.x - start.x);
-            float spacing = Mathf.Min(0.2f, world.CellSize * 0.25f);
+            float spacing = NavigationConstant.MaximumTraversalSampleSpacing;
             while (!current.CompletesGoal && direction * (goal.Center.x - current.Position.x) > Tolerance)
             {
                 Vector2 next = new(Mathf.MoveTowards(current.Position.x, goal.Center.x, spacing), current.Position.y);
@@ -376,8 +376,8 @@ namespace Aethiumian.AI.Navigation
         private IEnumerable<Successor> EnumerateLocalSuccessors(Vector2 start, int currentCandidateId, NavigationSupport currentSupport, WalkNavigationParameters parameters, NavigationGoalRequest goal, NavigationPlanningDiagnostics diagnostics)
         {
             Vector2 snappedStart = start;
-            Rect anchors = new(snappedStart.x - World.CellSize * 1.5f, World.Origin.y + World.CellBounds.yMin * World.CellSize,
-                World.CellSize * 3f, snappedStart.y - World.Origin.y - World.CellBounds.yMin * World.CellSize
+            Rect anchors = new(snappedStart.x - NavigationConstant.GroundHopReach, World.WorldBounds.yMin,
+                NavigationConstant.GroundHopReach * 2f, snappedStart.y - World.WorldBounds.yMin
                     + parameters.SupportSnapDistance + NavigationWorldQueries.GeometryEpsilon);
             List<NavigationSupportCandidate> candidates = new();
             World.CollectSupportCandidates(anchors, parameters.BodySize, candidates);
@@ -434,16 +434,16 @@ namespace Aethiumian.AI.Navigation
                 yield break;
             }
 
-            float maximumSampleSpacing = Mathf.Min(world.CellSize * 0.25f,
+            float sampleSpacing = Mathf.Min(NavigationConstant.MaximumSupportSampleSpacing,
                 parameters.BodySize.x * 0.25f, parameters.BodySize.y * 0.25f);
             int samples = Mathf.Max(1, Mathf.CeilToInt(
-                Mathf.Abs(snappedEnd.x - snappedStart.x) / maximumSampleSpacing));
+                Mathf.Abs(snappedEnd.x - snappedStart.x) / sampleSpacing));
             Vector2 previous = snappedStart;
             for (int i = 0; i <= samples; i++)
             {
                 Vector2 position = Vector2.Lerp(snappedStart, snappedEnd, i / (float)samples);
                 bool clear = i == 0 || world.IsLowerCenterSegmentClear(previous, position, parameters.BodySize,
-                    maximumSampleSpacing, parameters.GroundContactTolerance);
+                    parameters.GroundContactTolerance);
                 clear &= world.CanStandAt(position, parameters.BodySize, parameters.SupportSnapDistance, out _);
                 previous = position;
                 yield return null;
@@ -467,7 +467,7 @@ namespace Aethiumian.AI.Navigation
                 return false;
 
             float horizontalDistance = Mathf.Abs(snappedEnd.x - snappedStart.x);
-            float spacing = Mathf.Min(0.2f, world.CellSize * 0.25f,
+            float spacing = Mathf.Min(NavigationConstant.MaximumTraversalSampleSpacing,
                 bodySize.x * 0.25f, bodySize.y * 0.25f);
             int samples = Mathf.Max(1, Mathf.CeilToInt(horizontalDistance / spacing));
 
@@ -476,7 +476,7 @@ namespace Aethiumian.AI.Navigation
             {
                 Vector2 current = Vector2.Lerp(snappedStart, snappedEnd, index / (float)samples);
                 bool clear = index == 0 || world.IsLowerCenterSegmentClear(previous, current,
-                    bodySize, spacing, groundContactTolerance);
+                    bodySize, groundContactTolerance);
                 clear &= world.CanStandAt(current, bodySize, supportSnapDistance, out _);
                 if (!clear) return false;
                 previous = current;
@@ -498,15 +498,13 @@ namespace Aethiumian.AI.Navigation
                 yield break;
             }
 
-            int samples = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(snappedStart, snappedEnd) / 0.15f));
-            float maximumSampleSpacing = Mathf.Min(world.CellSize * 0.25f,
-                parameters.BodySize.x * 0.25f, parameters.BodySize.y * 0.25f);
+            int samples = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(snappedStart, snappedEnd) / NavigationConstant.MaximumVerticalValidationSpacing));
             Vector2 previous = snappedStart;
             for (int i = 1; i <= samples; i++)
             {
                 Vector2 current = Vector2.Lerp(snappedStart, snappedEnd, i / (float)samples);
                 bool clear = world.IsLowerCenterSegmentClear(previous, current, parameters.BodySize,
-                    maximumSampleSpacing, parameters.GroundContactTolerance)
+                    parameters.GroundContactTolerance)
                     && !world.CrossesOneWayDown(previous, current, parameters.BodySize.x, snappedStart.y);
                 previous = current;
                 yield return null;
@@ -539,15 +537,13 @@ namespace Aethiumian.AI.Navigation
             }
 
             Vector2 ledgeExit = new(snappedEnd.x, snappedStart.y);
-            float maximumSampleSpacing = Mathf.Min(world.CellSize * 0.25f,
-                parameters.BodySize.x * 0.25f, parameters.BodySize.y * 0.25f);
-            int horizontalSamples = Mathf.Max(1, Mathf.CeilToInt(horizontalDistance / 0.15f));
+            int horizontalSamples = Mathf.Max(1, Mathf.CeilToInt(horizontalDistance / NavigationConstant.MaximumVerticalValidationSpacing));
             Vector2 previous = snappedStart;
             for (int i = 1; i <= horizontalSamples; i++)
             {
                 Vector2 current = Vector2.Lerp(snappedStart, ledgeExit, i / (float)horizontalSamples);
                 bool clear = world.IsLowerCenterSegmentClear(previous, current, parameters.BodySize,
-                    maximumSampleSpacing, parameters.GroundContactTolerance);
+                    parameters.GroundContactTolerance);
                 previous = current;
                 yield return null;
                 if (!clear)
@@ -557,13 +553,13 @@ namespace Aethiumian.AI.Navigation
                 }
             }
 
-            int descentSamples = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(ledgeExit, snappedEnd) / 0.15f));
+            int descentSamples = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(ledgeExit, snappedEnd) / NavigationConstant.MaximumVerticalValidationSpacing));
             previous = ledgeExit;
             for (int i = 1; i <= descentSamples; i++)
             {
                 Vector2 current = Vector2.Lerp(ledgeExit, snappedEnd, i / (float)descentSamples);
                 bool clear = world.IsLowerCenterSegmentClear(previous, current, parameters.BodySize,
-                    maximumSampleSpacing, parameters.GroundContactTolerance)
+                    parameters.GroundContactTolerance)
                     && !world.CrossesOneWayDown(previous, current, parameters.BodySize.x);
                 previous = current;
                 yield return null;
@@ -575,26 +571,6 @@ namespace Aethiumian.AI.Navigation
             }
 
             yield return new FallRouteSegment(snappedStart, ledgeExit, snappedEnd);
-        }
-
-        /// <summary>Scans real support surfaces below a column without using an integer-height cache.</summary>
-        private static IEnumerable<Vector2?> EnumerateFirstLanding(INavigationWorld world, int x, int fromY,
-            Vector2 bodySize, float supportSnapDistance, NavigationPlanningDiagnostics diagnostics)
-        {
-            float minimumY = world.Origin.y + world.CellBounds.yMin * world.CellSize;
-            float maximumY = world.Origin.y + (fromY + 1) * world.CellSize;
-            Rect bounds = new(world.Origin.x + x * world.CellSize - bodySize.x * 0.5f,
-                minimumY, bodySize.x + world.CellSize, Mathf.Max(0f, maximumY - minimumY));
-            List<NavigationSupportCandidate> candidates = new();
-            world.CollectSupportCandidates(bounds, bodySize, candidates);
-            for (int index = 0; index < candidates.Count; index++)
-            {
-                Vector2 candidate = candidates[index].Support.Position;
-                bool standable = candidate.y < maximumY - Tolerance && world.CanStandAt(candidate, bodySize, supportSnapDistance, out _);
-                diagnostics?.RecordFallScan();
-                if (standable) { yield return candidate; yield break; }
-            }
-            yield return null;
         }
 
         private Successor CreateSuccessor(NavigationSupportCandidate candidate, NavigationRouteSegment step, float cost, NavigationGoalRequest goal, Vector2 bodySize)

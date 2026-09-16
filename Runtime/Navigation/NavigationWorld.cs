@@ -25,13 +25,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <inheritdoc />
-        public abstract Vector2 Origin { get; }
-
-        /// <inheritdoc />
-        public abstract float CellSize { get; }
-
-        /// <inheritdoc />
-        public abstract RectInt CellBounds { get; }
+        public abstract Rect WorldBounds { get; }
 
         /// <inheritdoc />
         public abstract bool IsBodyClear(Rect body, float surfaceContactTolerance);

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -40,11 +40,23 @@ namespace Aethiumian.AI.Navigation
         }
     }
 
-    public readonly struct NavigationNodeIdentity : IEquatable<NavigationNodeIdentity>
+    public readonly struct NavigationNodeIdentity : IEquatable<NavigationNodeIdentity>, IComparable<NavigationNodeIdentity>
     {
         public NavigationActions Action { get; }
-        public int CandidateId { get; }
+
+        /// <summary>
+        /// Gets the fly planner's own search-lattice coordinate; unused by other actions.
+        /// </summary>
         public Vector2Int Cell { get; }
+
+        /// <summary>
+        /// Gets the stable support-candidate identity for grounded and jump nodes.
+        /// </summary>
+        public int CandidateId { get; }
+
+        /// <summary>
+        /// Gets the label ID for the node.
+        /// </summary>
         public int LabelId { get; }
 
         private NavigationNodeIdentity(NavigationActions action, int candidateId, Vector2Int cell, int labelId)
@@ -69,13 +81,25 @@ namespace Aethiumian.AI.Navigation
 
         public override bool Equals(object obj) => obj is NavigationNodeIdentity other && Equals(other);
         public override int GetHashCode() => HashCode.Combine((int)Action, CandidateId, Cell, LabelId);
+
+        public int CompareTo(NavigationNodeIdentity other)
+        {
+            int action = ((int)Action).CompareTo((int)other.Action);
+            if (action != 0) return action;
+            int candidate = CandidateId.CompareTo(other.CandidateId);
+            if (candidate != 0) return candidate;
+            int y = Cell.y.CompareTo(other.Cell.y);
+            if (y != 0) return y;
+            int x = Cell.x.CompareTo(other.Cell.x);
+            if (x != 0) return x;
+            return LabelId.CompareTo(other.LabelId);
+        }
     }
 
     /// <summary>Read-only state supplied to an action generator for one expanded search node.</summary>
     public sealed class NavigationSearchNode
     {
-        internal NavigationSearchNode(NavigationNodeIdentity identity, Vector2 position, NavigationSupport support,
-            float heuristic)
+        internal NavigationSearchNode(NavigationNodeIdentity identity, Vector2 position, NavigationSupport support, float heuristic)
         {
             Identity = identity;
             Position = position;
@@ -162,10 +186,16 @@ namespace Aethiumian.AI.Navigation
         public Func<Vector2, float> Heuristic { get; }
         public NavigationTransitionProvider Transitions { get; }
 
-        public NavigationSearchRequest(INavigationWorld world, Vector2 start, NavigationSupport startSupport,
-            NavigationGoalRequest goal, Vector2 bodySize, NavigationActions allowedActions,
-            int maxExpandedNodes, NavigationNodeIdentity startIdentity,
-            NavigationTransitionProvider transitions, Func<Vector2, float> heuristic = null,
+        public NavigationSearchRequest(INavigationWorld world,
+            Vector2 start,
+            NavigationSupport startSupport,
+            NavigationGoalRequest goal,
+            Vector2 bodySize,
+            NavigationActions allowedActions,
+            int maxExpandedNodes,
+            NavigationNodeIdentity startIdentity,
+            NavigationTransitionProvider transitions,
+            Func<Vector2, float> heuristic = null,
             int maxTotalWorkUnits = -1)
         {
             World = world ?? throw new ArgumentNullException(nameof(world));
@@ -205,8 +235,7 @@ namespace Aethiumian.AI.Navigation
         public int WorkUnits { get; }
         public int ExpandedNodes { get; }
 
-        private NavigationSearchUpdate(NavigationSearchStatus status, NavigationRoute route,
-            int workUnits, int expandedNodes)
+        private NavigationSearchUpdate(NavigationSearchStatus status, NavigationRoute route, int workUnits, int expandedNodes)
         {
             Status = status;
             Route = route;
@@ -230,10 +259,10 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Cooperatively advances one action-graph search without owning Unity objects.</summary>
     internal sealed class NavigationSearch : IDisposable
     {
-        private const float Tolerance = NavigationTolerances.Epsilon;
+        private const float Tolerance = NavigationConstant.Epsilon;
         private readonly NavigationSearchRequest request;
         private readonly Dictionary<NavigationNodeIdentity, NavigationSearchNode> nodes = new();
-        private readonly NavigationMinHeap<NavigationNodeIdentity> open = new(Comparer<NavigationNodeIdentity>.Create(CompareIdentity));
+        private readonly NavigationMinHeap<NavigationNodeIdentity> open = new();
         private NavigationSearchNode expandingNode;
         private IEnumerator<NavigationTransitionWork> transitionEnumerator;
         private bool terminal;
@@ -247,7 +276,7 @@ namespace Aethiumian.AI.Navigation
             float heuristic = SafeHeuristic(request.Start);
             NavigationSearchNode start = new(request.StartIdentity, request.Start, request.StartSupport, heuristic)
             {
-            BestPath = new PathRecord(null, null, 0f, 0),
+                BestPath = new PathRecord(null, null, 0f, 0),
             };
             nodes.Add(start.Identity, start);
             open.Enqueue(start.Identity, heuristic, heuristic);
@@ -431,18 +460,6 @@ namespace Aethiumian.AI.Navigation
 
         private static bool WorkLimitReached(Stopwatch timer, int workUnits, NavigationWorkBudget budget)
             => workUnits >= budget.MaxWorkUnits || timer.Elapsed.TotalMilliseconds >= budget.Milliseconds;
-
-        private static int CompareIdentity(NavigationNodeIdentity left, NavigationNodeIdentity right)
-        {
-            int action = ((int)left.Action).CompareTo((int)right.Action);
-            if (action != 0) return action;
-            int candidate = left.CandidateId.CompareTo(right.CandidateId);
-            if (candidate != 0) return candidate;
-            int y = left.Cell.y.CompareTo(right.Cell.y);
-            if (y != 0) return y;
-            int x = left.Cell.x.CompareTo(right.Cell.x);
-            return x != 0 ? x : left.LabelId.CompareTo(right.LabelId);
-        }
 
 
         private void ThrowIfDisposed()

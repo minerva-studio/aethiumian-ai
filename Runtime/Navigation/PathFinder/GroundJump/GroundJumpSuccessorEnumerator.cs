@@ -45,16 +45,20 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Generates bounded jump successors from one grounded search node.</summary>
     internal static class GroundJumpSuccessorEnumerator
     {
-        private const float Tolerance = 0.0001f;
+        private const float Tolerance = NavigationConstant.Epsilon;
 
         /// <summary>
         /// Enumerates the local jump envelope. Null yields represent bounded scheduler work;
         /// non-null values are complete, collision-validated jump edges.
         /// </summary>
-        public static IEnumerable<GroundJumpSuccessor> Enumerate(GroundJumpSolver jumpSolver, Vector2 start,
-            NavigationSupport support, NavigationGoalRequest goal, GroundJumpParameters parameters,
+        public static IEnumerable<GroundJumpSuccessor> Enumerate(GroundJumpSolver jumpSolver,
+            Vector2 start,
+            NavigationSupport support,
+            NavigationGoalRequest goal,
+            GroundJumpParameters parameters,
             NavigationPlanningDiagnostics diagnostics = null,
-            bool excludeGroundAdjacent = false, int launchCandidateId = -1)
+            bool excludeGroundAdjacent = false,
+            int launchCandidateId = -1)
         {
             if (jumpSolver == null) throw new ArgumentNullException(nameof(jumpSolver));
             INavigationWorld world = jumpSolver.World;
@@ -66,19 +70,16 @@ namespace Aethiumian.AI.Navigation
                 yield break;
 
             float maximumApexHeight = JumpTrajectory.GetMaximumAllowedApexHeight(parameters.JumpHeight);
-            Vector2Int supportCell = NavigationWorldQueries.WorldToCell(world, support.Position);
             IReadOnlyList<NavigationSupportCandidate> landingSupports;
-            int horizontalCells = Mathf.CeilToInt(parameters.JumpLength / world.CellSize);
-            int minX = Mathf.Max(world.CellBounds.xMin, supportCell.x - horizontalCells);
-            int maxX = Mathf.Min(world.CellBounds.xMax - 1, supportCell.x + horizontalCells);
-            float minimumY = world.Origin.y + world.CellBounds.yMin * world.CellSize;
-            float maximumY = Mathf.Min(world.Origin.y + world.CellBounds.yMax * world.CellSize,
-                start.y + maximumApexHeight + Tolerance);
-            Rect landingBounds = new(
-                world.Origin.x + minX * world.CellSize,
+            Rect worldBounds = world.WorldBounds;
+            float minimumY = worldBounds.yMin;
+            float maximumY = Mathf.Min(worldBounds.yMax, start.y + maximumApexHeight + Tolerance);
+            float horizontalReach = Mathf.Max(parameters.JumpLength, Tolerance);
+            Rect landingBounds = Rect.MinMaxRect(
+                Mathf.Max(worldBounds.xMin, start.x - horizontalReach),
                 minimumY,
-                (maxX - minX + 1) * world.CellSize,
-                Mathf.Max(0f, maximumY - minimumY));
+                Mathf.Min(worldBounds.xMax, start.x + horizontalReach + Tolerance),
+                Mathf.Max(minimumY, maximumY));
             IReadOnlyList<NavigationSupportCandidate> supportCandidates =
                 world.GetSupportCandidates(landingBounds, parameters.BodySize);
             List<NavigationSupportCandidate> builtLandings = new();
@@ -103,9 +104,9 @@ namespace Aethiumian.AI.Navigation
             {
                 NavigationSupportCandidate landingCandidate = landingSupports[i];
                 NavigationSupport landingSupport = landingCandidate.Support;
-                Vector2Int landingCell = NavigationWorldQueries.WorldToCell(world, landingSupport.Position);
-                if (excludeGroundAdjacent && landingCell.y == supportCell.y
-                    && Mathf.Abs(landingCell.x - supportCell.x) == 1)
+                if (excludeGroundAdjacent
+                    && Mathf.Abs(landingSupport.Position.y - support.Position.y) <= parameters.GroundContactTolerance
+                    && Mathf.Abs(landingSupport.Position.x - support.Position.x) <= NavigationConstant.AdjacentSupportReach)
                 {
                     diagnostics?.RecordJumpCandidatePruned();
                     yield return null;
@@ -120,7 +121,7 @@ namespace Aethiumian.AI.Navigation
                     yield return null;
                     continue;
                 }
-                candidates.Enqueue(new JumpCandidateDescriptor(landingCandidate.Id, landingCell, landingSupport, landing,
+                candidates.Enqueue(new JumpCandidateDescriptor(landingCandidate.Id, landingSupport, landing,
                     CouldTrajectoryEnterGoal(start, landing, goal, parameters, maximumApexHeight),
                     startDistance - goal.DistanceToLowerCenterBody(landing, parameters.BodySize),
                     Mathf.Sign(landing.x - start.x) == Mathf.Sign(goal.Center.x - start.x),
@@ -149,9 +150,7 @@ namespace Aethiumian.AI.Navigation
         /// crosses the planner boundary. A failed recreation is a planner inconsistency, never an
         /// executable route without the required collision-lease information.
         /// </summary>
-        internal static NavigationRoute PrepareRouteForExecution(GroundJumpSolver jumpSolver,
-            NavigationRoute route,
-            GroundJumpParameters parameters, CancellationToken cancellationToken)
+        internal static NavigationRoute PrepareRouteForExecution(GroundJumpSolver jumpSolver, NavigationRoute route, GroundJumpParameters parameters, CancellationToken cancellationToken)
         {
             if (jumpSolver == null) throw new ArgumentNullException(nameof(jumpSolver));
             INavigationWorld world = jumpSolver.World;
@@ -188,8 +187,7 @@ namespace Aethiumian.AI.Navigation
             return prepared == null ? route : route.WithSegments(prepared);
         }
 
-        private static bool CouldTrajectoryEnterGoal(Vector2 start, Vector2 landing,
-            NavigationGoalRequest goal, GroundJumpParameters parameters, float maximumApexHeight)
+        private static bool CouldTrajectoryEnterGoal(Vector2 start, Vector2 landing, NavigationGoalRequest goal, GroundJumpParameters parameters, float maximumApexHeight)
         {
             float minX = Mathf.Min(start.x, landing.x) - parameters.BodySize.x * 0.5f;
             float maxX = Mathf.Max(start.x, landing.x) + parameters.BodySize.x * 0.5f;
@@ -215,7 +213,6 @@ namespace Aethiumian.AI.Navigation
     internal readonly struct JumpCandidateDescriptor
     {
         public readonly int CandidateId;
-        public readonly Vector2Int Cell;
         public readonly NavigationSupport Support;
         public readonly Vector2 Landing;
         private readonly bool couldEnterGoal;
@@ -223,12 +220,12 @@ namespace Aethiumian.AI.Navigation
         private readonly bool targetDirection;
         private readonly float estimatedCost;
 
-        /// <summary>Creates one cheaply scored landing descriptor before trajectory validation.</summary>
-        public JumpCandidateDescriptor(int candidateId, Vector2Int cell, NavigationSupport support, Vector2 landing, bool couldEnterGoal,
-            float theoreticalImprovement, bool targetDirection, float estimatedCost)
+        /// <summary>
+        /// Creates one cheaply scored landing descriptor before trajectory validation.
+        /// </summary>
+        public JumpCandidateDescriptor(int candidateId, NavigationSupport support, Vector2 landing, bool couldEnterGoal, float theoreticalImprovement, bool targetDirection, float estimatedCost)
         {
             CandidateId = candidateId;
-            Cell = cell;
             Support = support;
             Landing = landing;
             this.couldEnterGoal = couldEnterGoal;
@@ -237,7 +234,9 @@ namespace Aethiumian.AI.Navigation
             this.estimatedCost = estimatedCost;
         }
 
-        /// <summary>Orders descriptors without deleting temporarily regressive candidates.</summary>
+        /// <summary>
+        /// Orders descriptors without deleting temporarily regressive candidates.
+        /// </summary>
         public static int Compare(JumpCandidateDescriptor left, JumpCandidateDescriptor right)
         {
             int comparison = right.couldEnterGoal.CompareTo(left.couldEnterGoal);
@@ -248,10 +247,7 @@ namespace Aethiumian.AI.Navigation
             if (comparison != 0) return comparison;
             comparison = left.estimatedCost.CompareTo(right.estimatedCost);
             if (comparison != 0) return comparison;
-            comparison = left.CandidateId.CompareTo(right.CandidateId);
-            if (comparison != 0) return comparison;
-            comparison = left.Cell.y.CompareTo(right.Cell.y);
-            return comparison != 0 ? comparison : left.Cell.x.CompareTo(right.Cell.x);
+            return left.CandidateId.CompareTo(right.CandidateId);
         }
     }
 

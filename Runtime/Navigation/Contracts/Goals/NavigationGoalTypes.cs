@@ -107,7 +107,7 @@ namespace Aethiumian.AI.Navigation
             float edgeLength = Mathf.Abs(edgeEnd.x - edgeStart.x) >= Mathf.Abs(edgeEnd.y - edgeStart.y)
                 ? edgeEnd.x - edgeStart.x
                 : edgeEnd.y - edgeStart.y;
-            float edgeT = Mathf.Abs(edgeLength) <= NavigationTolerances.DegenerateAxis ? 0f : edgeParameter / edgeLength;
+            float edgeT = Mathf.Abs(edgeLength) <= NavigationConstant.DegenerateAxis ? 0f : edgeParameter / edgeLength;
             Vector2 closest = Vector2.Lerp(edgeStart, edgeEnd, edgeT);
             Vector2 delta = point - closest;
             return metric.MetricLength(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
