@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using Aethiumian.AI.Nodes;
@@ -39,12 +39,13 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return null;
         }
 
-        protected MovementHarness CreateHarness(Vector2 groundAnchor, TreeNode head, bool canMove = true)
+        protected MovementHarness CreateHarness(Vector2 groundAnchor, TreeNode head, bool canMove = true, float? groundY = null)
         {
             GameObject host = new("package-movement-node");
             host.SetActive(false);
             objects.Add(host);
-            host.transform.position = groundAnchor + Vector2.up * (BodyHeight * 0.5f);
+            Vector2 anchor = groundY.HasValue ? new Vector2(groundAnchor.x, groundY.Value) : groundAnchor;
+            host.transform.position = anchor + Vector2.up * (BodyHeight * 0.5f);
 
             MovementTestSource source = host.AddComponent<MovementTestSource>();
             source.CanMove = canMove;

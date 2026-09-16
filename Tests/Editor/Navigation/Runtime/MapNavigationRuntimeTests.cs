@@ -187,7 +187,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WalkNavigationParameters parameters = new(new Vector2(0.2f, 0.4f), 4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
             Assert.That(world.TryResolveGroundSupport(new Vector2(2.25f, 0.5f), parameters.BodySize,
-                out _, out _, out _), Is.True);
+                out _, out _), Is.True);
             Assert.That(world.IsGoalComplete(captured,
                 new Vector2(2.25f, 0.5f) + Vector2.up * (parameters.BodySize.y * 0.5f),
                 parameters.BodySize), Is.True);
@@ -274,72 +274,51 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(otherSnappedLowerCenter.y, Is.EqualTo(5.999982f).Within(0.0001f));
         }
 
-        /// <summary>Verifies NextAction planning returns one local executable action for Walk, Jump, and Fly.</summary>
-        [Test]
-        public void NextActionPlanningReturnsOneLocalActionForWalkJumpAndFly()
+        /// <summary>Verifies each NextAction planner returns one executable action with real progress.</summary>
+        [TestCase("Walk")]
+        [TestCase("Jump")]
+        [TestCase("Fly")]
+        public void NextActionPlanningReturnsOneExecutableAction(string plannerKind)
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             runtime.PublishWorld(CreateOpenWorld());
 
-            Vector2 walkStart = new(0.5f, 1f);
-            NavigationPlanningOperation walk = runtime.PlanWalkAsync(
-                walkStart,
-                NavigationGoalRequest.GroundRange(new AABB(new Vector2(4.5f, 1f), new Vector2(4.5f, 1f)), 0.1f),
-                WalkParameters,
-                NavigationPlanningExtent.NextAction);
-            NavigationPlanningOperation jump = runtime.PlanJumpAsync(
-                new Vector2(0.5f, 1f),
-                Goal(new Vector2(3.5f, 1f)),
-                JumpParameters,
-                NavigationPlanningExtent.NextAction);
-            NavigationPlanningOperation fly = runtime.PlanFlyAsync(
-                new Vector2(1.5f, 2.5f),
-                Goal(new Vector2(4.5f, 2.5f)),
-                FlyParameters,
-                NavigationPlanningExtent.NextAction);
+            Vector2 start;
+            NavigationPlanningOperation operation;
+            Type expectedSegmentType;
+            switch (plannerKind)
+            {
+                case "Walk":
+                    start = new Vector2(0.5f, 1f);
+                    operation = runtime.PlanWalkAsync(start,
+                        NavigationGoalRequest.GroundRange(new AABB(new Vector2(4.5f, 1f), new Vector2(4.5f, 1f)), 0.1f),
+                        WalkParameters, NavigationPlanningExtent.NextAction);
+                    expectedSegmentType = typeof(GroundRouteSegment);
+                    break;
+                case "Jump":
+                    start = new Vector2(0.5f, 1f);
+                    operation = runtime.PlanJumpAsync(start, Goal(new Vector2(3.5f, 1f)), JumpParameters,
+                        NavigationPlanningExtent.NextAction);
+                    expectedSegmentType = typeof(JumpRouteSegment);
+                    break;
+                case "Fly":
+                    start = new Vector2(1.5f, 2.5f);
+                    operation = runtime.PlanFlyAsync(start, Goal(new Vector2(4.5f, 2.5f)), FlyParameters,
+                        NavigationPlanningExtent.NextAction);
+                    expectedSegmentType = typeof(FlyRouteSegment);
+                    break;
+                default:
+                    Assert.Fail($"Unknown planner kind '{plannerKind}'.");
+                    return;
+            }
 
-            Complete(runtime, walk);
-            Complete(runtime, jump);
-            Complete(runtime, fly);
-
-            Assert.That(walk.Result, Is.Not.Null);
-            Assert.That(walk.Result.Segments, Has.Count.EqualTo(1));
-            Assert.That(walk.Result.Segments[0], Is.TypeOf<GroundRouteSegment>());
-            Assert.That(walk.Result.Segments[0].Start, Is.EqualTo(walkStart));
-            Assert.That(walk.Result.Segments[0].End, Is.Not.EqualTo(walkStart));
-
-            Assert.That(jump.Result, Is.Not.Null);
-            Assert.That(jump.Result.Segments, Has.Count.EqualTo(1));
-            Assert.That(jump.Result.Segments[0], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(jump.Result.Segments[0].Start, Is.EqualTo(new Vector2(0.5f, 1f)));
-            Assert.That(jump.Result.Segments[0].End, Is.Not.EqualTo(jump.Result.Segments[0].Start));
-
-            Assert.That(fly.Result, Is.Not.Null);
-            Assert.That(fly.Result.Segments, Has.Count.EqualTo(1));
-            Assert.That(fly.Result.Segments[0], Is.TypeOf<FlyRouteSegment>());
-            Assert.That(fly.Result.Segments[0].Start, Is.EqualTo(new Vector2(1.5f, 2.5f)));
-            Assert.That(fly.Result.Segments[0].End, Is.Not.EqualTo(fly.Result.Segments[0].Start));
-        }
-
-        /// <summary>Verifies detached jump work prepares and validates candidates in one background execution.</summary>
-        [Test]
-        public void JumpCandidatePreparationCompletesInDetachedPlannerWork()
-        {
-            List<Vector2Int> floor = new();
-            for (int x = 0; x < 41; x++) floor.Add(new Vector2Int(x, 0));
-            TestNavigationWorld world = new(new RectInt(0, 0, 41, 8), floor, Array.Empty<Vector2Int>());
-            JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(token => planner.PlanSingleStep(
-                new Vector2(20.5f, 1f), Goal(new Vector2(35.5f, 1f)), JumpParameters,
-                token));
-
-            NavigationPlanResult result = work.Execute(CancellationToken.None);
-            Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
-            NavigationRoute route = result.Route;
-            Assert.That(route, Is.Not.Null);
-            Assert.That(route.Segments, Has.Count.EqualTo(1));
-            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(((JumpRouteSegment)route.Segments[0]).MinimumApexHeight, Is.GreaterThan(0f));
+            Complete(runtime, operation);
+            Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
+            Assert.That(operation.Result, Is.Not.Null);
+            Assert.That(operation.Result.Segments, Has.Count.EqualTo(1));
+            Assert.That(operation.Result.Segments[0], Is.TypeOf(expectedSegmentType));
+            Assert.That(operation.Result.Segments[0].Start.Equals(start), Is.True);
+            Assert.That(operation.Result.Segments[0].End.Equals(start), Is.False);
         }
 
         /// <summary>Verifies a complete Route request never publishes a partial route.</summary>

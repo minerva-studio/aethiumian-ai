@@ -97,50 +97,31 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(blockedResult.FailureReason, Is.EqualTo(ExecutionFailureReason.Obstructed));
         }
 
-        /// <summary>Verifies ground arrival uses the Collider2D lower center rather than Rigidbody2D position.</summary>
-        [Test]
-        public void GroundMove_ArrivalUsesOffsetColliderBounds()
+        /// <summary>Verifies collider anchoring and the shared endpoint boundary as one observable contract.</summary>
+        [TestCase("centered", 0f, 0f, 0.005f, ExecutionStatus.Completed)]
+        [TestCase("offset", 0.75f, -0.25f, 0.005f, ExecutionStatus.Completed)]
+        [TestCase("support-snap", 0f, 0f, 0.03f, ExecutionStatus.Completed)]
+        [TestCase("endpoint-inside", 0f, 0f, 0.2f, ExecutionStatus.Completed)]
+        [TestCase("endpoint-outside", 0f, 0f, 0.201f, ExecutionStatus.Running)]
+        public void GroundMoveArrivalBoundaryUsesPhysicalAnchor(
+            string caseName, float colliderOffsetX, float colliderOffsetY,
+            float endpointDistance, ExecutionStatus expectedStatus)
         {
             (Rigidbody2D body, BoxCollider2D collider) = CreateBody(Vector2.zero);
-            collider.offset = new Vector2(0.75f, -0.25f);
+            collider.offset = new Vector2(colliderOffsetX, colliderOffsetY);
+            if (caseName is "endpoint-inside" or "endpoint-outside")
+                CreateFloor(new Vector2(0f, -0.56f), new Vector2(4f, 0.1f), NavigationPhysicsTestLayers.GeometryLayer);
             Physics2D.SyncTransforms();
             Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
-            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f);
-            executor.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.005f);
+            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(),
+                expectedStatus == ExecutionStatus.Running ? 0f : 4f, 0.5f);
+            executor.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * endpointDistance);
 
-            Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Completed));
-            Assert.AreEqual(Vector2.zero, body.linearVelocity);
-        }
-
-        /// <summary>Verifies short connector moves complete without relying on static friction.</summary>
-        [Test]
-        public void GroundMove_SupportSnapConnectorCompletesWithinSharedTolerance()
-        {
-            (Rigidbody2D body, BoxCollider2D collider) = CreateBody(Vector2.zero);
-            Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
-            float connectorDistance = 0.03f;
-            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f);
-            executor.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * connectorDistance);
-
-            Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Completed));
-            Assert.AreEqual(Vector2.zero, body.linearVelocity);
-        }
-
-        /// <summary>Verifies the shared horizontal endpoint minimum accepts 0.2-unit physical drift only within its boundary.</summary>
-        [Test]
-        public void GroundMove_UsesSharedPointTwoEndpointTolerance()
-        {
-            (Rigidbody2D body, BoxCollider2D collider) = CreateBody(Vector2.zero);
-            CreateFloor(new Vector2(0f, -0.56f), new Vector2(4f, 0.1f), NavigationPhysicsTestLayers.GeometryLayer);
-            Physics2D.SyncTransforms();
-            Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
-            using var within = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 0f, 0.5f);
-            within.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.2f);
-            Assert.That(within.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Completed));
-
-            using var outside = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 0f, 0.5f);
-            outside.SetGroundMove(groundAnchor, groundAnchor + Vector2.right * 0.201f);
-            Assert.That(outside.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
+            Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(expectedStatus));
+            Assert.That(NavigationBodyGeometry.GetGroundAnchor(collider).x,
+                Is.EqualTo(groundAnchor.x).Within(0.0001f));
+            if (expectedStatus == ExecutionStatus.Completed)
+                Assert.AreEqual(Vector2.zero, body.linearVelocity);
         }
 
         /// <summary>Verifies that a jump applies its shared launch solution exactly once from Tick.</summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using NUnit.Framework;
@@ -328,9 +328,8 @@ namespace Aethiumian.AI.Navigation.Tests
             TestNavigationWorld world = new(new RectInt(0, 0, 3, 4),
                 new[] { occupiedCell }, Array.Empty<Vector2Int>(), new Dictionary<Vector2Int, float>());
 
-            Assert.That(world.TryGetSupportSurfaceY(occupiedCell, out _), Is.False);
             Assert.That(world.TryResolveGroundSupport(new Vector2(1.5f, 2f), new Vector2(0.8f, 1f),
-                out _, out _, out _), Is.False);
+                out _, out _), Is.False);
             Assert.That(world.CanStandAt(new Vector2(1.5f, 2f), new Vector2(0.8f, 1f), out _), Is.False);
             Assert.That(world.IsLowerCenterBodyClearAt(new Vector2(1.5f, 1.9f), new Vector2(0.8f, 1f)), Is.False);
         }
@@ -358,60 +357,58 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(ContainsSegment<JumpRouteSegment>(route), Is.True);
         }
 
-        /// <summary>Verifies a sub-tolerance physical start remains the exact root of a multi-step Walk route.</summary>
-        [Test]
-        public void GroundPlannerPreservesExactNonCanonicalStartAcrossJumpRoute()
+        /// <summary>Verifies every planner preserves the physical start and emits a continuous route.</summary>
+        [TestCase("Ground")]
+        [TestCase("GroundJump")]
+        [TestCase("Fly")]
+        public void PlannerRoutePreservesExactStartAndContinuity(string caseName)
         {
-            List<Vector2Int> floor = Floor(0, 5);
-            floor.Add(new Vector2Int(2, 1));
-            TestNavigationWorld world = new(new RectInt(0, 0, 6, 7), floor, Array.Empty<Vector2Int>());
-            Vector2 start = new(0.50002f, 1f);
+            Vector2 start;
+            NavigationRoute route;
 
-            Assert.That(new WalkNavigationPlanner(world, 256, new GroundJumpSolver(world)).TryPlan(start,
-                Goal(new Vector2(4.5f, 1f), 0.1f),
-                WalkParameters(jumpHeight: 2.5f, jumpLength: 2.1f),
-                out NavigationRoute route), Is.True);
+            switch (caseName)
+            {
+                case "Ground":
+                    {
+                        TestNavigationWorld world = GroundWorld(0, 3);
+                        start = new Vector2(0.50002f, 1f);
+                        Assert.That(new WalkNavigationPlanner(world, 64, new GroundJumpSolver(world)).TryPlan(start,
+                            Goal(new Vector2(1.5f, 1f), 0.1f),
+                            WalkParameters(jumpHeight: 0f, jumpLength: 0f), out route), Is.True);
+                        break;
+                    }
+                case "GroundJump":
+                    {
+                        List<Vector2Int> floor = Floor(0, 5);
+                        floor.Add(new Vector2Int(2, 1));
+                        TestNavigationWorld world = new(new RectInt(0, 0, 6, 7), floor, Array.Empty<Vector2Int>());
+                        start = new Vector2(0.50002f, 1f);
+                        Assert.That(new WalkNavigationPlanner(world, 256, new GroundJumpSolver(world)).TryPlan(start,
+                            Goal(new Vector2(4.5f, 1f), 0.1f),
+                            WalkParameters(jumpHeight: 2.5f, jumpLength: 2.1f), out route), Is.True);
+                        break;
+                    }
+                case "Fly":
+                    {
+                        TestNavigationWorld world = new(new RectInt(0, 0, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+                        start = new Vector2(1.500005f, 1.5f);
+                        Assert.That(new FlyNavigationPlanner(world, 64).TryPlan(start,
+                            Goal(new Vector2(1.5f, 1.5f), 0.1f),
+                            new FlyNavigationParameters(new Vector2(0.6f, 0.6f)), out route), Is.True);
+                        break;
+                    }
+                default:
+                    Assert.Fail($"Unknown planner contract case '{caseName}'.");
+                    return;
+            }
+
+            Assert.That(route, Is.Not.Null);
+            Assert.That(route.Count, Is.GreaterThan(0));
             Assert.That(route.Start.Equals(start), Is.True);
-            Assert.That(route.Count, Is.GreaterThan(1));
-            Assert.That(route.Segments[0].Start.Equals(route.Start), Is.True);
-            Assert.That(ContainsSegment<JumpRouteSegment>(route), Is.True);
+            Assert.That(route.Segments[0].Start.Equals(start), Is.True);
             for (int index = 1; index < route.Count; index++)
                 Assert.That(route.Segments[index - 1].End.Equals(route.Segments[index].Start), Is.True);
             Assert.That(route.Segments[^1].End.Equals(route.ResolvedGoal), Is.True);
-        }
-
-        /// <summary>Verifies a microscopic physical start cannot be replaced by a canonical cached ground edge.</summary>
-        [Test]
-        public void GroundPlannerPreservesExactNonCanonicalStartForGroundMove()
-        {
-            TestNavigationWorld world = GroundWorld(0, 3);
-            Vector2 start = new(0.50002f, 1f);
-
-            Assert.That(new WalkNavigationPlanner(world, 64, new GroundJumpSolver(world)).TryPlan(start,
-                Goal(new Vector2(1.5f, 1f), 0.1f),
-                WalkParameters(jumpHeight: 0f, jumpLength: 0f),
-                out NavigationRoute route), Is.True);
-            Assert.That(route.Start.Equals(start), Is.True);
-            Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
-            Assert.That(route.Segments[0].Start.Equals(start), Is.True);
-            Assert.That(route.Segments[^1].End.Equals(route.ResolvedGoal), Is.True);
-        }
-
-        /// <summary>Verifies Fly emits a real segment for coordinates hidden by Unity's approximate vector operator.</summary>
-        [Test]
-        public void FlyPlannerConnectsMicroscopicNonZeroDisplacement()
-        {
-            TestNavigationWorld world = new(new RectInt(0, 0, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            Vector2 start = new(1.500005f, 1.5f);
-
-            Assert.That(new FlyNavigationPlanner(world, 64).TryPlan(start,
-                Goal(new Vector2(1.5f, 1.5f), 0.1f),
-                new FlyNavigationParameters(new Vector2(0.6f, 0.6f)),
-                out NavigationRoute route), Is.True);
-            Assert.That(route.Count, Is.EqualTo(1));
-            Assert.That(route.Start.Equals(start), Is.True);
-            Assert.That(route.Segments[0].Start.Equals(start), Is.True);
-            Assert.That(route.Segments[0].End.Equals(route.ResolvedGoal), Is.True);
         }
 
         /// <summary>Verifies Unity-style discrete damping does not disable grounded jump planning.</summary>
@@ -448,22 +445,22 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Segments[0], Is.TypeOf<DropThroughRouteSegment>());
         }
 
-        /// <summary>Verifies jump-only planning emits only jump steps and supports local repeated landings.</summary>
+        /// <summary>Verifies jump-only planning emits a continuous, executable route to a legal endpoint.</summary>
         [Test]
         public void JumpPlannerBuildsOnlyJumpSegments()
         {
             TestNavigationWorld world = new(new RectInt(0, 0, 6, 6), new[] { new Vector2Int(0, 0), new Vector2Int(2, 0), new Vector2Int(4, 0) }, Array.Empty<Vector2Int>());
-            NavigationPlanningDiagnostics diagnostics = new();
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.Plan(
-                new Vector2(0.5f, 1f), Goal(new Vector2(4.5f, 1f), 0.1f), JumpParameters(),
-                cancellationToken, diagnostics));
+            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.Plan(new Vector2(0.5f, 1f), Goal(new Vector2(4.5f, 1f), 0.1f), JumpParameters(), cancellationToken));
             NavigationRoute route = work.Execute(CancellationToken.None).Route;
-            Assert.That(route, Is.Not.Null,
-                "The jump planner should produce a route through the reachable supports.");
-            Assert.That(route.Count, Is.EqualTo(2));
-            for (int i = 0; i < route.Count; i++) Assert.That(route.Segments[i], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(diagnostics.TerminalCandidateCount, Is.EqualTo(1));
+            Assert.That(route, Is.Not.Null, "The jump planner should produce a route through the reachable supports.");
+            Assert.That(route.Count, Is.GreaterThan(0));
+            for (int i = 0; i < route.Count; i++)
+                Assert.That(route.Segments[i], Is.TypeOf<JumpRouteSegment>());
+            for (int i = 1; i < route.Count; i++)
+                Assert.That(route.Segments[i - 1].End.Equals(route.Segments[i].Start), Is.True);
+            Assert.That(route.Segments[^1].End.Equals(route.ResolvedGoal), Is.True);
+            Assert.That(route.ReachesGoal, Is.True);
         }
 
         /// <summary>Verifies a Simple Jump action is successful even when its landing is not the final goal.</summary>

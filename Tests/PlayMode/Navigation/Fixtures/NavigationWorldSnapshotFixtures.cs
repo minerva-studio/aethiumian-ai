@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation.Tests
@@ -19,6 +19,34 @@ namespace Aethiumian.AI.Navigation.Tests
                 DefaultBounds,
                 Array.Empty<NavigationShapeData>(),
                 new[] { new NavigationRegionData(DefaultBounds, 0) });
+
+        /// <summary>
+        /// Publishes a solid floor. Unlike the one-way floor this surface needs no
+        /// PlatformEffector2D source binding, so a jump across it creates no platform lease.
+        /// </summary>
+        public static NavigationWorldSnapshot SolidGround(float y = 0f, float thickness = 0.5f)
+        {
+            NavigationShapeData floor = new(
+                1,
+                0,
+                NavigationShapeType.Polygon,
+                new[]
+                {
+                    new Vector2(-20f, y - thickness),
+                    new Vector2(100f, y - thickness),
+                    new Vector2(100f, y),
+                    new Vector2(-20f, y),
+                },
+                0f,
+                NavigationSurfaceKind.Solid,
+                true);
+            return NavigationWorldSnapshot.Create(
+                Vector2.zero,
+                1f,
+                DefaultBounds,
+                new[] { floor },
+                new[] { new NavigationRegionData(DefaultBounds, 0) });
+        }
 
         public static NavigationWorldSnapshot Ground(float y = 0f)
         {

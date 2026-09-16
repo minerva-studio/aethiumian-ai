@@ -1,6 +1,8 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System;
+using System.Text.RegularExpressions;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
@@ -129,6 +131,44 @@ namespace Aethiumian.AI.Navigation.Tests
             ControlledWalk.Complete(ControlledWalk.Requests[0], null);
             yield return WaitForTerminal(harness, PlanningFrameLimit);
 
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false), DescribeHarness(harness));
+        }
+
+        /// <summary>Verifies an exact planner fault remains visible and completes the node as failure.</summary>
+        [UnityTest]
+        public IEnumerator ExactPlannerFaultRemainsVisibleAndCompletesAsFailure()
+            => PlannerFaultRemainsVisibleAndCompletesAsFailure(false);
+
+        /// <summary>Verifies a stale planner fault remains visible and completes the node as failure.</summary>
+        [UnityTest]
+        public IEnumerator StalePlannerFaultRemainsVisibleAndCompletesAsFailure()
+            => PlannerFaultRemainsVisibleAndCompletesAsFailure(true);
+
+        private IEnumerator PlannerFaultRemainsVisibleAndCompletesAsFailure(bool stale)
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequest();
+
+            ControlledWalk.Request request = ControlledWalk.Requests[0];
+            string message = stale ? "controlled stale planner fault" : "controlled exact planner fault";
+            if (stale)
+            {
+                target.transform.position = new Vector2(62.5f, 1f);
+                Physics2D.SyncTransforms();
+            }
+
+            LogAssert.Expect(LogType.Error, new Regex("Exception occurred at node"));
+            LogAssert.Expect(LogType.Exception, new Regex(message));
+            ControlledWalk.Fail(request, new InvalidOperationException(message));
+            yield return WaitForTerminal(harness, PlanningFrameLimit);
+
+            Assert.That(request.Operation.Exception, Is.TypeOf<InvalidOperationException>());
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false), DescribeHarness(harness));
         }
@@ -399,6 +439,133 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
 
+        /// <summary>Verifies a replacement received during Jump is held until physical landing.</summary>
+        [UnityTest]
+        public IEnumerator JumpReplacementWaitsUntilLanding()
+        {
+            using MapNavigationRuntime runtime = CreateSolidGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            // A body spawned above the floor records fall-time support points, so the authored
+            // jump must start from a support the body already rests on.
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target),
+                groundY: 1f);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitUntilGrounded(harness);
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            ControlledWalk.Request launchRequest = null;
+            for (int frame = 0; frame < PlanningFrameLimit; frame++)
+            {
+                launchRequest = ControlledWalk.Requests.LastOrDefault(candidate =>
+                    candidate.Extent == NavigationPlanningExtent.Route
+                    && !candidate.Operation.IsCompleted
+                    && !candidate.Operation.IsCancelled);
+                if (launchRequest != null) break;
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(launchRequest, Is.Not.Null, DescribeRequests());
+            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, launchRequest.Start));
+            for (int frame = 0; harness.Source.JumpCount == 0 && frame < PlanningFrameLimit; frame++)
+                yield return new WaitForFixedUpdate();
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
+
+            ControlledWalk.Request replacement = null;
+            for (int frame = 0; frame < PlanningFrameLimit; frame++)
+            {
+                replacement = ControlledWalk.Requests.LastOrDefault(candidate =>
+                    candidate != launchRequest
+                    && !candidate.Operation.IsCompleted
+                    && !candidate.Operation.IsCancelled);
+                if (replacement != null) break;
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(replacement, Is.Not.Null, DescribeRequests());
+            ControlledWalk.Complete(replacement, CreateGroundRoute(replacement, new Vector2(40.5f, 1f), false));
+
+            bool airborne = false;
+            for (int frame = 0; frame < PlanningFrameLimit; frame++)
+            {
+                yield return new WaitForFixedUpdate();
+                bool grounded = harness.Body.IsTouchingLayers(NavigationPhysicsTestLayers.GeometryMask);
+                airborne |= !grounded;
+                if (!grounded && airborne)
+                    Assert.That(harness.Source.WalkCount, Is.Zero, DescribeHarness(harness));
+                if (airborne && grounded) break;
+            }
+
+            Assert.That(airborne, Is.True, DescribeHarness(harness));
+            for (int frame = 0; harness.Source.WalkCount == 0 && frame < PlanningFrameLimit; frame++)
+                yield return new WaitForFixedUpdate();
+            Assert.That(harness.Source.WalkCount, Is.GreaterThan(0), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        /// <summary>Verifies target motion invalidates a deferred NoPath result while Jump remains airborne.</summary>
+        [UnityTest]
+        public IEnumerator DeferredNoPathIsInvalidatedByTargetMotionBeforeLanding()
+        {
+            using MapNavigationRuntime runtime = CreateSolidGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
+            // A body spawned above the floor records fall-time support points, so the authored
+            // jump must start from a support the body already rests on.
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target),
+                groundY: 1f);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitUntilGrounded(harness);
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            ControlledWalk.Request launchRequest = null;
+            for (int frame = 0; frame < PlanningFrameLimit; frame++)
+            {
+                launchRequest = ControlledWalk.Requests.LastOrDefault(candidate =>
+                    candidate.Extent == NavigationPlanningExtent.Route
+                    && !candidate.Operation.IsCompleted
+                    && !candidate.Operation.IsCancelled);
+                if (launchRequest != null) break;
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(launchRequest, Is.Not.Null, DescribeRequests());
+            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, launchRequest.Start));
+            for (int frame = 0; harness.Source.JumpCount == 0 && frame < PlanningFrameLimit; frame++)
+                yield return new WaitForFixedUpdate();
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
+
+            // Publish a deferred NoPath for the first request issued after the launch, then move the
+            // target while the body is still airborne: the stale result must not end the movement.
+            ControlledWalk.Request deferred = null;
+            for (int frame = 0; frame < PlanningFrameLimit; frame++)
+            {
+                deferred = ControlledWalk.Requests.LastOrDefault(candidate =>
+                    candidate != launchRequest
+                    && !candidate.Operation.IsCompleted
+                    && !candidate.Operation.IsCancelled);
+                if (deferred != null) break;
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(deferred, Is.Not.Null, DescribeRequests());
+            ControlledWalk.Complete(deferred, null);
+            target.transform.position = new Vector2(62.5f, 1f);
+            Physics2D.SyncTransforms();
+            for (int frame = 0; frame < PlanningFrameLimit; frame++)
+            {
+                if (ControlledWalk.Requests.Any(candidate => candidate != deferred
+                        && !candidate.Operation.IsCompleted && !candidate.Operation.IsCancelled))
+                    break;
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(ControlledWalk.Requests.Any(candidate => candidate != deferred), Is.True,
+                DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
         [UnityTest]
         public IEnumerator SimpleFallbackCanReplaceStaleGroundAction()
         {
@@ -597,6 +764,20 @@ namespace Aethiumian.AI.Navigation.Tests
             return runtime;
         }
 
+        /// <summary>Publishes a solid floor so a jump needs no one-way platform lease.</summary>
+        private static MapNavigationRuntime CreateSolidGroundRuntime(float groundY = 0f)
+        {
+            MapNavigationRuntime runtime = new(
+                8,
+                4096,
+                4096,
+                new NavigationPhysicsLayers(
+                    NavigationPhysicsTestLayers.GeometryMask,
+                    NavigationPhysicsTestLayers.PlatformMask));
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.SolidGround(groundY));
+            return runtime;
+        }
+
         private static ControlledWalk CreateControlledWalkTrace(GameObject target)
             => new()
             {
@@ -614,6 +795,7 @@ namespace Aethiumian.AI.Navigation.Tests
             };
 
         /// <summary>Builds a contract-valid route for a captured controlled request.</summary>
+
         private static NavigationRoute CreateGroundRoute(
             ControlledWalk.Request request,
             Vector2? endpoint = null,
@@ -630,6 +812,17 @@ namespace Aethiumian.AI.Navigation.Tests
                 new[] { new GroundRouteSegment(logicalStart, resolvedGoal) },
                 reachesGoal);
         }
+
+        /// <summary>Builds a deterministic irreversible route for the package handoff owner.</summary>
+        private static NavigationRoute CreateJumpRoute(
+            ControlledWalk.Request request, Vector2 launchSupport, float travel = 6f)
+            => NavigationRoute.Create(
+                launchSupport,
+                request.Goal,
+                request.World,
+                launchSupport + Vector2.right * travel,
+                new[] { new JumpRouteSegment(launchSupport, launchSupport + Vector2.right * travel, 0f) },
+                true);
 
         private static IEnumerator WaitForRequest()
         {
@@ -672,6 +865,9 @@ namespace Aethiumian.AI.Navigation.Tests
 
             internal static void Cancel(Request request)
                 => Assert.That(request.Operation.TryFinalizeCancellation(), Is.True);
+
+            internal static void Fail(Request request, Exception exception)
+                => Assert.That(request.Operation.TryFail(exception), Is.True);
 
             protected override bool TryRequestRoute(
                 Vector2 start,

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Text.RegularExpressions;
 using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
@@ -57,105 +57,45 @@ namespace Aethiumian.AI.Navigation.Tests
             harness.AI.End(false);
         }
 
+        /// <summary>Verifies a reached Direct target skips its launch when skipping is requested.</summary>
         [UnityTest]
         public IEnumerator FixedJumpSkipReachedCompletesWithoutLaunching()
-        {
-            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
-            using RuntimeContextScope context = new(runtime);
-            CreateGround(1f);
-            FixedJump node = CreateSingleFixedJump(MovementStart);
-            node.skipReached = (VariableField<bool>)true;
-            MovementHarness harness = CreateHarness(MovementStart, node);
+            => ReachedTargetHonorsSkipContract(FixedJump.JumpTargetMode.Direct, true, false, true);
 
-            yield return WaitForTreeCreated(harness);
-            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
-
-            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
-                DescribeHarness(harness));
-            Assert.That(harness.Source.JumpCount, Is.Zero);
-        }
-
+        /// <summary>Verifies a reached Direct target still launches when skipping is disabled.</summary>
         [UnityTest]
         public IEnumerator FixedJumpReachedTargetStillLaunchesWhenSkipDisabled()
-        {
-            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
-            using RuntimeContextScope context = new(runtime);
-            CreateGround(1f);
-            FixedJump node = CreateSingleFixedJump(MovementStart);
-            node.skipReached = (VariableField<bool>)false;
-            MovementHarness harness = CreateHarness(MovementStart, node);
+            => ReachedTargetHonorsSkipContract(FixedJump.JumpTargetMode.Direct, false, true, true);
 
-            yield return WaitForTreeCreated(harness);
-            for (int tick = 0; tick < RuntimeContractTickLimit && harness.AI.BehaviourTree.IsRunning; tick++)
-                yield return new WaitForFixedUpdate();
-
-            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
-            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
-                DescribeHarness(harness));
-        }
-
+        /// <summary>Verifies a reached PlannedStep target uses the same skip contract.</summary>
         [UnityTest]
         public IEnumerator PlannedStepReachedTargetUsesTheSameSkipContract()
-        {
-            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
-            using RuntimeContextScope context = new(runtime);
-            CreateGround(1f);
-            FixedJump node = CreateSingleFixedJump(MovementStart, FixedJump.JumpTargetMode.PlannedStep);
-            node.skipReached = (VariableField<bool>)true;
-            MovementHarness harness = CreateHarness(MovementStart, node);
+            => ReachedTargetHonorsSkipContract(FixedJump.JumpTargetMode.PlannedStep, true, false, true);
 
-            yield return WaitForTreeCreated(harness);
-            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
-
-            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
-                DescribeHarness(harness));
-            Assert.That(harness.Source.JumpCount, Is.Zero);
-        }
-
+        /// <summary>Verifies a reached PlannedStep target still launches when skipping is disabled.</summary>
         [UnityTest]
         public IEnumerator PlannedStepReachedTargetStillLaunchesWhenSkipDisabled()
+            => ReachedTargetHonorsSkipContract(FixedJump.JumpTargetMode.PlannedStep, false, true, true);
+
+        private IEnumerator ReachedTargetHonorsSkipContract(
+            FixedJump.JumpTargetMode mode, bool skipReached, bool expectedLaunch, bool expectedResult)
         {
             using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
             using RuntimeContextScope context = new(runtime);
             CreateGround(1f);
-            FixedJump node = CreateSingleFixedJump(MovementStart, FixedJump.JumpTargetMode.PlannedStep);
-            node.skipReached = (VariableField<bool>)false;
+            FixedJump node = CreateSingleFixedJump(MovementStart, mode);
+            node.reachDistance = (VariableField<float>)0.05f;
+            node.skipReached = (VariableField<bool>)skipReached;
             MovementHarness harness = CreateHarness(MovementStart, node);
 
             yield return WaitForTreeCreated(harness);
             for (int tick = 0; tick < RuntimeContractTickLimit && harness.AI.BehaviourTree.IsRunning; tick++)
                 yield return new WaitForFixedUpdate();
 
-            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
-            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(expectedLaunch ? 1 : 0),
                 DescribeHarness(harness));
-        }
-
-        // The harness body rests one contact offset above the authored surface, so a zero reach
-        // distance cannot observe an already-reached target. This case uses a tolerance that admits
-        // that resting gap and isolates the migrated goal-completion entry from the action lifecycle:
-        // a satisfied goal may end the action without launching. The complementary case, where
-        // skipping is disabled and the authored jump must still be performed, remains covered by
-        // FixedJumpReachedTargetStillLaunchesWhenSkipDisabled and is currently red for the unrelated
-        // in-place launch path in FixedJump.TryStartDirectJump.
-        [UnityTest]
-        public IEnumerator ReachedTargetSkipContractCompletesWithoutLaunching()
-        {
-            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
-            using RuntimeContextScope context = new(runtime);
-            CreateGround(1f);
-            FixedJump node = CreateSingleFixedJump(MovementStart);
-            node.reachDistance = (VariableField<float>)0.05f;
-            node.skipReached = (VariableField<bool>)true;
-            MovementHarness harness = CreateHarness(MovementStart, node);
-
-            yield return WaitForTreeCreated(harness);
-            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
-
-            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true),
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(expectedResult),
                 DescribeHarness(harness));
-            Assert.That(harness.Source.JumpCount, Is.Zero,
-                "A satisfied goal with skipReached must complete without launching. " + DescribeHarness(harness));
         }
 
         private static MapNavigationRuntime CreateGroundRuntime(float y)
@@ -167,7 +107,9 @@ namespace Aethiumian.AI.Navigation.Tests
                 new NavigationPhysicsLayers(
                     NavigationPhysicsTestLayers.GeometryMask,
                     NavigationPhysicsTestLayers.PlatformMask));
-            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Ground(y));
+            // A one-way snapshot surface needs an authored PlatformEffector2D source binding before a
+            // jump can create its launch lease, so this fixture uses a solid floor.
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.SolidGround(y));
             return runtime;
         }
 
