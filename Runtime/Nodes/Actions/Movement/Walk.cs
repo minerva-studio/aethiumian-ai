@@ -30,9 +30,9 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private int unexpectedLandingRecoveryCount;
         private float NewFixedSpeed => speed * speedModifier;
 
-        protected override NavigationGoalRequest BuildGoal(AABB target, Bounds body, out Vector2 anchor)
+        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body, out Vector2 anchor)
         {
-            anchor = new Vector2(body.center.x, body.min.y);
+            anchor = new Vector2(body.CenterX, body.MinY);
             return CreateGoal(target, NavigationGoalGeometry.GroundRange);
         }
 
@@ -42,7 +42,7 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected)
+        protected override bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected)
         {
             connected = null;
             if (candidate.Count == 0) return false;
@@ -69,9 +69,9 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, Bounds body, bool swept) => NavigationWorld.IsGoalComplete(goal, body.center, body.size) || swept;
+        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept) => NavigationWorld.IsGoalComplete(goal, body.Center, body.Size) || swept;
 
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, Bounds body)
+        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body)
         {
             switch (reason)
             {
@@ -80,7 +80,7 @@ namespace Aethiumian.AI.Nodes
                 case ExecutionFailureReason.UnexpectedSupport when unexpectedLandingRecoveryCount < 2:
                     {
                         if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out Vector2 support)
-                        || !NavigationRuntime.TryResolvePlanningGroundSupport(support, body.size, out _, out _)) return false;
+                        || !NavigationRuntime.TryResolvePlanningGroundSupport(support, body.Size, out _, out _)) return false;
                         unexpectedLandingRecoveryCount++;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                         MovementReplanDiagnostics.RecordUnexpectedLandingReplan();
@@ -102,7 +102,7 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, AABB body, MovementExecutor reusable, out MovementExecutor prepared)
         {
             prepared = null;
             var groundExecutor = reusable as GroundTraversalExecutor;

@@ -129,10 +129,10 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         private static TestNavigationWorld UnitWorld()
-            => new(new RectInt(-4, -4, 8, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            => new(new AABBInt(-4, -4, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
 
         private static NavigationGoalRequest PointGoal(Vector2 point)
-            => NavigationGoalRequest.Proximity(new AABB(point, point), DistanceMetric.Euclidean, 0f);
+            => NavigationGoalRequest.Proximity(AABB.Point(point), DistanceMetric.Euclidean, 0f);
 
         private static void WaitForCompletion(NavigationPlanningOperation operation)
         {

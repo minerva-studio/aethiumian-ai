@@ -22,13 +22,13 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Converts a world position into this planner's own search-lattice coordinate.</summary>
         private static Vector2Int ToLattice(INavigationWorld world, Vector2 position)
         {
-            Vector2 local = (position - world.WorldBounds.min) / FlightStep;
+            Vector2 local = (position - world.WorldBounds.Min) / FlightStep;
             return new Vector2Int(Mathf.FloorToInt(local.x), Mathf.FloorToInt(local.y));
         }
 
         /// <summary>Gets the world position of one search-lattice cell center.</summary>
         private static Vector2 LatticeCenter(INavigationWorld world, Vector2Int cell)
-            => world.WorldBounds.min + ((Vector2)cell + Vector2.one * 0.5f) * FlightStep;
+            => world.WorldBounds.Min + ((Vector2)cell + Vector2.one * 0.5f) * FlightStep;
 
         /// <summary>Returns whether a lattice cell center still belongs to the captured world.</summary>
         private static bool IsInsideWorld(INavigationWorld world, Vector2 position) => world.WorldBounds.Contains(position);
@@ -164,10 +164,10 @@ namespace Aethiumian.AI.Navigation
             Vector2 resolvedGoal = default;
             float bestDistanceSquared = float.PositiveInfinity;
             AABB target = goal.TargetBounds;
-            int xMin = Mathf.FloorToInt((target.Min.x - parameters.BodySize.x * 0.5f - goal.ArrivalTolerance - World.WorldBounds.xMin) / FlightStep) - 1;
-            int xMax = Mathf.CeilToInt((target.Max.x + parameters.BodySize.x * 0.5f + goal.ArrivalTolerance - World.WorldBounds.xMin) / FlightStep) + 1;
-            int yMin = Mathf.FloorToInt((target.Min.y - parameters.BodySize.y * 0.5f - goal.ArrivalTolerance - World.WorldBounds.yMin) / FlightStep) - 1;
-            int yMax = Mathf.CeilToInt((target.Max.y + parameters.BodySize.y * 0.5f + goal.ArrivalTolerance - World.WorldBounds.yMin) / FlightStep) + 1;
+            int xMin = Mathf.FloorToInt((target.MinX - parameters.BodySize.x * 0.5f - goal.ArrivalTolerance - World.WorldBounds.MinX) / FlightStep) - 1;
+            int xMax = Mathf.CeilToInt((target.MaxX + parameters.BodySize.x * 0.5f + goal.ArrivalTolerance - World.WorldBounds.MinX) / FlightStep) + 1;
+            int yMin = Mathf.FloorToInt((target.MinY - parameters.BodySize.y * 0.5f - goal.ArrivalTolerance - World.WorldBounds.MinY) / FlightStep) - 1;
+            int yMax = Mathf.CeilToInt((target.MaxY + parameters.BodySize.y * 0.5f + goal.ArrivalTolerance - World.WorldBounds.MinY) / FlightStep) + 1;
             for (int y = yMin; y <= yMax; y++)
             {
                 for (int x = xMin; x <= xMax; x++)

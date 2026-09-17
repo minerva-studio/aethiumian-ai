@@ -15,14 +15,14 @@ namespace Aethiumian.AI.Navigation.Tests
         private readonly NavigationWorldSnapshot snapshot;
         private readonly Vector2 origin;
         private readonly float terrainCell;
-        private readonly RectInt terrainBounds;
+        private readonly AABBInt terrainBounds;
 
-        public override Rect WorldBounds { get; }
+        public override AABB WorldBounds { get; }
 
-        public TestNavigationWorld(RectInt bounds, IEnumerable<Vector2Int> solidCells, IEnumerable<Vector2Int> oneWayCells, float cellSize = 1f)
+        public TestNavigationWorld(AABBInt bounds, IEnumerable<Vector2Int> solidCells, IEnumerable<Vector2Int> oneWayCells, float cellSize = 1f)
             : this(bounds, solidCells, oneWayCells, null, cellSize) { }
 
-        public TestNavigationWorld(RectInt bounds, IEnumerable<Vector2Int> solidCells, IEnumerable<Vector2Int> oneWayCells, IReadOnlyDictionary<Vector2Int, float> supportSurfaceHeights, float cellSize = 1f)
+        public TestNavigationWorld(AABBInt bounds, IEnumerable<Vector2Int> solidCells, IEnumerable<Vector2Int> oneWayCells, IReadOnlyDictionary<Vector2Int, float> supportSurfaceHeights, float cellSize = 1f)
         {
             if (cellSize <= 0f || float.IsNaN(cellSize) || float.IsInfinity(cellSize))
                 throw new ArgumentOutOfRangeException(nameof(cellSize));
@@ -31,17 +31,18 @@ namespace Aethiumian.AI.Navigation.Tests
             terrainBounds = bounds;
             terrainCell = cellSize;
             origin = Vector2.zero;
-            WorldBounds = new Rect(bounds.x * cellSize, bounds.y * cellSize,
-                bounds.width * cellSize, bounds.height * cellSize);
-            surfaces = new NavigationSurfaceKind?[bounds.width * bounds.height];
+            WorldBounds = AABB.FromMinAndSize(
+                new Vector2(bounds.MinX * cellSize, bounds.MinY * cellSize),
+                new Vector2(bounds.SizeX * cellSize, bounds.SizeY * cellSize));
+            surfaces = new NavigationSurfaceKind?[bounds.SizeX * bounds.SizeY];
             foreach (Vector2Int cell in oneWayCells) Set(cell, NavigationSurfaceKind.OneWay);
             foreach (Vector2Int cell in solidCells) Set(cell, NavigationSurfaceKind.Solid);
             this.supportSurfaceHeights = supportSurfaceHeights ?? CreateGeometricSupportHeights();
 
             List<NavigationShapeData> shapes = new();
             int sourceId = 0;
-            for (int y = bounds.yMin; y < bounds.yMax; y++)
-                for (int x = bounds.xMin; x < bounds.xMax; x++)
+            for (int y = bounds.MinY; y < bounds.MaxY; y++)
+                for (int x = bounds.MinX; x < bounds.MaxX; x++)
                 {
                     Vector2Int cell = new(x, y);
                     NavigationSurfaceKind? kind = GetSurfaceKind(cell);
@@ -64,42 +65,41 @@ namespace Aethiumian.AI.Navigation.Tests
                     }
                 }
             snapshot = NavigationWorldSnapshot.Create(WorldBounds, shapes,
-                bounds.width > 0 && bounds.height > 0
+                bounds.SizeX > 0 && bounds.SizeY > 0
                     ? new[] { new NavigationRegionData(WorldBounds, 0) }
                     : Array.Empty<NavigationRegionData>(),
                 terrainCell, SupportCandidateCache.DefaultEntryLimit, SupportCandidateCache.DefaultCandidateLimit);
         }
 
-        public override bool IsBodyClear(Rect bodyBounds, float tolerance)
+        public override bool IsBodyClear(AABB bodyBounds, float tolerance)
         {
-            Rect world = WorldBounds;
-            if (bodyBounds.xMin < world.xMin || bodyBounds.xMax > world.xMax
-                || bodyBounds.yMin < world.yMin || bodyBounds.yMax > world.yMax) return false;
-            Rect tested = bodyBounds;
-            tested.yMin += tolerance;
-            for (int y = terrainBounds.yMin; y < terrainBounds.yMax; y++)
-                for (int x = terrainBounds.xMin; x < terrainBounds.xMax; x++)
+            AABB world = WorldBounds;
+            if (bodyBounds.MinX < world.MinX || bodyBounds.MaxX > world.MaxX
+                || bodyBounds.MinY < world.MinY || bodyBounds.MaxY > world.MaxY) return false;
+            AABB tested = bodyBounds;
+            tested.Min += new Vector2(0f, tolerance);
+            for (int y = terrainBounds.MinY; y < terrainBounds.MaxY; y++)
+                for (int x = terrainBounds.MinX; x < terrainBounds.MaxX; x++)
                 {
                     Vector2Int cell = new(x, y);
                     if (GetSurfaceKind(cell) != NavigationSurfaceKind.Solid) continue;
                     float solidMinY = origin.y + y * terrainCell;
                     float solidMaxY = supportSurfaceHeights.TryGetValue(cell, out float authoredSupportY)
                         ? authoredSupportY : origin.y + (y + 1) * terrainCell;
-                    float overlapX = Mathf.Min(tested.xMax, origin.x + (x + 1) * terrainCell)
-                        - Mathf.Max(tested.xMin, origin.x + x * terrainCell);
-                    float overlapY = Mathf.Min(tested.yMax, solidMaxY) - Mathf.Max(tested.yMin, solidMinY);
+                    float overlapX = Mathf.Min(tested.MaxX, origin.x + (x + 1) * terrainCell)
+                        - Mathf.Max(tested.MinX, origin.x + x * terrainCell);
+                    float overlapY = Mathf.Min(tested.MaxY, solidMaxY) - Mathf.Max(tested.MinY, solidMinY);
                     if (overlapX > 0.0001f && overlapY > 0.0001f) return false;
                 }
             return true;
         }
 
-        public override bool IsBodyPathClear(Rect bodyBounds, Vector2 displacement, float tolerance)
+        public override bool IsBodyPathClear(AABB bodyBounds, Vector2 displacement, float tolerance)
         {
             int samples = Mathf.Max(1, Mathf.CeilToInt(displacement.magnitude / Mathf.Max(0.0001f, NavigationConstant.BodySweepSampleSpacing)));
             for (int index = 0; index <= samples; index++)
             {
-                Rect body = bodyBounds;
-                body.position += displacement * (index / (float)samples);
+                AABB body = bodyBounds.Translate(displacement * (index / (float)samples));
                 if (!IsBodyClear(body, tolerance)) return false;
             }
             return true;
@@ -114,8 +114,8 @@ namespace Aethiumian.AI.Navigation.Tests
             support = default;
             bool found = false;
             float bestDistance = float.PositiveInfinity;
-            for (int y = terrainBounds.yMin; y < terrainBounds.yMax; y++)
-                for (int x = terrainBounds.xMin; x < terrainBounds.xMax; x++)
+            for (int y = terrainBounds.MinY; y < terrainBounds.MaxY; y++)
+                for (int x = terrainBounds.MinX; x < terrainBounds.MaxX; x++)
                 {
                     Vector2Int cell = new(x, y);
                     NavigationSurfaceKind? cellKind = GetSurfaceKind(cell);
@@ -123,10 +123,11 @@ namespace Aethiumian.AI.Navigation.Tests
                         || feet.x > (x + 1) * terrainCell + 0.0001f
                         || !supportSurfaceHeights.TryGetValue(cell, out float supportY)
                         || supportY > feet.y + snapDistance || supportY < feet.y - snapDistance
-                        || !IsBodyClear(new Rect(feet.x - bodySize.x * 0.5f, supportY, bodySize.x, bodySize.y), snapDistance))
+                        || !IsBodyClear(AABB.FromMinAndSize(
+                            new Vector2(feet.x - bodySize.x * 0.5f, supportY), bodySize), snapDistance))
                         continue;
                     NavigationSupport candidate = new(new NavigationSurfaceId(
-                        (y - terrainBounds.yMin) * terrainBounds.width + x - terrainBounds.xMin, 0),
+                        (y - terrainBounds.MinY) * terrainBounds.SizeX + x - terrainBounds.MinX, 0),
                         cellKind.Value,
                         new Vector2(feet.x, supportY), Vector2.up);
                     float distance = Mathf.Abs(feet.y - supportY);
@@ -140,15 +141,15 @@ namespace Aethiumian.AI.Navigation.Tests
             return found;
         }
 
-        protected override void CollectSupportCandidatesCore(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
+        protected override void CollectSupportCandidatesCore(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
         {
             IReadOnlyList<NavigationSupportCandidate> candidates = snapshot.GetSupportCandidates(anchorBounds, bodySize);
             for (int index = 0; index < candidates.Count; index++)
             {
                 NavigationSupportCandidate candidate = candidates[index];
                 Vector2 position = candidate.Support.Position;
-                if (IsBodyClear(new Rect(position.x - bodySize.x * 0.5f, position.y,
-                    bodySize.x, bodySize.y), 0.0001f)) results.Add(candidate);
+                if (IsBodyClear(AABB.FromMinAndSize(new Vector2(position.x - bodySize.x * 0.5f, position.y),
+                    bodySize), 0.0001f)) results.Add(candidate);
             }
         }
 
@@ -159,20 +160,20 @@ namespace Aethiumian.AI.Navigation.Tests
 
         private NavigationSurfaceKind? GetSurfaceKind(Vector2Int cell)
             => terrainBounds.Contains(cell)
-                ? surfaces[(cell.y - terrainBounds.yMin) * terrainBounds.width + cell.x - terrainBounds.xMin]
+                ? surfaces[(cell.y - terrainBounds.MinY) * terrainBounds.SizeX + cell.x - terrainBounds.MinX]
                 : NavigationSurfaceKind.Solid;
 
         private void Set(Vector2Int cell, NavigationSurfaceKind value)
         {
             if (!terrainBounds.Contains(cell)) return;
-            surfaces[(cell.y - terrainBounds.yMin) * terrainBounds.width + cell.x - terrainBounds.xMin] = value;
+            surfaces[(cell.y - terrainBounds.MinY) * terrainBounds.SizeX + cell.x - terrainBounds.MinX] = value;
         }
 
         private Dictionary<Vector2Int, float> CreateGeometricSupportHeights()
         {
             Dictionary<Vector2Int, float> heights = new();
-            for (int y = terrainBounds.yMin; y < terrainBounds.yMax; y++)
-                for (int x = terrainBounds.xMin; x < terrainBounds.xMax; x++)
+            for (int y = terrainBounds.MinY; y < terrainBounds.MaxY; y++)
+                for (int x = terrainBounds.MinX; x < terrainBounds.MaxX; x++)
                 {
                     Vector2Int cell = new(x, y);
                     if (GetSurfaceKind(cell).HasValue)
@@ -192,7 +193,7 @@ namespace Aethiumian.AI.Navigation.Tests
         /// </summary>
         public static TestNavigationWorld Ground(int firstX, int count, int height = 6)
         {
-            return new(new RectInt(firstX, 0, count + 1, height), Floor(firstX, count), Array.Empty<Vector2Int>());
+            return new(new AABBInt(firstX, 0, firstX + count + 1, height), Floor(firstX, count), Array.Empty<Vector2Int>());
         }
 
         /// <summary>

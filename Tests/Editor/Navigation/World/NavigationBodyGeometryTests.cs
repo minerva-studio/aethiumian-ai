@@ -20,10 +20,10 @@ namespace Aethiumian.AI.Tests.Navigation
                 collider.offset = new Vector2(0.35f, -0.2f);
                 Physics2D.SyncTransforms();
 
-                Bounds bounds = collider.bounds;
-                Assert.That(NavigationBodyGeometry.GetGroundAnchor(collider), Is.EqualTo(new Vector2(bounds.center.x, bounds.min.y)));
-                Assert.That(NavigationBodyGeometry.GetCenterAnchor(collider), Is.EqualTo((Vector2)bounds.center));
-                Assert.That(NavigationBodyGeometry.GetWorldAabbSize(collider), Is.EqualTo((Vector2)bounds.size));
+                AABB bounds = AABB.FromBounds(collider.bounds);
+                Assert.That(NavigationBodyGeometry.GetGroundAnchor(collider), Is.EqualTo(new Vector2(bounds.Center.x, bounds.MinY)));
+                Assert.That(NavigationBodyGeometry.GetCenterAnchor(collider), Is.EqualTo(bounds.Center));
+                Assert.That(NavigationBodyGeometry.GetWorldAabbSize(collider), Is.EqualTo(bounds.Size));
             }
             finally
             {
@@ -54,11 +54,11 @@ namespace Aethiumian.AI.Tests.Navigation
                 Physics2D.SyncTransforms();
 
                 Collider2D[] colliders = NavigationBodyGeometry.GetColliders(body);
-                Bounds bounds = NavigationBodyGeometry.GetMergedBounds(colliders);
+                AABB bounds = NavigationBodyGeometry.GetMergedAabb(colliders);
 
                 Assert.That(colliders, Has.Length.EqualTo(2));
-                Assert.That(bounds.min.x, Is.EqualTo(-2f).Within(0.0001f));
-                Assert.That(bounds.max.x, Is.EqualTo(3.5f).Within(0.0001f));
+                Assert.That(bounds.MinX, Is.EqualTo(-2f).Within(0.0001f));
+                Assert.That(bounds.MaxX, Is.EqualTo(3.5f).Within(0.0001f));
                 Vector2 groundAnchor = NavigationBodyGeometry.GetGroundAnchor(colliders);
                 Assert.That(groundAnchor.x, Is.EqualTo(0.75f).Within(0.0001f));
                 Assert.That(groundAnchor.y, Is.EqualTo(-1f).Within(0.0001f));

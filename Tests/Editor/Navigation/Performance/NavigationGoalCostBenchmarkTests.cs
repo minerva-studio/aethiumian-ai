@@ -256,7 +256,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             List<Vector2Int> floor = NavigationTestWorlds.Floor(0, 31);
             floor.AddRange(NavigationTestWorlds.Floor(34, 30));
-            return new TestNavigationWorld(new RectInt(0, 0, 64, 8), floor, System.Array.Empty<Vector2Int>());
+            return new TestNavigationWorld(new AABBInt(0, 0, 64, 8), floor, System.Array.Empty<Vector2Int>());
         }
     }
 }

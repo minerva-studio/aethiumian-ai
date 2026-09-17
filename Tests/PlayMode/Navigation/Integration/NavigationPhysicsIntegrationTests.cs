@@ -222,7 +222,7 @@ namespace Aethiumian.AI.Navigation.Tests
             List<Vector2Int> solids = new();
             for (int x = 0; x < 5; x++) solids.Add(new Vector2Int(x, 0));
             solids.Add(new Vector2Int(2, 1));
-            return new PhysicsAlignedNavigationWorld(PhysicsOrigin, new RectInt(0, 0, 5, 7), solids);
+            return new PhysicsAlignedNavigationWorld(PhysicsOrigin, new AABBInt(0, 0, 5, 7), solids);
         }
 
         /// <summary>Returns whether a plan contains a traversal step of the requested type.</summary>
@@ -249,10 +249,10 @@ namespace Aethiumian.AI.Navigation.Tests
             private readonly NavigationWorldSnapshot snapshot;
 
             /// <summary>Gets the captured finite world rectangle.</summary>
-            public Rect WorldBounds => snapshot.WorldBounds;
+            public AABB WorldBounds => snapshot.WorldBounds;
 
             /// <summary>Creates an immutable test world from exact solid cell coordinates.</summary>
-            public PhysicsAlignedNavigationWorld(Vector2 origin, RectInt cellBounds, IEnumerable<Vector2Int> solidCells)
+            public PhysicsAlignedNavigationWorld(Vector2 origin, AABBInt cellBounds, IEnumerable<Vector2Int> solidCells)
             {
                 if (solidCells == null) throw new ArgumentNullException(nameof(solidCells));
                 List<NavigationShapeData> shapes = new();
@@ -265,22 +265,23 @@ namespace Aethiumian.AI.Navigation.Tests
                         new[] { min, new Vector2(max.x, min.y), max, new Vector2(min.x, max.y) },
                         0f, NavigationSurfaceKind.Solid, true));
                 }
-                snapshot = NavigationWorldSnapshot.Create(new Rect(origin.x + cellBounds.xMin,
-                    origin.y + cellBounds.yMin, cellBounds.width, cellBounds.height), shapes,
+                snapshot = NavigationWorldSnapshot.Create(AABB.FromMinAndSize(
+                    new Vector2(origin.x + cellBounds.MinX, origin.y + cellBounds.MinY),
+                    new Vector2(cellBounds.SizeX, cellBounds.SizeY)), shapes,
                     Array.Empty<NavigationRegionData>());
             }
 
-            public bool IsBodyClear(Rect bodyBounds, float tolerance) => snapshot.IsBodyClear(bodyBounds, tolerance);
-            public bool IsBodyPathClear(Rect bodyBounds, Vector2 displacement, float tolerance)
+            public bool IsBodyClear(AABB bodyBounds, float tolerance) => snapshot.IsBodyClear(bodyBounds, tolerance);
+            public bool IsBodyPathClear(AABB bodyBounds, Vector2 displacement, float tolerance)
                 => snapshot.IsBodyPathClear(bodyBounds, displacement, tolerance);
             public bool IsLineOfSightClear(Vector2 start, Vector2 end) => snapshot.IsLineOfSightClear(start, end);
             public bool TryGetSupportBelow(Vector2 position, out NavigationSupport support)
                 => snapshot.TryGetSupportBelow(position, out support);
             public bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
                 => snapshot.TryResolveSupport(feet, bodySize, snapDistance, out support);
-            public IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(Rect anchorBounds, Vector2 bodySize)
+            public IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(AABB anchorBounds, Vector2 bodySize)
                 => snapshot.GetSupportCandidates(anchorBounds, bodySize);
-            public void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
+            public void CollectSupportCandidates(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
                 => snapshot.CollectSupportCandidates(anchorBounds, bodySize, results);
             public void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth,
                 List<NavigationSurfaceCrossing> results)

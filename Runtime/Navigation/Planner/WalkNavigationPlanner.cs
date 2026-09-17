@@ -374,7 +374,10 @@ namespace Aethiumian.AI.Navigation
         private IEnumerable<Successor> EnumerateLocalSuccessors(Vector2 start, int currentCandidateId, NavigationSupport currentSupport, WalkNavigationParameters parameters, NavigationGoalRequest goal)
         {
             Vector2 snappedStart = start;
-            Rect anchors = new(snappedStart.x - NavigationConstant.GroundHopReach, World.WorldBounds.yMin, NavigationConstant.GroundHopReach * 2f, snappedStart.y - World.WorldBounds.yMin + parameters.SupportSnapDistance + NavigationWorldQueries.GeometryEpsilon);
+            AABB anchors = AABB.FromMinAndSize(
+                new Vector2(snappedStart.x - NavigationConstant.GroundHopReach, World.WorldBounds.MinY),
+                new Vector2(NavigationConstant.GroundHopReach * 2f,
+                    snappedStart.y - World.WorldBounds.MinY + parameters.SupportSnapDistance + NavigationWorldQueries.GeometryEpsilon));
             List<NavigationSupportCandidate> candidates = new();
             World.CollectSupportCandidates(anchors, parameters.BodySize, candidates);
             for (int index = 0; index < candidates.Count; index++)

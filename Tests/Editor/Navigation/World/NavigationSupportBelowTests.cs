@@ -75,7 +75,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
                 Assert.That(support.Position.y, Is.EqualTo(15f).Within(0.0001f));
 
                 List<NavigationSupportCandidate> candidates = new();
-                world.CollectSupportCandidates(new Rect(x - 0.75f, 14.9f, 1.5f, 1.2f), new Vector2(0.5f, 1f), candidates);
+                world.CollectSupportCandidates(AABB.FromMinAndSize(x - 0.75f, 14.9f, 1.5f, 1.2f), new Vector2(0.5f, 1f), candidates);
                 for (int index = 0; index < candidates.Count; index++)
                     Assert.That(candidates[index].Support.Position.y, Is.Not.EqualTo(15.9687f).Within(0.0001f));
 
@@ -94,7 +94,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Assert.That(isOneWay, Is.True);
 
             List<NavigationSupportCandidate> candidates = new();
-            world.CollectSupportCandidates(new Rect(2.25f, 8.5f, 1.5f, 1f), new Vector2(0.5f, 1f), candidates);
+            world.CollectSupportCandidates(AABB.FromMinAndSize(2.25f, 8.5f, 1.5f, 1f), new Vector2(0.5f, 1f), candidates);
             bool foundLower = false;
             for (int index = 0; index < candidates.Count; index++)
             {
@@ -140,7 +140,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         [Test]
         public void VerticalTranslation_PreservesRelativeHeight()
         {
-            NavigationWorldSnapshot translated = NavigationWorldSnapshot.Create(new Rect(-10f, 90f, 20f, 30f),
+            NavigationWorldSnapshot translated = NavigationWorldSnapshot.Create(AABB.FromMinAndSize(-10f, 90f, 20f, 30f),
                 new[] { Platform(1, 104f) }, Array.Empty<NavigationRegionData>());
             Assert.That(World(Platform(1, 4f)).TryGetSupportBelow(new Vector2(0f, 9f), out NavigationSupport first), Is.True);
             Assert.That(translated.TryGetSupportBelow(new Vector2(0f, 109f), out NavigationSupport second), Is.True);
@@ -163,14 +163,14 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         {
             NavigationSurfaceId surface = new(7, 3);
             NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(
-                new Rect(0, 0, 4, 4),
+                AABB.FromMinAndSize(0, 0, 4, 4),
                 new[]
                 {
                     new NavigationShapeData(7, 3, NavigationShapeType.Edge,
                         new[] { new Vector2(0f, 1f), new Vector2(3f, 1f) }, 0f,
                         NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, directedNormalSign: 0f),
                 },
-                new[] { new NavigationRegionData(new Rect(0, 0, 4, 4), 11) });
+                new[] { new NavigationRegionData(AABB.FromMinAndSize(0, 0, 4, 4), 11) });
 
             Assert.That(world.TryResolveSupport(new Vector2(1.25f, 1.01f), new Vector2(0.8f, 1.2f),
                 0.1f, out NavigationSupport support), Is.True);
@@ -186,7 +186,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         {
             NavigationSurfaceId surface = new(2, 5);
             NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(
-                new Rect(0, 0, 4, 4),
+                AABB.FromMinAndSize(0, 0, 4, 4),
                 new[]
                 {
                     new NavigationShapeData(2, 5, NavigationShapeType.Edge,
@@ -211,7 +211,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         public void OneWayQueryUsesCapturedNonIntegerSurfaceHeight()
         {
             NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(
-                new Rect(0, 0, 3, 8),
+                AABB.FromMinAndSize(0, 0, 3, 8),
                 new[]
                 {
                     new NavigationShapeData(1, 0, NavigationShapeType.Edge,
@@ -224,7 +224,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         }
 
         private static NavigationWorldSnapshot World(params NavigationShapeData[] shapes)
-            => NavigationWorldSnapshot.Create(new Rect(-10, -10, 20, 30),
+            => NavigationWorldSnapshot.Create(AABB.FromMinAndSize(-10, -10, 20, 30),
                 shapes, Array.Empty<NavigationRegionData>());
 
         private static NavigationShapeData Platform(int id, float y)

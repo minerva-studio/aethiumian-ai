@@ -58,7 +58,7 @@ namespace Aethiumian.AI.Nodes
         private Collider2D bodyCollider => Collider;
         private System.Collections.Generic.IReadOnlyList<Collider2D> navigationColliders => NavigationColliders;
         private MapNavigationRuntime navigation => NavigationRuntime;
-        [NonSerialized] private Bounds capturedTargetBounds;
+        [NonSerialized] private AABB capturedTargetBounds;
         [NonSerialized] private Vector2 capturedLanding;
         private NavigationPlanningOperation planningOperation;
         private BallisticJumpExecutor executor;
@@ -88,7 +88,7 @@ namespace Aethiumian.AI.Nodes
         protected override void InitializeAction()
         {
             INavigationWorld world = NavigationWorld;
-            Bounds targetBounds = capturedTargetBounds;
+            AABB targetBounds = capturedTargetBounds;
             Vector2 directLanding = capturedLanding;
 
             Vector2 start = NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
@@ -130,7 +130,7 @@ namespace Aethiumian.AI.Nodes
             planningOperation = navigation.PlanJumpAsync(start, request, jumpParameters, NavigationPlanningExtent.NextAction, ExecutionCancellation);
         }
 
-        private NavigationGoalRequest CreateCompletionRequest(Bounds targetBounds, float arrivalTolerance)
+        private NavigationGoalRequest CreateCompletionRequest(AABB targetBounds, float arrivalTolerance)
         {
             bool requiresLineOfSight = goal == MovementGoal.Confront
                 || goal == MovementGoal.FiringPosition;
@@ -253,7 +253,7 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        private bool TryResolveTarget(Vector2 targetOffset, out Bounds targetBounds, out Vector2 directLanding)
+        private bool TryResolveTarget(Vector2 targetOffset, out AABB targetBounds, out Vector2 directLanding)
         {
             targetBounds = default;
             directLanding = default;
@@ -272,7 +272,7 @@ namespace Aethiumian.AI.Nodes
                     return false;
                 }
 
-                targetBounds = new Bounds(point, Vector3.zero);
+                targetBounds = AABB.Point(point);
                 directLanding = point;
                 return true;
             }
@@ -293,7 +293,7 @@ namespace Aethiumian.AI.Nodes
                     return false;
                 }
 
-                targetBounds = new Bounds(point, Vector3.zero);
+                targetBounds = AABB.Point(point);
                 directLanding = point;
                 return true;
             }
@@ -305,10 +305,12 @@ namespace Aethiumian.AI.Nodes
                 return false;
             }
 
-            targetBounds = NavigationBodyGeometry.GetMergedBounds(targetColliders);
-            targetBounds.center += (Vector3)targetOffset;
-            directLanding = new Vector2(targetBounds.center.x, targetBounds.min.y);
-            if (!NavigationNumeric.IsFinite(directLanding) || !NavigationNumeric.IsFinite(targetBounds))
+            targetBounds = NavigationBodyGeometry.GetMergedAabb(targetColliders);
+            targetBounds = targetBounds.Translate(targetOffset);
+            directLanding = new Vector2(targetBounds.CenterX, targetBounds.MinY);
+            if (!NavigationNumeric.IsFinite(directLanding)
+                || !NavigationNumeric.IsFinite(targetBounds.Min)
+                || !NavigationNumeric.IsFinite(targetBounds.Max))
             {
                 CompleteAction(false);
                 return false;

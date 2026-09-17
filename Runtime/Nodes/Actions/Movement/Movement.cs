@@ -92,13 +92,13 @@ namespace Aethiumian.AI.Nodes
         /// <summary>The owned executor instance, exposed for live navigation inspection.</summary>
         public MovementExecutor Executor => executor;
         /// <summary>Gets the merged world-space AABB used by planning and arrival checks.</summary>
-        public Bounds NavigationBounds => NavigationBodyGeometry.GetMergedBounds(NavigationColliders);
+        public AABB NavigationBodyAabb => NavigationBodyGeometry.GetMergedAabb(NavigationColliders);
         /// <summary>Gets the lower-center anchor of the merged navigation body AABB.</summary>
         public Vector2 NavigationGroundAnchor => NavigationBodyGeometry.GetGroundAnchor(NavigationColliders);
         /// <summary>Gets the center anchor of the merged navigation body AABB.</summary>
         public Vector2 NavigationCenterAnchor => NavigationBodyGeometry.GetCenterAnchor(NavigationColliders);
         /// <summary>Gets the merged navigation body AABB size.</summary>
-        public Vector2 NavigationBodySize => NavigationBounds.size;
+        public Vector2 NavigationBodySize => NavigationBodyAabb.Size;
         /// <summary>
         /// Gets the current route, which may be null if no route has been acquired or if the last route was completed or cancelled?
         /// </summary>
@@ -145,7 +145,7 @@ namespace Aethiumian.AI.Nodes
 
         protected sealed override void TickAction()
         {
-            Bounds body = NavigationBounds;
+            AABB body = NavigationBodyAabb;
             if (!TryReadTarget(out AABB target, out GameObject targetObject))
             {
                 EndMovement(false, null); return;
@@ -164,14 +164,14 @@ namespace Aethiumian.AI.Nodes
                 if (goal.IsRetreat)
                 {
                     retreat ??= new RetreatMovementExecution(targetObject, MaxApproachDistance, path == PathMode.Smart ? 0f : MaximumIdleDuration);
-                    if (!retreat.BeginTick(NavigationWorld, targetObject, goal, body.center))
+                    if (!retreat.BeginTick(NavigationWorld, targetObject, goal, body.Center))
                     { EndMovement(false, goal); return; }
                 }
                 bool swept = !planningInvalidated
                     && previousCenter.HasValue
                     && progressGoal.HasValue
                     && progressGoal.Value.IsReusableFor(goal)
-                    && NavigationWorld.IsGoalCompleteAlong(goal, previousCenter.Value, body.center, body.size);
+                    && NavigationWorld.IsGoalCompleteAlong(goal, previousCenter.Value, body.Center, body.Size);
                 RefreshProgressBaseline(goal, anchor, planningInvalidated);
                 bool fallbackReceiptConsumed = TryAcquireAction(goal, anchor, body);
                 if (IsComplete) return;
@@ -231,13 +231,13 @@ namespace Aethiumian.AI.Nodes
             {
                 if (!IsComplete && !faulted)
                 {
-                    previousCenter = body.center;
+                    previousCenter = body.Center;
                     if (retreat != null)
                     {
-                        if (!retreat.FinalizeTick(body.center, body.size, Time.fixedDeltaTime))
+                        if (!retreat.FinalizeTick(body.Center, body.Size, Time.fixedDeltaTime))
                             EndMovement(false, goal);
                         else if (!physicalFailure && (ActiveSegment == null || ActiveSegment.IsReversible)
-                            && retreat.HasReachedGoal(body.center, body.size))
+                            && retreat.HasReachedGoal(body.Center, body.Size))
                             EndMovement(true, goal);
                     }
                 }
@@ -256,7 +256,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Creates this ability's geometric goal and planning anchor from the tick sample.
         /// </summary>
-        protected abstract NavigationGoalRequest BuildGoal(AABB target, Bounds body, out Vector2 anchor);
+        protected abstract NavigationGoalRequest BuildGoal(AABB target, AABB body, out Vector2 anchor);
 
         /// <summary>
         /// False means temporary physical prerequisites are missing; true supplies the requested planning horizon.
@@ -266,21 +266,21 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Returns a route reconnected to actual physics; performs no executor or lease mutation.
         /// </summary>
-        protected abstract bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected);
+        protected abstract bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected);
 
         /// <summary>
         /// Prepares one route action after its predecessor was cancelled or completed.
         /// </summary>
-        protected abstract ActionPreparation PrepareExecutor(NavigationRouteSegment segment, Bounds body, MovementExecutor reusable, out MovementExecutor prepared);
+        protected abstract ActionPreparation PrepareExecutor(NavigationRouteSegment segment, AABB body, MovementExecutor reusable, out MovementExecutor prepared);
         /// <summary>
         /// Confirms the entire objective, including ability-specific support requirements.
         /// </summary>
-        protected abstract bool IsGoalSatisfied(NavigationGoalRequest goal, Bounds body, bool swept);
+        protected abstract bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept);
 
         /// <summary>
         /// Authorizes recovery after a normal physical failure; never ends the node itself.
         /// </summary>
-        protected abstract bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, Bounds body);
+        protected abstract bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body);
 
         /// <summary>
         /// Applies final physics effects. Failure may arrive before a target was available,

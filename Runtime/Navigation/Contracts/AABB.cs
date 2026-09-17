@@ -5,38 +5,61 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>
-    /// Represents an axis-aligned bounding box (AABB) in 2D space, defined by its minimum and maximum corners.
+    /// Continuous axis-aligned box in world space, defined by its minimum and maximum corners.
+    /// The box carries loose mutable semantics: it validates nothing, never normalizes its corners,
+    /// and leaves range checking to the owner that authors the range.
     /// </summary>
     public struct AABB : IEquatable<AABB>
     {
-        public Vector2 Min { get; set; }
-        public Vector2 Max { get; set; }
+        public float MinX { get; set; }
+        public float MinY { get; set; }
+        public float MaxX { get; set; }
+        public float MaxY { get; set; }
 
 
-        public readonly float SizeX => Max.x - Min.x;
-        public readonly float SizeY => Max.y - Min.y;
-        public readonly Vector2 Size => Max - Min;
-        public readonly Vector2 Center => Min + Size * 0.5f;
-        public readonly float CenterX => Min.x + SizeX * 0.5f;
-        public readonly float CenterY => Min.y + SizeY * 0.5f;
-
-        /// <summary>Gets the continuous horizontal center and the lower edge, without integer rounding.</summary>
-        public readonly Vector2 LowerCenter => new(CenterX, Min.y);
-
-
-
-        public AABB(Vector2 min, Vector2 max)
+        /// <summary>Gets or sets the minimum corner. The components are the scalar storage above.</summary>
+        public Vector2 Min
         {
-            if (min.x > max.x || min.y > max.y)
-                throw new ArgumentException("Min must be less than or equal to Max.");
-            Min = min;
-            Max = max;
+            readonly get => new(MinX, MinY);
+            set { MinX = value.x; MinY = value.y; }
         }
 
-        public AABB(float minX, float minY, float maxX, float maxY) : this(new Vector2(minX, minY), new Vector2(maxX, maxY)) { }
+        /// <summary>Gets or sets the maximum corner. The components are the scalar storage above.</summary>
+        public Vector2 Max
+        {
+            readonly get => new(MaxX, MaxY);
+            set { MaxX = value.x; MaxY = value.y; }
+        }
 
+        public readonly float SizeX => MaxX - MinX;
+        public readonly float SizeY => MaxY - MinY;
+        public readonly Vector2 Size => new(MaxX - MinX, MaxY - MinY);
+        public readonly Vector2 Center => new(MinX + (MaxX - MinX) * 0.5f, MinY + (MaxY - MinY) * 0.5f);
+        public readonly float CenterX => MinX + (MaxX - MinX) * 0.5f;
+        public readonly float CenterY => MinY + (MaxY - MinY) * 0.5f;
 
-        public readonly bool Contains(Vector2 point) => point.x >= Min.x && point.x <= Max.x && point.y >= Min.y && point.y <= Max.y;
+        /// <summary>Gets the continuous horizontal center and the lower edge, without integer rounding.</summary>
+        public readonly Vector2 LowerCenter => new(CenterX, MinY);
+
+        public AABB(float minX, float minY, float maxX, float maxY)
+        {
+            MinX = minX;
+            MinY = minY;
+            MaxX = maxX;
+            MaxY = maxY;
+        }
+
+        public AABB(Vector2 min, Vector2 max) : this(min.x, min.y, max.x, max.y) { }
+
+        public readonly bool Contains(Vector2 point) => point.x >= MinX && point.x <= MaxX && point.y >= MinY && point.y <= MaxY;
+
+        /// <summary>Returns whether two boxes overlap or touch, comparing corners inclusively.</summary>
+        public readonly bool Intersects(AABB other) => MinX <= other.MaxX && other.MinX <= MaxX && MinY <= other.MaxY && other.MinY <= MaxY;
+
+        /// <summary>Returns this box grown by the amount on every side.</summary>
+        public readonly AABB Expand(float amountPerSide)
+            => new(MinX - amountPerSide, MinY - amountPerSide, MaxX + amountPerSide, MaxY + amountPerSide);
+
         public override readonly string ToString() => $"AABB(Min: {Min}, Max: {Max})";
 
         /// <summary>
@@ -49,22 +72,22 @@ namespace Aethiumian.AI.Navigation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly bool Approximately(AABB other, float tolerance = 1e-5f)
         {
-            return Mathf.Abs(Min.x - other.Min.x) <= tolerance &&
-                   Mathf.Abs(Min.y - other.Min.y) <= tolerance &&
-                   Mathf.Abs(Max.x - other.Max.x) <= tolerance &&
-                   Mathf.Abs(Max.y - other.Max.y) <= tolerance;
+            return Mathf.Abs(MinX - other.MinX) <= tolerance &&
+                   Mathf.Abs(MinY - other.MinY) <= tolerance &&
+                   Mathf.Abs(MaxX - other.MaxX) <= tolerance &&
+                   Mathf.Abs(MaxY - other.MaxY) <= tolerance;
         }
 
         /// <summary>
         /// Compares every corner component exactly. Unity's Vector2 equality operator is approximate and
-        /// would make two distinct goal identities compare equal, so component equality is used instead.
+        /// would make two distinct goal identities compare equal, so the four scalars are compared instead.
         /// </summary>
-        public readonly bool Equals(AABB other) => Min.Equals(other.Min) && Max.Equals(other.Max);
+        public readonly bool Equals(AABB other)
+            => MinX == other.MinX && MinY == other.MinY && MaxX == other.MaxX && MaxY == other.MaxY;
 
         public readonly override bool Equals(object obj) => obj is AABB other && Equals(other);
 
-        public readonly override int GetHashCode() => HashCode.Combine(Min, Max);
-
+        public readonly override int GetHashCode() => HashCode.Combine(MinX, MinY, MaxX, MaxY);
 
 
         /// <summary>
@@ -73,18 +96,7 @@ namespace Aethiumian.AI.Navigation
         /// <param name="translation"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly AABB Translate(Vector2 translation) => new AABB(Min + translation, Max + translation);
-
-        /// <summary>
-        /// Translates the current AABB in place by the specified translation vector, modifying its minimum and maximum corners.
-        /// </summary>
-        /// <param name="translation"></param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InplaceTranslate(Vector2 translation) => this = Translate(translation);
-
-
-
-
+        public readonly AABB Translate(Vector2 translation) => new(MinX + translation.x, MinY + translation.y, MaxX + translation.x, MaxY + translation.y);
 
         /// <summary>
         /// Creates an AABB from a center point and a size vector. The minimum and maximum corners are calculated as center - size/2 and center + size/2, respectively.
@@ -97,6 +109,15 @@ namespace Aethiumian.AI.Navigation
         {
             Vector2 halfSize = size * 0.5f;
             return new AABB(center - halfSize, center + halfSize);
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static AABB FromCenterAndSize(float centerX, float centerY, float sizeX, float sizeY)
+        {
+            float halfSizeX = sizeX * 0.5f;
+            float halfSizeY = sizeY * 0.5f;
+            return new AABB(centerX - halfSizeX, centerY - halfSizeY, centerX + halfSizeX, centerY + halfSizeY);
         }
 
         /// <summary>
@@ -132,6 +153,12 @@ namespace Aethiumian.AI.Navigation
         public static AABB FromMinAndSize(Vector2 min, Vector2 size) => new AABB(min, min + size);
 
         /// <summary>
+        /// Creates an AABB from scalar minimum coordinates and scalar sizes; the maximum corner is min + size.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static AABB FromMinAndSize(float minX, float minY, float sizeX, float sizeY) => new AABB(minX, minY, minX + sizeX, minY + sizeY);
+
+        /// <summary>
         /// Creates degenerate goal geometry for one continuous world-space point.
         /// </summary>
         /// <param name="point"></param>
@@ -139,83 +166,25 @@ namespace Aethiumian.AI.Navigation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AABB Point(Vector2 point) => new(point, point);
 
+        /// <summary>
+        /// Creates degenerate goal geometry for one continuous world-space point given as scalars.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static AABB Point(float x, float y) => new(x, y, x, y);
 
+        /// <summary>Maps Unity's floating rectangle onto this box without validating the range.</summary>
+        public static AABB FromRect(Rect rect) => new(rect.min, rect.max);
 
+        /// <summary>Maps this box onto Unity's floating rectangle without validating the range.</summary>
+        public readonly Rect ToRect() => new(Min, Size);
 
+        /// <summary>Maps Unity's floating bounds onto this box without validating the range.</summary>
+        public static AABB FromBounds(Bounds bounds) => new(bounds.min, bounds.max);
+
+        /// <summary>Maps this box onto Unity's floating bounds without validating the range.</summary>
+        public readonly Bounds ToBounds() => new(Center, Size);
 
         public static bool operator ==(AABB left, AABB right) => left.Equals(right);
         public static bool operator !=(AABB left, AABB right) => !left.Equals(right);
-
-        public static implicit operator Bounds(AABB aabb)
-        {
-            Vector2 size = aabb.Max - aabb.Min;
-            Vector2 center = aabb.Min + size * 0.5f;
-            return new Bounds(center, size);
-        }
-
-        public static implicit operator AABB(Bounds bounds) => new AABB(bounds.min, bounds.max);
-
-        public static implicit operator Rect(AABB aabb) => new Rect(aabb.Min, aabb.Size);
-
-        public static implicit operator AABB(Rect rect) => new AABB(rect.min, rect.max);
-    }
-
-
-
-    /// <summary>
-    /// Represents an axis-aligned bounding box (AABB) in 2D space, defined by its minimum and maximum corners. 
-    /// This struct uses integer coordinates, making it suitable for grid-based navigation and discrete spatial calculations.
-    /// </summary>
-    public struct AABBInt : IEquatable<AABBInt>
-    {
-        /// <summary>
-        /// The minimum corner of the AABB.
-        /// </summary>
-        public Vector2Int Min { get; set; }
-        /// <summary>
-        /// The maximum corner of the AABB.
-        /// </summary>
-        public Vector2Int Max { get; set; }
-
-
-
-        public readonly int MinX => Min.x;
-        public readonly int MinY => Min.y;
-        public readonly int MaxX => Max.x;
-        public readonly int MaxY => Max.y;
-        public readonly int SizeX => Max.x - Min.x;
-        public readonly int SizeY => Max.y - Min.y;
-        public readonly Vector2Int Size => Max - Min;
-        public readonly Vector2Int Center => Min + Size / 2;
-        public readonly Vector2 FloatCenter => new Vector2(Min.x + SizeX * 0.5f, Min.y + SizeY * 0.5f);
-
-
-
-        public AABBInt(Vector2Int min, Vector2Int max)
-        {
-            if (min.x > max.x || min.y > max.y)
-                throw new ArgumentException("Min must be less than or equal to Max.");
-            Min = min;
-            Max = max;
-        }
-
-        public AABBInt(int minX, int minY, int maxX, int maxY) : this(new Vector2Int(minX, minY), new Vector2Int(maxX, maxY)) { }
-
-        public readonly bool Contains(Vector2Int point) => point.x >= Min.x && point.x <= Max.x && point.y >= Min.y && point.y <= Max.y;
-        public override readonly string ToString() => $"AABBInt(Min: {Min}, Max: {Max})";
-
-        public readonly bool Equals(AABBInt other) => Min.Equals(other.Min) && Max.Equals(other.Max);
-        public readonly override bool Equals(object obj) => obj is AABBInt other && Equals(other);
-        public readonly override int GetHashCode() => HashCode.Combine(Min, Max);
-
-        public static bool operator ==(AABBInt left, AABBInt right) => left.Equals(right);
-        public static bool operator !=(AABBInt left, AABBInt right) => !left.Equals(right);
-
-
-        public static implicit operator AABB(AABBInt aabbInt) => new AABB(aabbInt.Min, aabbInt.Max);
-
-        public static implicit operator AABBInt(RectInt rectInt) => new AABBInt(rectInt.min, rectInt.max);
-
-        public static implicit operator RectInt(AABBInt aabbInt) => new RectInt(aabbInt.Min, aabbInt.Max - aabbInt.Min);
     }
 }

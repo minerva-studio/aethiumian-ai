@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using UnityEngine;
@@ -91,8 +91,8 @@ namespace Aethiumian.AI.Navigation
             if (!Enum.IsDefined(typeof(DistanceMetric), metric))
                 throw new ArgumentOutOfRangeException(nameof(metric), metric, "Unknown distance metric.");
 
-            float x = Mathf.Max(target.Min.x - body.Max.x, body.Min.x - target.Max.x, 0f);
-            float y = Mathf.Max(target.Min.y - body.Max.y, body.Min.y - target.Max.y, 0f);
+            float x = Mathf.Max(target.MinX - body.MaxX, body.MinX - target.MaxX, 0f);
+            float y = Mathf.Max(target.MinY - body.MaxY, body.MinY - target.MaxY, 0f);
             return metric.MetricLength(x, y);
         }
 
@@ -158,7 +158,7 @@ namespace Aethiumian.AI.Navigation
                 return NavigationArithmetic.DistanceToSegmentBounds(start, end, new AABB(minX, minY, maxX, maxY));
 
             // Fixed-step ternary search intentionally bounds approximation error for the selected metric.
-            if (NavigationArithmetic.SegmentIntersectsClosedRect(start, end, new Vector2(minX, minY), new Vector2(maxX, maxY))) return 0f;
+            if (NavigationArithmetic.SegmentIntersectsClosedAabb(start, end, new AABB(minX, minY, maxX, maxY))) return 0f;
             float distance = metric.DistanceToRectMetric(start, minX, maxX, minY, maxY);
             distance = Mathf.Min(distance, metric.DistanceToRectMetric(end, minX, maxX, minY, maxY));
             distance = Mathf.Min(distance, metric.DistanceToAxisSegmentMetric(start, end, new Vector2(minX, minY), new Vector2(maxX, minY)));

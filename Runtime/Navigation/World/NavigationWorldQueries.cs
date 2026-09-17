@@ -30,10 +30,11 @@ namespace Aethiumian.AI.Navigation
         }
 
         public static bool IsLowerCenterBodyClearAt(this INavigationWorld world, Vector2 lowerCenterPosition, Vector2 bodySize)
-            => world.IsBodyClear(new Rect(lowerCenterPosition.x - bodySize.x * 0.5f, lowerCenterPosition.y, bodySize.x, bodySize.y), 0f);
+            => world.IsBodyClear(AABB.FromMinAndSize(
+                new Vector2(lowerCenterPosition.x - bodySize.x * 0.5f, lowerCenterPosition.y), bodySize), 0f);
 
         public static bool IsCenteredBodyClearAt(this INavigationWorld world, Vector2 centerPosition, Vector2 bodySize)
-            => world.IsBodyClear(new Rect(centerPosition - bodySize * 0.5f, bodySize), 0f);
+            => world.IsBodyClear(AABB.FromCenterAndSize(centerPosition, bodySize), 0f);
 
         public static bool CanStandAt(this INavigationWorld world, Vector2 lowerCenterPosition, Vector2 bodySize, out bool supportIsOneWay)
             => world.CanStandAt(lowerCenterPosition, bodySize, SupportSnapDistance, out supportIsOneWay);
@@ -56,13 +57,15 @@ namespace Aethiumian.AI.Navigation
         }
 
         public static bool IsLowerCenterSegmentClear(this INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize)
-            => world.IsBodyPathClear(new Rect(start.x - bodySize.x * 0.5f, start.y, bodySize.x, bodySize.y), end - start, 0f);
+            => world.IsBodyPathClear(AABB.FromMinAndSize(
+                new Vector2(start.x - bodySize.x * 0.5f, start.y), bodySize), end - start, 0f);
 
         public static bool IsLowerCenterSegmentClear(this INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize, float surfaceContactTolerance)
-            => world.IsBodyPathClear(new Rect(start.x - bodySize.x * 0.5f, start.y, bodySize.x, bodySize.y), end - start, surfaceContactTolerance);
+            => world.IsBodyPathClear(AABB.FromMinAndSize(
+                new Vector2(start.x - bodySize.x * 0.5f, start.y), bodySize), end - start, surfaceContactTolerance);
 
         public static bool IsCenteredBodySegmentClear(this INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize)
-            => world.IsBodyPathClear(new Rect(start - bodySize * 0.5f, bodySize), end - start, 0f);
+            => world.IsBodyPathClear(AABB.FromCenterAndSize(start, bodySize), end - start, 0f);
 
         public static bool CrossesOneWayDown(this INavigationWorld world, Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, float ignoredSurfaceY = float.NaN)
         {

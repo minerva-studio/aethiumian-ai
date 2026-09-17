@@ -62,16 +62,6 @@ namespace Aethiumian.AI.Navigation
 
 
         /// <summary>
-        /// Rejects non-finite bounds or bounds with negative extents.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Bounds(Bounds value, string parameterName)
-        {
-            if (!NavigationNumeric.IsFinite(value) || value.size.x < 0f || value.size.y < 0f || value.size.z < 0f)
-                throw new ArgumentException("Goal bounds must be finite and non-negative.", parameterName);
-        }
-
-        /// <summary>
         /// Rejects non-finite or inverted axis-aligned goal geometry. Min and Max have public setters,
         /// so the ordering guarantee of the constructor cannot be assumed at this boundary.
         /// </summary>
@@ -79,32 +69,11 @@ namespace Aethiumian.AI.Navigation
         public static void Aabb(AABB value, string parameterName)
         {
             if (!NavigationNumeric.IsFinite(value.Min) || !NavigationNumeric.IsFinite(value.Max)
-                || value.Max.x < value.Min.x || value.Max.y < value.Min.y)
+                || value.MaxX < value.MinX || value.MaxY < value.MinY)
                 throw new ArgumentException("Goal bounds must be finite and non-negative.", parameterName);
         }
 
 
 
-
-        /// <summary>
-        /// Rejects a non-finite rectangle with negative dimensions.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void NonNegativeRect(Rect value, string parameterName)
-        {
-            if (!NavigationNumeric.IsFinite(value) || value.width < 0f || value.height < 0f)
-                throw new ArgumentException("Rectangle dimensions must be finite and non-negative.", parameterName);
-        }
-
-        /// <summary>
-        /// Rejects a non-finite or non-positive rectangle.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void PositiveRect(Rect value, string parameterName)
-        {
-            NonNegativeRect(value, parameterName);
-            if (value.width <= 0f || value.height <= 0f)
-                throw new ArgumentException("Rectangle dimensions must be positive.", parameterName);
-        }
     }
 }

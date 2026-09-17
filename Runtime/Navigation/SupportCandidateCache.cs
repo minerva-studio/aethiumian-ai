@@ -25,7 +25,7 @@ namespace Aethiumian.AI.Navigation
             this.candidateLimit = candidateLimit;
         }
 
-        internal bool TryGet(Rect anchorBounds, Vector2 bodySize, out IReadOnlyList<NavigationSupportCandidate> candidates)
+        internal bool TryGet(AABB anchorBounds, Vector2 bodySize, out IReadOnlyList<NavigationSupportCandidate> candidates)
         {
             Key key = new(anchorBounds, bodySize);
             lock (sync)
@@ -43,7 +43,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Publishes one completed raw geometry query, reusing a concurrent publication when present.</summary>
-        internal IReadOnlyList<NavigationSupportCandidate> Publish(Rect anchorBounds, Vector2 bodySize, IReadOnlyList<NavigationSupportCandidate> candidates)
+        internal IReadOnlyList<NavigationSupportCandidate> Publish(AABB anchorBounds, Vector2 bodySize, IReadOnlyList<NavigationSupportCandidate> candidates)
         {
             if (candidates == null) throw new ArgumentNullException(nameof(candidates));
             if (entryLimit == 0 || candidateLimit == 0 || candidates.Count > candidateLimit)
@@ -99,36 +99,36 @@ namespace Aethiumian.AI.Navigation
 
         private readonly struct Key : IEquatable<Key>
         {
-            private readonly int x;
-            private readonly int y;
-            private readonly int width;
-            private readonly int height;
+            private readonly int minX;
+            private readonly int minY;
+            private readonly int maxX;
+            private readonly int maxY;
             private readonly int bodyX;
             private readonly int bodyY;
 
-            internal Key(Rect bounds, Vector2 bodySize)
+            internal Key(AABB bounds, Vector2 bodySize)
             {
-                x = Bits(bounds.x);
-                y = Bits(bounds.y);
-                width = Bits(bounds.width);
-                height = Bits(bounds.height);
+                minX = Bits(bounds.MinX);
+                minY = Bits(bounds.MinY);
+                maxX = Bits(bounds.MaxX);
+                maxY = Bits(bounds.MaxY);
                 bodyX = Bits(bodySize.x);
                 bodyY = Bits(bodySize.y);
             }
 
             public bool Equals(Key other)
             {
-                return x == other.x
-                    && y == other.y
-                    && width == other.width
-                    && height == other.height
+                return minX == other.minX
+                    && minY == other.minY
+                    && maxX == other.maxX
+                    && maxY == other.maxY
                     && bodyX == other.bodyX
                     && bodyY == other.bodyY;
             }
 
 
             public override bool Equals(object obj) => obj is Key other && Equals(other);
-            public override int GetHashCode() => HashCode.Combine(x, y, width, height, bodyX, bodyY);
+            public override int GetHashCode() => HashCode.Combine(minX, minY, maxX, maxY, bodyX, bodyY);
         }
 
         private static int Bits(float value) => BitConverter.SingleToInt32Bits(value);

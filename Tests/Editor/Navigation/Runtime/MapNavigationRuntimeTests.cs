@@ -138,7 +138,7 @@ namespace Aethiumian.AI.Navigation.Tests
             using MapNavigationRuntime runtime = CreateRuntime();
             runtime.PublishWorld(CreateOpenWorld());
             NavigationGoalRequest goal = NavigationGoalRequest.Retreat(
-                new AABB(new Vector2(100f, 2.5f), new Vector2(100f, 2.5f)), DistanceMetric.Euclidean, 1f);
+                AABB.Point(100f, 2.5f), DistanceMetric.Euclidean, 1f);
 
             NavigationPlanningOperation operation = runtime.PlanFlyAsync(
                 new Vector2(1.5f, 2.5f), goal, FlyParameters);
@@ -175,7 +175,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void SmartWalkPlansGoalAgainstPublishedWorldAtScheduleTime()
         {
             TestNavigationWorld world = new(
-                new RectInt(0, 0, 6, 5),
+                new AABBInt(0, 0, 6, 5),
                 new[] { new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(2, 0),
                     new Vector2Int(3, 0), new Vector2Int(4, 0), new Vector2Int(5, 0) },
                 Array.Empty<Vector2Int>(), 0.5f);
@@ -183,7 +183,7 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(world);
 
             NavigationGoalRequest captured = NavigationGoalRequest.GroundRange(
-                new AABB(new Vector2(1.25f, 0.5f), new Vector2(3.25f, 0.5f)), 0.1f);
+                new AABB(1.25f, 0.5f, 3.25f, 0.5f), 0.1f);
             WalkNavigationParameters parameters = new(new Vector2(0.2f, 0.4f), 4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
             Assert.That(world.TryResolveGroundSupport(new Vector2(2.25f, 0.5f), parameters.BodySize,
@@ -200,7 +200,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(operation.Result.Goal, Is.EqualTo(captured));
             Assert.That(operation.Result.World, Is.SameAs(world));
             Assert.That(operation.Result.Goal.IsGroundWalk, Is.True);
-            Assert.That(operation.Result.World.WorldBounds, Is.EqualTo(new Rect(0f, 0f, 3f, 2.5f)));
+            Assert.That(operation.Result.World.WorldBounds, Is.EqualTo(AABB.FromMinAndSize(0f, 0f, 3f, 2.5f)));
             Assert.That(operation.Result.Goal.Center.y, Is.EqualTo(0.5f));
         }
 
@@ -208,13 +208,13 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void UnresolvedSmartWalkIsNotMemoizedAsExhaustedFailure()
         {
-            CountingNavigationWorld world = new(new RectInt(0, 0, 6, 5));
+            CountingNavigationWorld world = new(new AABBInt(0, 0, 6, 5));
             using MapNavigationRuntime runtime = CreateRuntime();
             runtime.PublishWorld(world);
             WalkNavigationParameters parameters = new(new Vector2(0.8f, 1f), 4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
             NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
-                new AABB(new Vector2(3.5f, 1f), new Vector2(3.5f, 1f)), 0.1f);
+                AABB.Point(3.5f, 1f), 0.1f);
             Vector2 start = new(1.5f, 1f);
 
             NavigationPlanningOperation first = runtime.PlanWalkAsync(start, goal, parameters);
@@ -239,7 +239,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2Int canonicalCell = new(1, 8);
             Vector2Int otherCell = new(1, 5);
             TestNavigationWorld world = new(
-                new RectInt(0, 0, 3, 12),
+                new AABBInt(0, 0, 3, 12),
                 Array.Empty<Vector2Int>(),
                 new[] { canonicalCell, otherCell },
                 new Dictionary<Vector2Int, float>
@@ -287,7 +287,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 case "Walk":
                     start = new Vector2(0.5f, 1f);
                     operation = runtime.PlanWalkAsync(start,
-                        NavigationGoalRequest.GroundRange(new AABB(new Vector2(4.5f, 1f), new Vector2(4.5f, 1f)), 0.1f),
+                        NavigationGoalRequest.GroundRange(AABB.Point(4.5f, 1f), 0.1f),
                         WalkParameters, NavigationPlanningExtent.NextAction);
                     expectedSegmentType = typeof(GroundRouteSegment);
                     break;
@@ -368,13 +368,13 @@ namespace Aethiumian.AI.Navigation.Tests
         public void FailedRequestMemoizationSeparatesPlanningPurpose()
         {
             using MapNavigationRuntime runtime = new(4, 128, 64);
-            TestNavigationWorld world = new(new RectInt(0, 0, 6, 5),
+            TestNavigationWorld world = new(new AABBInt(0, 0, 6, 5),
                 new[] { new Vector2Int(0, 0) }, Array.Empty<Vector2Int>());
             runtime.PublishWorld(world);
             WalkNavigationParameters groundedOnly = new(new Vector2(0.8f, 1f), 4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
             NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
-                new AABB(new Vector2(4.5f, 1f), new Vector2(4.5f, 1f)), 0f);
+                AABB.Point(4.5f, 1f), 0f);
             Vector2 start = new(0.5f, 1f);
 
             NavigationPlanningOperation continuation = runtime.PlanWalkAsync(start, goal, groundedOnly,
@@ -404,7 +404,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void FailedRequestMemoizationSeparatesDistanceMetric()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
-            TestNavigationWorld world = new(new RectInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            TestNavigationWorld world = new(new AABBInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             runtime.PublishWorld(world);
             AABB target = new(new Vector2(1.1f, 1.1f), new Vector2(1.1f, 1.1f));
             Vector2 start = new(0.5f, 0.5f);
@@ -432,7 +432,7 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(world);
             Vector2 start = new(0.5f, 2.5f);
             NavigationGoalRequest goal = NavigationGoalRequest.Retreat(
-                new AABB(new Vector2(1.5f, 2.5f), new Vector2(1.5f, 2.5f)), DistanceMetric.Euclidean, 3f);
+                AABB.Point(1.5f, 2.5f), DistanceMetric.Euclidean, 3f);
 
             NavigationPlanningOperation constrained = runtime.PlanFlyAsync(
                 start, goal, new FlyNavigationParameters(new Vector2(0.8f, 0.8f), 0.1f));
@@ -454,7 +454,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void FailedRequestMemoizationSeparatesLineOfSightRequirement()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
-            TestNavigationWorld world = new(new RectInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            TestNavigationWorld world = new(new AABBInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             runtime.PublishWorld(world);
             AABB target = new(new Vector2(1.1f, 1.1f), new Vector2(1.1f, 1.1f));
             Vector2 start = new(0.5f, 0.5f);
@@ -573,7 +573,7 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         private static TestNavigationWorld CreateOpenWorld()
-            => new(new RectInt(0, 0, 6, 5), new[]
+            => new(new AABBInt(0, 0, 6, 5), new[]
             {
                 new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(2, 0),
                 new Vector2Int(3, 0), new Vector2Int(4, 0), new Vector2Int(5, 0),
@@ -583,11 +583,11 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             List<Vector2Int> solid = new();
             for (int y = 0; y < 5; y++) solid.Add(new Vector2Int(3, y));
-            return new TestNavigationWorld(new RectInt(0, 0, 6, 5), solid, Array.Empty<Vector2Int>());
+            return new TestNavigationWorld(new AABBInt(0, 0, 6, 5), solid, Array.Empty<Vector2Int>());
         }
 
         private static NavigationGoalRequest Goal(Vector2 destination)
-            => NavigationGoalRequest.Proximity(new AABB(destination, destination), DistanceMetric.Euclidean, 0f);
+            => NavigationGoalRequest.Proximity(AABB.Point(destination), DistanceMetric.Euclidean, 0f);
 
         private static string DescribeRoute(NavigationRoute route)
         {
@@ -602,17 +602,17 @@ namespace Aethiumian.AI.Navigation.Tests
         private sealed class CountingNavigationWorld : INavigationWorld
         {
             private readonly TestNavigationWorld world;
-            public Rect WorldBounds => world.WorldBounds;
+            public AABB WorldBounds => world.WorldBounds;
             public int SupportQueryCount => Volatile.Read(ref supportQueryCount);
             private int supportQueryCount;
 
-            public CountingNavigationWorld(RectInt cellBounds)
+            public CountingNavigationWorld(AABBInt cellBounds)
             {
                 world = new TestNavigationWorld(cellBounds, Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             }
 
-            public bool IsBodyClear(Rect bodyBounds, float tolerance) => world.IsBodyClear(bodyBounds, tolerance);
-            public bool IsBodyPathClear(Rect bodyBounds, Vector2 displacement, float tolerance)
+            public bool IsBodyClear(AABB bodyBounds, float tolerance) => world.IsBodyClear(bodyBounds, tolerance);
+            public bool IsBodyPathClear(AABB bodyBounds, Vector2 displacement, float tolerance)
                 => world.IsBodyPathClear(bodyBounds, displacement, tolerance);
             public bool IsLineOfSightClear(Vector2 start, Vector2 end) => world.IsLineOfSightClear(start, end);
             public bool TryGetSupportBelow(Vector2 position, out NavigationSupport support)
@@ -623,9 +623,9 @@ namespace Aethiumian.AI.Navigation.Tests
                 support = default;
                 return world.TryResolveSupport(feet, bodySize, snapDistance, out support);
             }
-            public IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(Rect anchorBounds, Vector2 bodySize)
+            public IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(AABB anchorBounds, Vector2 bodySize)
                 => world.GetSupportCandidates(anchorBounds, bodySize);
-            public void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
+            public void CollectSupportCandidates(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
                 => world.CollectSupportCandidates(anchorBounds, bodySize, results);
             public void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth,
                 List<NavigationSurfaceCrossing> results)

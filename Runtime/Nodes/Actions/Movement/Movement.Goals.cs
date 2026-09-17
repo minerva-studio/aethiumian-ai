@@ -21,8 +21,8 @@ namespace Aethiumian.AI.Nodes
                     if (!targetObject) return false;
                     Collider2D[] colliders = NavigationBodyGeometry.GetTargetColliders(targetObject);
                     Vector2 fallback = targetObject.transform.position;
-                    target = colliders.Length > 0 ? (AABB)NavigationBodyGeometry.GetMergedBounds(colliders)
-                        : new AABB(fallback, fallback);
+                    target = colliders.Length > 0 ? NavigationBodyGeometry.GetMergedAabb(colliders)
+                        : AABB.Point(fallback);
                     return true;
                 case Behaviour.Wander:
                     wanderDestination ??= GetWanderLocation(GetWanderCenter());
@@ -31,7 +31,7 @@ namespace Aethiumian.AI.Nodes
                 case Behaviour.FixedDestination: point = destination.Vector2Value; break;
                 default: point = NavigationGroundAnchor; break;
             }
-            target = new AABB(point, point);
+            target = AABB.Point(point);
             return true;
         }
 
@@ -65,8 +65,9 @@ namespace Aethiumian.AI.Nodes
             Vector2 targetFeet = target;
             if (!world.AreInSameRegion(NavigationGroundAnchor, targetFeet)) return false;
             Vector2 bodySize = NavigationBodySize;
-            if (!world.IsBodyClear(new Rect(targetFeet.x - bodySize.x * 0.5f, targetFeet.y,
-                bodySize.x, bodySize.y), 0f)) return false;
+            if (!world.IsBodyClear(
+                AABB.FromMinAndSize(new Vector2(targetFeet.x - bodySize.x * 0.5f, targetFeet.y), bodySize),
+                0f)) return false;
             return !requireSupport || world.TryResolveSupport(targetFeet, bodySize,
                 NavigationWorldQueries.SupportSnapDistance, out _);
         }

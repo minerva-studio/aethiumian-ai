@@ -118,8 +118,7 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Detached geometry captured from one source collider or geometry provider.</summary>
     public readonly struct NavigationShapeData
     {
-        public int SourceId { get; }
-        public int FeatureId { get; }
+        public NavigationSurfaceId SurfaceId { get; }
         public NavigationShapeType ShapeType { get; }
         public IReadOnlyList<Vector2> Vertices { get; }
         public float Radius { get; }
@@ -133,12 +132,32 @@ namespace Aethiumian.AI.Navigation
         /// </summary>
         public float DirectedNormalSign { get; }
 
-        public NavigationShapeData(int sourceId, int featureId, NavigationShapeType shapeType,
-            IReadOnlyList<Vector2> vertices, float radius, NavigationSurfaceKind kind, bool hasSupport,
-            Vector2 oneWayDirection = default, float oneWayCosHalfArc = 1f, float directedNormalSign = 0f)
+        public NavigationShapeData(
+            int sourceId,
+            int featureId,
+            NavigationShapeType shapeType,
+            IReadOnlyList<Vector2> vertices,
+            float radius,
+            NavigationSurfaceKind kind,
+            bool hasSupport,
+            Vector2 oneWayDirection = default,
+            float oneWayCosHalfArc = 1f,
+            float directedNormalSign = 0f)
+            : this(new NavigationSurfaceId(sourceId, featureId), shapeType, vertices, radius, kind, hasSupport, oneWayDirection, oneWayCosHalfArc, directedNormalSign)
         {
-            if (sourceId < 0) throw new ArgumentOutOfRangeException(nameof(sourceId));
-            if (featureId < 0) throw new ArgumentOutOfRangeException(nameof(featureId));
+        }
+
+        public NavigationShapeData(
+            NavigationSurfaceId surfaceId,
+            NavigationShapeType shapeType,
+            IReadOnlyList<Vector2> vertices,
+            float radius,
+            NavigationSurfaceKind kind,
+            bool hasSupport,
+            Vector2 oneWayDirection = default,
+            float oneWayCosHalfArc = 1f,
+            float directedNormalSign = 0f)
+        {
             if (!Enum.IsDefined(typeof(NavigationShapeType), shapeType)) throw new ArgumentOutOfRangeException(nameof(shapeType));
             if (vertices == null || vertices.Count == 0) throw new ArgumentException("A navigation shape needs vertices.", nameof(vertices));
             if (!NavigationNumeric.IsFinite(radius) || radius < 0f) throw new ArgumentOutOfRangeException(nameof(radius));
@@ -148,8 +167,7 @@ namespace Aethiumian.AI.Navigation
             for (int index = 0; index < vertices.Count; index++)
                 if (!NavigationNumeric.IsFinite(vertices[index])) throw new ArgumentException("Shape vertices must be finite.", nameof(vertices));
 
-            SourceId = sourceId;
-            FeatureId = featureId;
+            SurfaceId = surfaceId;
             ShapeType = shapeType;
             Vertices = Copy(vertices);
             Radius = radius;
@@ -173,13 +191,13 @@ namespace Aethiumian.AI.Navigation
     public readonly struct NavigationRegionData
     {
         /// <summary>Gets the world-space rectangle covered by this region. The rectangle is half-open.</summary>
-        public Rect WorldBounds { get; }
+        public AABB WorldBounds { get; }
         public int RegionId { get; }
 
-        public NavigationRegionData(Rect worldBounds, int regionId)
+        public NavigationRegionData(AABB worldBounds, int regionId)
         {
-            if (!NavigationNumeric.IsFinite(worldBounds.min) || !NavigationNumeric.IsFinite(worldBounds.max)
-                || worldBounds.width <= 0f || worldBounds.height <= 0f)
+            if (!NavigationNumeric.IsFinite(worldBounds.Min) || !NavigationNumeric.IsFinite(worldBounds.Max)
+                || worldBounds.SizeX <= 0f || worldBounds.SizeY <= 0f)
                 throw new ArgumentException("Region bounds must be positive and finite.", nameof(worldBounds));
             WorldBounds = worldBounds;
             RegionId = regionId;
@@ -194,19 +212,20 @@ namespace Aethiumian.AI.Navigation
     public interface INavigationWorld
     {
         /// <summary>
-        /// World-space rectangle of the captured finite world. Geometry outside it is never navigable.
+        /// Continuous world-space box of the captured finite world. Geometry outside it is never
+        /// navigable; discrete half-open cell ranges belong to <see cref="AABBInt"/> instead.
         /// </summary>
-        Rect WorldBounds { get; }
+        AABB WorldBounds { get; }
 
         /// <summary>
         /// Checks body clearance against captured geometry with the supplied contact tolerance.
         /// </summary>
-        bool IsBodyClear(Rect body, float surfaceContactTolerance);
+        bool IsBodyClear(AABB body, float surfaceContactTolerance);
 
         /// <summary>
         /// Checks clearance along a body's displacement through captured geometry.
         /// </summary>
-        bool IsBodyPathClear(Rect startBody, Vector2 displacement, float surfaceContactTolerance);
+        bool IsBodyPathClear(AABB startBody, Vector2 displacement, float surfaceContactTolerance);
 
         /// <summary>
         /// Checks whether captured geometry permits line of sight between two positions.
@@ -231,12 +250,12 @@ namespace Aethiumian.AI.Navigation
         /// Returns read-only support candidates for the requested anchor bounds and body size.
         /// Results remain valid after cache eviction and do not contain goal-specific filtering.
         /// </summary>
-        IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(Rect anchorBounds, Vector2 bodySize);
+        IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(AABB anchorBounds, Vector2 bodySize);
 
         /// <summary>
         /// Appends support candidates to the supplied list without clearing existing entries.
         /// </summary>
-        void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results);
+        void CollectSupportCandidates(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results);
 
         /// <summary>
         /// Collects directed one-way surface crossings along a lower-center body segment.

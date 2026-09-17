@@ -71,15 +71,13 @@ namespace Aethiumian.AI.Navigation
 
             float maximumApexHeight = JumpTrajectory.GetMaximumAllowedApexHeight(parameters.JumpHeight);
             IReadOnlyList<NavigationSupportCandidate> landingSupports;
-            Rect worldBounds = world.WorldBounds;
-            float minimumY = worldBounds.yMin;
-            float maximumY = Mathf.Min(worldBounds.yMax, start.y + maximumApexHeight + Tolerance);
+            AABB worldBounds = world.WorldBounds;
+            float minimumY = worldBounds.MinY;
+            float maximumY = Mathf.Min(worldBounds.MaxY, start.y + maximumApexHeight + Tolerance);
             float horizontalReach = Mathf.Max(parameters.JumpLength, Tolerance);
-            Rect landingBounds = Rect.MinMaxRect(
-                Mathf.Max(worldBounds.xMin, start.x - horizontalReach),
-                minimumY,
-                Mathf.Min(worldBounds.xMax, start.x + horizontalReach + Tolerance),
-                Mathf.Max(minimumY, maximumY));
+            AABB landingBounds = new(
+                new Vector2(Mathf.Max(worldBounds.MinX, start.x - horizontalReach), minimumY),
+                new Vector2(Mathf.Min(worldBounds.MaxX, start.x + horizontalReach + Tolerance), Mathf.Max(minimumY, maximumY)));
             IReadOnlyList<NavigationSupportCandidate> supportCandidates =
                 world.GetSupportCandidates(landingBounds, parameters.BodySize);
             List<NavigationSupportCandidate> builtLandings = new();
@@ -151,9 +149,8 @@ namespace Aethiumian.AI.Navigation
             float maxX = Mathf.Max(start.x, landing.x) + parameters.BodySize.x * 0.5f;
             float minY = Mathf.Min(start.y, landing.y);
             float maxY = Mathf.Max(start.y, landing.y) + maximumApexHeight + parameters.BodySize.y;
-            Bounds envelope = new(new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f),
-                new Vector3(maxX - minX, maxY - minY, 0f));
-            Bounds reachable = goal.IsGroundWalk
+            AABB envelope = new(new Vector2(minX, minY), new Vector2(maxX, maxY));
+            AABB reachable = goal.IsGroundWalk
                 ? goal.GetLowerCenterAcceptanceBounds(parameters.BodySize.x)
                 : goal.TargetBounds;
             return envelope.Intersects(reachable);

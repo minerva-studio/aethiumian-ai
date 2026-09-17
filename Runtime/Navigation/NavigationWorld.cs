@@ -25,13 +25,13 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <inheritdoc />
-        public abstract Rect WorldBounds { get; }
+        public abstract AABB WorldBounds { get; }
 
         /// <inheritdoc />
-        public abstract bool IsBodyClear(Rect body, float surfaceContactTolerance);
+        public abstract bool IsBodyClear(AABB body, float surfaceContactTolerance);
 
         /// <inheritdoc />
-        public abstract bool IsBodyPathClear(Rect startBody, Vector2 displacement, float surfaceContactTolerance);
+        public abstract bool IsBodyPathClear(AABB startBody, Vector2 displacement, float surfaceContactTolerance);
 
         /// <inheritdoc />
         public abstract bool IsLineOfSightClear(Vector2 start, Vector2 end);
@@ -49,7 +49,7 @@ namespace Aethiumian.AI.Navigation
         public abstract bool AreInSameRegion(Vector2 first, Vector2 second);
 
         /// <summary>Gets a stable read-only candidate set for one exact bounds and body-size query.</summary>
-        public IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(Rect anchorBounds, Vector2 bodySize)
+        public IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(AABB anchorBounds, Vector2 bodySize)
         {
             if (supportCandidateCache.TryGet(anchorBounds, bodySize, out IReadOnlyList<NavigationSupportCandidate> cached))
                 return cached;
@@ -62,7 +62,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Appends support candidates to the caller-owned collection without clearing it.</summary>
-        public void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
+        public void CollectSupportCandidates(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
             IReadOnlyList<NavigationSupportCandidate> candidates = GetSupportCandidates(anchorBounds, bodySize);
@@ -73,6 +73,6 @@ namespace Aethiumian.AI.Navigation
         /// Fills the supplied request-local list from immutable geometry without reentering the public query.
         /// Calls may overlap; this base class sorts and publishes the detached read-only result.
         /// </summary>
-        protected abstract void CollectSupportCandidatesCore(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results);
+        protected abstract void CollectSupportCandidatesCore(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results);
     }
 }

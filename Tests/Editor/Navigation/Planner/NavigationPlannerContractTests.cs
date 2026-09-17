@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void FlyPlanner_UnreachableGoalReportsNoPath()
         {
-            TestNavigationWorld world = new(new RectInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            TestNavigationWorld world = new(new AABBInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             NavigationGoalRequest goal = BindGoal(new Vector2(10.5f, 0.5f));
 
             NavigationPlanResult result = new FlyNavigationPlanner(world, 16)
@@ -53,9 +53,9 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void WorldOutsideBoundsRejectsBodyClearance()
         {
-            TestNavigationWorld world = new(new RectInt(0, 0, 2, 2), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            Assert.That(world.IsBodyClear(new Rect(-0.1f, 0.5f, 0.2f, 0.2f), 0f), Is.False);
-            Assert.That(world.IsBodyClear(new Rect(0.5f, 0.5f, 0.2f, 0.2f), 0f), Is.True);
+            TestNavigationWorld world = new(new AABBInt(0, 0, 2, 2), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            Assert.That(world.IsBodyClear(AABB.FromMinAndSize(-0.1f, 0.5f, 0.2f, 0.2f), 0f), Is.False);
+            Assert.That(world.IsBodyClear(AABB.FromMinAndSize(0.5f, 0.5f, 0.2f, 0.2f), 0f), Is.True);
         }
 
         [Test]
@@ -66,7 +66,7 @@ namespace Aethiumian.AI.Navigation.Tests
             {
                 [floor[0]] = 5.38f, [floor[1]] = 5.38f, [floor[2]] = 5.38f,
             };
-            TestNavigationWorld world = new(new RectInt(0, 0, 3, 8), floor, Array.Empty<Vector2Int>(), heights);
+            TestNavigationWorld world = new(new AABBInt(0, 0, 3, 8), floor, Array.Empty<Vector2Int>(), heights);
             Assert.That(world.TryResolveSupport(new Vector2(1.5f, 5.38f), new Vector2(0.8f, 1.5f),
                 NavigationWorldQueries.SupportSnapDistance, out NavigationSupport support), Is.True);
             Assert.That(support.Kind, Is.EqualTo(NavigationSurfaceKind.Solid));
@@ -84,7 +84,7 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         private static NavigationGoalRequest BindGoal(Vector2 center)
-            => NavigationGoalRequest.Proximity(new AABB(center, center), DistanceMetric.Euclidean, 0.1f);
+            => NavigationGoalRequest.Proximity(AABB.Point(center), DistanceMetric.Euclidean, 0.1f);
 
         private static WalkNavigationParameters WalkParameters(Vector2 bodySize)
             => new(bodySize, 5f, Gravity, 1f, 0f, 2f, 4f, 0.02f);

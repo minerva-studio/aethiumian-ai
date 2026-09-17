@@ -24,13 +24,5 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Returns whether all vector components are finite.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsFinite(Vector3 value) => IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z);
-
-        /// <summary>Returns whether a rectangle's position and size are finite.</summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsFinite(Rect value) => IsFinite(value.position) && IsFinite(value.size);
-
-        /// <summary>Returns whether a bounds' center and size are finite.</summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsFinite(Bounds value) => IsFinite(value.center) && IsFinite(value.size);
     }
 }

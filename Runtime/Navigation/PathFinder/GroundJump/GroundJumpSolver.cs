@@ -80,8 +80,8 @@ namespace Aethiumian.AI.Navigation
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     Vector2 next = trajectory.GetPosition(trajectory.FlightDuration * index / samples);
-                    Rect body = new(previous.x - parameters.BodySize.x * 0.5f, previous.y,
-                        parameters.BodySize.x, parameters.BodySize.y);
+                    AABB body = AABB.FromMinAndSize(
+                        new Vector2(previous.x - parameters.BodySize.x * 0.5f, previous.y), parameters.BodySize);
                     if (!World.IsBodyPathClear(body, next - previous, parameters.GroundContactTolerance))
                     {
                         clear = false;

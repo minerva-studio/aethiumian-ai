@@ -37,7 +37,7 @@ namespace Aethiumian.AI.Navigation.Editor
             MovementNode movement = GetExecutingMovement(ai);
             if (movement == null) return;
 
-            Bounds bodyBounds = movement.NavigationBounds;
+            AABB bodyBounds = movement.NavigationBodyAabb;
             Vector2 groundAnchor = movement.NavigationGroundAnchor;
             Handles.color = Color.white;
             DrawBounds(bodyBounds);
@@ -51,7 +51,7 @@ namespace Aethiumian.AI.Navigation.Editor
                 new Color(0.35f, 0.35f, 0.35f));
             DrawSupport(movement, bodyBounds, groundAnchor, world);
             DrawExecutor(executor, groundAnchor);
-            DrawStatus(ai, movement, executor, movement.Route, movement.RouteIndex, bodyBounds.center);
+            DrawStatus(ai, movement, executor, movement.Route, movement.RouteIndex, bodyBounds.Center);
         }
 
         /// <summary>Draws one live route directly from its immutable segments.</summary>
@@ -115,7 +115,7 @@ namespace Aethiumian.AI.Navigation.Editor
         }
 
         /// <summary>Queries and draws current physics and NavWorld support without retaining either result.</summary>
-        private static void DrawSupport(MovementNode movement, Bounds bodyBounds, Vector2 groundAnchor, INavigationWorld world)
+        private static void DrawSupport(MovementNode movement, AABB bodyBounds, Vector2 groundAnchor, INavigationWorld world)
         {
             MapNavigationRuntime runtime = movement.NavigationRuntime;
             bool hasPhysicsSupport = TryGetPhysicalSupport(runtime, movement.Collider, out Vector2 physicsSupport);
@@ -123,7 +123,7 @@ namespace Aethiumian.AI.Navigation.Editor
             NavigationSupport support = default;
             bool hasNavigationSupport = runtime != null
                 && !runtime.IsDisposed
-                && runtime.TryResolvePlanningGroundSupport(groundAnchor, bodyBounds.size, out navigationSupport, out support);
+                && runtime.TryResolvePlanningGroundSupport(groundAnchor, bodyBounds.Size, out navigationSupport, out support);
 
             if (hasPhysicsSupport)
             {
@@ -207,10 +207,10 @@ namespace Aethiumian.AI.Navigation.Editor
         }
 
         /// <summary>Draws a rectangular world-space bounds outline.</summary>
-        private static void DrawBounds(Bounds bounds)
+        private static void DrawBounds(AABB bounds)
         {
-            Vector3 min = bounds.min;
-            Vector3 max = bounds.max;
+            Vector3 min = bounds.Min;
+            Vector3 max = bounds.Max;
             Handles.DrawLine(new Vector3(min.x, min.y), new Vector3(max.x, min.y));
             Handles.DrawLine(new Vector3(max.x, min.y), new Vector3(max.x, max.y));
             Handles.DrawLine(new Vector3(max.x, max.y), new Vector3(min.x, max.y));

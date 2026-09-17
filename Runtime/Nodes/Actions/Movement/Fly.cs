@@ -28,9 +28,9 @@ namespace Aethiumian.AI.Nodes
 
         private float FinalSpeed => speed * speedModifier;
 
-        protected override NavigationGoalRequest BuildGoal(AABB target, Bounds body, out Vector2 anchor)
+        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body, out Vector2 anchor)
         {
-            anchor = body.center;
+            anchor = body.Center;
             _ = Flexibility;
             if (type == Behaviour.Trace && neverAboveMaxHeight)
             {
@@ -50,39 +50,39 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected)
+        protected override bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected)
         {
             connected = null;
             int furthest = -1;
             for (int i = 0; i < candidate.Count; i++)
             {
                 if (candidate.Segments[i] is not FlyRouteSegment step) return false;
-                if (!NavigationRuntime.IsBodyClearFlySegment(body.center, step.End, body.size)) break;
-                if (RetreatExecution != null && !RetreatExecution.AllowsSegment(candidate.Goal, body.center, step.End)) continue;
+                if (!NavigationRuntime.IsBodyClearFlySegment(body.Center, step.End, body.Size)) break;
+                if (RetreatExecution != null && !RetreatExecution.AllowsSegment(candidate.Goal, body.Center, step.End)) continue;
                 furthest = i;
             }
             if (furthest < 0) return false;
             var segments = new System.Collections.Generic.List<NavigationRouteSegment>
-            { new FlyRouteSegment(body.center, candidate.Segments[furthest].End) };
+            { new FlyRouteSegment(body.Center, candidate.Segments[furthest].End) };
             for (int i = furthest + 1; i < candidate.Count; i++) segments.Add(candidate.Segments[i]);
-            connected = NavigationRoute.Create(body.center, candidate.Goal, candidate.World, candidate.ResolvedGoal, segments, candidate.ReachesGoal);
+            connected = NavigationRoute.Create(body.Center, candidate.Goal, candidate.World, candidate.ResolvedGoal, segments, candidate.ReachesGoal);
             return true;
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, AABB body, MovementExecutor reusable, out MovementExecutor prepared)
         {
             if (segment is not FlyRouteSegment) throw new InvalidOperationException("Fly requires an aerial route action.");
             var flight = reusable as FlyTraversalExecutor ?? CreateExecutor();
-            flight.SetWaypoint(body.center, segment.End,
+            flight.SetWaypoint(body.Center, segment.End,
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
             prepared = flight;
             return ActionPreparation.Ready;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, Bounds body, bool swept)
-            => NavigationWorld.IsGoalComplete(goal, body.center, body.size) || swept;
+        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept)
+            => NavigationWorld.IsGoalComplete(goal, body.Center, body.Size) || swept;
 
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, Bounds body)
+        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body)
             => reason == ExecutionFailureReason.Obstructed;
 
         protected override void Finish(bool success, NavigationGoalRequest? goal)
@@ -154,8 +154,7 @@ namespace Aethiumian.AI.Nodes
                 // Fly destinations are body centers. Lowering an authored sample may put the
                 // body inside geometry, so validate the final point rather than the sample.
                 if (world.AreInSameRegion(NavigationCenterAnchor, candidate)
-                    && world.IsBodyClear(new Rect(candidate - NavigationBodySize * 0.5f,
-                        NavigationBodySize), 0f))
+                    && world.IsBodyClear(AABB.FromCenterAndSize(candidate, NavigationBodySize), 0f))
                     return candidate;
             }
             Debug.LogWarning("Cannot find valid wander location around. Is the entity outside the room?");

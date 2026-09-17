@@ -166,7 +166,7 @@ namespace Aethiumian.AI.Navigation.Tests
         private static MapNavigationRuntime CreateRuntime()
         {
             MapNavigationRuntime runtime = new(8, 4096, 4096);
-            Rect bounds = new(-100f, -100f, 200f, 200f);
+            AABB bounds = AABB.FromMinAndSize(-100f, -100f, 200f, 200f);
             runtime.PublishWorld(NavigationWorldSnapshot.Create(
                 bounds,
                 Array.Empty<NavigationShapeData>(),

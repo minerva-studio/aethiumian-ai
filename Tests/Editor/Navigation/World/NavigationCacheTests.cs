@@ -13,9 +13,9 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         {
             SupportCandidateCache cache = new(2, 8);
             Vector2 body = new(0.8f, 1.5f);
-            Rect first = new(0f, 0f, 1f, 1f);
-            Rect second = new(1f, 0f, 1f, 1f);
-            Rect third = new(2f, 0f, 1f, 1f);
+            AABB first = AABB.FromMinAndSize(0f, 0f, 1f, 1f);
+            AABB second = AABB.FromMinAndSize(1f, 0f, 1f, 1f);
+            AABB third = AABB.FromMinAndSize(2f, 0f, 1f, 1f);
 
             cache.Publish(first, body, Candidates(1));
             cache.Publish(second, body, Candidates(2));
@@ -31,7 +31,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         [Test]
         public void SupportCandidateCache_DoesNotRetainDisabledOrOversizedResults()
         {
-            Rect bounds = new(0f, 0f, 1f, 1f);
+            AABB bounds = AABB.FromMinAndSize(0f, 0f, 1f, 1f);
             Vector2 body = new(0.8f, 1.5f);
             SupportCandidateCache disabled = new(0, 0);
             SupportCandidateCache oversized = new(4, 1);

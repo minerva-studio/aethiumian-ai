@@ -7,8 +7,7 @@ namespace Aethiumian.AI.Navigation
 {
     public sealed class Shape
     {
-        public readonly int SourceId;
-        public readonly int FeatureId;
+        public readonly NavigationSurfaceId SurfaceId;
         public readonly NavigationShapeType ShapeType;
         public readonly Vector2[] Vertices;
         public readonly float Radius;
@@ -17,14 +16,13 @@ namespace Aethiumian.AI.Navigation
         public readonly Vector2 OneWayDirection;
         public readonly float OneWayCosHalfArc;
         public readonly float DirectedNormalSign;
-        public readonly Vector2 Min;
-        public readonly Vector2 Max;
+        /// <summary>Continuous bounding box of the shape, including its radius.</summary>
+        public readonly AABB Bounds;
 
 
         public Shape(NavigationShapeData data)
         {
-            SourceId = data.SourceId;
-            FeatureId = data.FeatureId;
+            SurfaceId = data.SurfaceId;
             ShapeType = data.ShapeType;
             Vertices = Copy(data.Vertices);
             Radius = data.Radius;
@@ -36,11 +34,9 @@ namespace Aethiumian.AI.Navigation
             Vector2 min = Vertices[0];
             Vector2 max = Vertices[0];
             for (int index = 1; index < Vertices.Length; index++) { min = Vector2.Min(min, Vertices[index]); max = Vector2.Max(max, Vertices[index]); }
-            Min = min - Vector2.one * Radius;
-            Max = max + Vector2.one * Radius;
+            Bounds = new AABB(min.x - Radius, min.y - Radius, max.x + Radius, max.y + Radius);
         }
 
-        public NavigationSurfaceId SurfaceId => new NavigationSurfaceId(SourceId, FeatureId);
 
 
 
@@ -108,17 +104,17 @@ namespace Aethiumian.AI.Navigation
         }
 
 
-        public bool IsShapeIntersection(Rect rect)
+        public bool IsShapeIntersection(AABB bounds)
         {
             switch (ShapeType)
             {
-                case NavigationShapeType.Circle: return CircleIntersectsRect(Vertices[0], Radius, rect);
-                case NavigationShapeType.Capsule: return SegmentIntersectsExpandedRect(Vertices[0], Vertices[1], Radius, rect);
+                case NavigationShapeType.Circle: return CircleIntersectsAabb(Vertices[0], Radius, bounds);
+                case NavigationShapeType.Capsule: return SegmentIntersectsExpandedAabb(Vertices[0], Vertices[1], Radius, bounds);
                 case NavigationShapeType.Edge:
                     for (int index = 1; index < Vertices.Length; index++)
-                        if (SegmentIntersectsRectInterior(Vertices[index - 1], Vertices[index], rect)) return true;
+                        if (SegmentIntersectsAabbInterior(Vertices[index - 1], Vertices[index], bounds)) return true;
                     return false;
-                default: return PolygonIntersectsRect(Vertices, rect);
+                default: return PolygonIntersectsAabb(Vertices, bounds);
             }
         }
 

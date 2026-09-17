@@ -207,7 +207,7 @@ namespace Aethiumian.AI.Navigation.Tests
                     solid ? NavigationShapeType.Polygon : NavigationShapeType.Edge, vertices, 0f,
                     solid ? NavigationSurfaceKind.Solid : NavigationSurfaceKind.OneWay, true, Vector2.up) };
             }
-            Rect bounds = new(0f, 0f, 80f, 40f);
+            AABB bounds = AABB.FromMinAndSize(0f, 0f, 80f, 40f);
             return NavigationWorldSnapshot.Create(bounds, shapes,
                 new[] { new NavigationRegionData(bounds, 0) });
         }
@@ -222,11 +222,11 @@ namespace Aethiumian.AI.Navigation.Tests
             public NavigationGoalRequest CaptureGoal()
             {
                 AABB target = type == Movement.Behaviour.FixedDestination
-                    ? new AABB(destination.Vector2Value, destination.Vector2Value)
+                    ? AABB.Point(destination.Vector2Value)
                     : tracing != null && tracing.GameObjectValue
-                        ? (AABB)tracing.GameObjectValue.GetComponent<Collider2D>().bounds
-                        : new AABB(Vector3.zero, Vector3.zero);
-                return BuildGoal(target, NavigationBounds, out _);
+                        ? AABB.FromBounds(tracing.GameObjectValue.GetComponent<Collider2D>().bounds)
+                        : AABB.Point(Vector3.zero);
+                return BuildGoal(target, NavigationBodyAabb, out _);
             }
 
             protected override Vector2 GetWanderLocation(Vector2 center)

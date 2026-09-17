@@ -27,9 +27,9 @@ namespace Aethiumian.AI.Nodes
 
         [NonSerialized] private float nextJumpTime;
         private float EffectiveJumpInterval => jumpInterval / ValidateJumpCadence();
-        protected override NavigationGoalRequest BuildGoal(AABB target, Bounds body, out Vector2 anchor)
+        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body, out Vector2 anchor)
         {
-            anchor = new Vector2(body.center.x, body.min.y);
+            anchor = new Vector2(body.CenterX, body.MinY);
             return CreateGoal(target, NavigationGoalGeometry.Proximity);
         }
 
@@ -41,24 +41,24 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected)
+        protected override bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected)
         {
             connected = null;
             if (candidate.Count == 0 || candidate.Segments[0] is not JumpRouteSegment jump) return false;
             // Keep the receipt while contact is temporarily absent; preparation owns launch waiting.
             if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _))
             { connected = candidate; return true; }
-            if (!NavigationRuntime.TryResolvePlanningGroundSupport(NavigationGroundAnchor, body.size, out _, out NavigationSupport current)
-                || !NavigationRuntime.TryResolvePlanningGroundSupport(jump.LaunchSupport, body.size, out _, out NavigationSupport launch)
+            if (!NavigationRuntime.TryResolvePlanningGroundSupport(NavigationGroundAnchor, body.Size, out _, out NavigationSupport current)
+                || !NavigationRuntime.TryResolvePlanningGroundSupport(jump.LaunchSupport, body.Size, out _, out NavigationSupport launch)
                 || current.Surface != launch.Surface) return false;
             connected = candidate;
             return true;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, Bounds body, bool swept)
-            => NavigationWorld.IsGoalComplete(goal, body.center, body.size) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _);
+        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept)
+            => NavigationWorld.IsGoalComplete(goal, body.Center, body.Size) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _);
 
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, Bounds body) => reason == ExecutionFailureReason.Obstructed;
+        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body) => reason == ExecutionFailureReason.Obstructed;
 
         protected override void Finish(bool success, NavigationGoalRequest? goal) { }
 
@@ -77,7 +77,7 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, AABB body, MovementExecutor reusable, out MovementExecutor prepared)
         {
             prepared = null;
             if (segment is not JumpRouteSegment jump)

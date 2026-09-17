@@ -16,42 +16,36 @@ namespace Aethiumian.AI.Navigation
         public static Collider2D[] GetTargetColliders(GameObject target)
             => ColliderGeometryQuery.GetTargetColliders(target);
 
-        /// <summary>Gets the merged world-space AABB of a non-empty collider collection.</summary>
-        public static Bounds GetMergedBounds(IReadOnlyList<Collider2D> colliders)
-            => ColliderGeometryQuery.GetMergedBounds(colliders);
+        /// <summary>Gets the merged world-space box of a non-empty collider collection.</summary>
+        public static AABB GetMergedAabb(IReadOnlyList<Collider2D> colliders)
+            => AABB.FromBounds(ColliderGeometryQuery.GetMergedBounds(colliders));
 
-        /// <summary>Gets the lower-center anchor of a merged world-space AABB.</summary>
+        /// <summary>Gets the lower-center anchor of a merged world-space box.</summary>
         public static Vector2 GetGroundAnchor(IReadOnlyList<Collider2D> colliders)
-        {
-            Bounds bounds = GetMergedBounds(colliders);
-            return new Vector2(bounds.center.x, bounds.min.y);
-        }
+            => GetMergedAabb(colliders).LowerCenter;
 
-        /// <summary>Gets the center anchor of a merged world-space AABB.</summary>
+        /// <summary>Gets the center anchor of a merged world-space box.</summary>
         public static Vector2 GetCenterAnchor(IReadOnlyList<Collider2D> colliders)
-            => GetMergedBounds(colliders).center;
+            => GetMergedAabb(colliders).Center;
 
-        /// <summary>Gets the size of a merged world-space AABB.</summary>
+        /// <summary>Gets the size of a merged world-space box.</summary>
         public static Vector2 GetWorldAabbSize(IReadOnlyList<Collider2D> colliders)
-            => GetMergedBounds(colliders).size;
+            => GetMergedAabb(colliders).Size;
 
-        /// <summary>Gets the lower-center anchor of one collider's current world AABB.</summary>
+        /// <summary>Gets the lower-center anchor of one collider's current world box.</summary>
         public static Vector2 GetGroundAnchor(Collider2D collider)
-        {
-            Bounds bounds = GetBounds(collider);
-            return new Vector2(bounds.center.x, bounds.min.y);
-        }
+            => GetAabb(collider).LowerCenter;
 
-        /// <summary>Gets the center anchor of one collider's current world AABB.</summary>
+        /// <summary>Gets the center anchor of one collider's current world box.</summary>
         public static Vector2 GetCenterAnchor(Collider2D collider)
-            => GetBounds(collider).center;
+            => GetAabb(collider).Center;
 
-        /// <summary>Gets the size of one collider's current world AABB.</summary>
+        /// <summary>Gets the size of one collider's current world box.</summary>
         public static Vector2 GetWorldAabbSize(Collider2D collider)
-            => GetBounds(collider).size;
+            => GetAabb(collider).Size;
 
 
-        private static Bounds GetBounds(Collider2D collider)
-            => collider ? collider.bounds : throw new ArgumentNullException(nameof(collider));
+        private static AABB GetAabb(Collider2D collider)
+            => collider ? AABB.FromBounds(collider.bounds) : throw new ArgumentNullException(nameof(collider));
     }
 }

@@ -7,19 +7,19 @@ namespace Aethiumian.AI.Navigation
     {
         public static float DistanceToPoint(Vector2 point, AABB bounds)
         {
-            float x = Mathf.Max(bounds.Min.x - point.x, 0f, point.x - bounds.Max.x);
-            float y = Mathf.Max(bounds.Min.y - point.y, 0f, point.y - bounds.Max.y);
+            float x = Mathf.Max(bounds.MinX - point.x, 0f, point.x - bounds.MaxX);
+            float y = Mathf.Max(bounds.MinY - point.y, 0f, point.y - bounds.MaxY);
             return Mathf.Sqrt(x * x + y * y);
         }
 
         public static float DistanceToSegmentBounds(Vector2 start, Vector2 end, AABB bounds)
         {
-            if (SegmentIntersectsClosedRect(start, end, bounds.Min, bounds.Max)) return 0f;
+            if (SegmentIntersectsClosedAabb(start, end, bounds)) return 0f;
             float distance = Mathf.Min(DistanceToPoint(start, bounds), DistanceToPoint(end, bounds));
             Vector2 bottomLeft = bounds.Min;
-            Vector2 bottomRight = new(bounds.Max.x, bounds.Min.y);
+            Vector2 bottomRight = new(bounds.MaxX, bounds.MinY);
             Vector2 topRight = bounds.Max;
-            Vector2 topLeft = new(bounds.Min.x, bounds.Max.y);
+            Vector2 topLeft = new(bounds.MinX, bounds.MaxY);
             distance = Mathf.Min(distance, DistanceBetweenSegments(start, end, bottomLeft, bottomRight));
             distance = Mathf.Min(distance, DistanceBetweenSegments(start, end, bottomRight, topRight));
             distance = Mathf.Min(distance, DistanceBetweenSegments(start, end, topRight, topLeft));
@@ -102,12 +102,12 @@ namespace Aethiumian.AI.Navigation
         /// <param name="min"></param>
         /// <param name="max"></param>
         /// <returns></returns>
-        public static bool SegmentIntersectsClosedRect(Vector2 start, Vector2 end, Vector2 min, Vector2 max)
+        public static bool SegmentIntersectsClosedAabb(Vector2 start, Vector2 end, AABB bounds)
         {
             float lower = 0f;
             float upper = 1f;
-            return ClipClosedAxis(start.x, end.x - start.x, min.x, max.x, ref lower, ref upper)
-                && ClipClosedAxis(start.y, end.y - start.y, min.y, max.y, ref lower, ref upper);
+            return ClipClosedAxis(start.x, end.x - start.x, bounds.MinX, bounds.MaxX, ref lower, ref upper)
+                && ClipClosedAxis(start.y, end.y - start.y, bounds.MinY, bounds.MaxY, ref lower, ref upper);
         }
 
         /// <summary>
@@ -222,72 +222,73 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Returns whether a point lies strictly inside a rectangle, ignoring its boundary.
         /// </summary>
-        public static bool IsStrictlyInside(Vector2 point, Rect rect)
-            => point.x > rect.xMin + NavigationConstant.Epsilon && point.x < rect.xMax - NavigationConstant.Epsilon
-                && point.y > rect.yMin + NavigationConstant.Epsilon && point.y < rect.yMax - NavigationConstant.Epsilon;
+        public static bool IsStrictlyInside(Vector2 point, AABB bounds)
+            => point.x > bounds.MinX + NavigationConstant.Epsilon && point.x < bounds.MaxX - NavigationConstant.Epsilon
+                && point.y > bounds.MinY + NavigationConstant.Epsilon && point.y < bounds.MaxY - NavigationConstant.Epsilon;
 
         /// <summary>
-        /// Clips the parametric interval [0, 1] against one rectangle slab. The numerator is the negated
-        /// direction component and the denominator the offset from the slab's lower bound.
+        /// Clips the parametric interval [0, 1] against one box face. The numerator is the negated direction
+        /// component and the denominator the offset from the slab's lower bound. A segment parallel to the
+        /// face counts only while its own coordinate stays strictly inside the slab, so a segment lying on
+        /// the face is contact rather than interior overlap.
         /// </summary>
-        public static bool ClipRectAxis(float numerator, float denominator, ref float enter, ref float exit)
+        public static bool ClipAabbAxis(float numerator, float denominator, ref float enter, ref float exit)
         {
-            if (Mathf.Abs(numerator) <= NavigationConstant.Epsilon) return denominator >= 0f;
+            if (Mathf.Abs(numerator) <= NavigationConstant.Epsilon) return denominator > 0f;
             float value = denominator / numerator;
             if (numerator > 0f) exit = Mathf.Min(exit, value); else enter = Mathf.Max(enter, value);
             return enter <= exit;
         }
 
         /// <summary>
-        /// Returns whether a segment crosses the interior of a rectangle. Boundary contact alone does not
-        /// count, which is what separates this predicate from <see cref="SegmentIntersectsClosedRect"/>.
+        /// Returns whether a segment crosses the interior of a box. Boundary contact along an axis-aligned
+        /// segment still counts, which is what separates this predicate from <see cref="SegmentIntersectsClosedAabb"/>.
         /// </summary>
-        public static bool SegmentIntersectsRectInterior(Vector2 a, Vector2 b, Rect rect)
+        public static bool SegmentIntersectsAabbInterior(Vector2 a, Vector2 b, AABB bounds)
         {
             float enter = 0f;
             float exit = 1f;
             Vector2 delta = b - a;
-            return ClipRectAxis(-delta.x, a.x - rect.xMin, ref enter, ref exit)
-                && ClipRectAxis(delta.x, rect.xMax - a.x, ref enter, ref exit)
-                && ClipRectAxis(-delta.y, a.y - rect.yMin, ref enter, ref exit)
-                && ClipRectAxis(delta.y, rect.yMax - a.y, ref enter, ref exit)
+            return ClipAabbAxis(-delta.x, a.x - bounds.MinX, ref enter, ref exit)
+                && ClipAabbAxis(delta.x, bounds.MaxX - a.x, ref enter, ref exit)
+                && ClipAabbAxis(-delta.y, a.y - bounds.MinY, ref enter, ref exit)
+                && ClipAabbAxis(delta.y, bounds.MaxY - a.y, ref enter, ref exit)
                 && exit > enter + NavigationConstant.Epsilon;
         }
 
         /// <summary>
         /// Returns whether a circle overlaps a rectangle's interior.
         /// </summary>
-        public static bool CircleIntersectsRect(Vector2 center, float radius, Rect rect)
+        public static bool CircleIntersectsAabb(Vector2 center, float radius, AABB bounds)
         {
-            float dx = Mathf.Max(rect.xMin - center.x, 0f, center.x - rect.xMax);
-            float dy = Mathf.Max(rect.yMin - center.y, 0f, center.y - rect.yMax);
+            float dx = Mathf.Max(bounds.MinX - center.x, 0f, center.x - bounds.MaxX);
+            float dy = Mathf.Max(bounds.MinY - center.y, 0f, center.y - bounds.MaxY);
             return dx * dx + dy * dy < radius * radius - NavigationConstant.Epsilon;
         }
 
         /// <summary>
         /// Returns whether a capsule around a segment overlaps a rectangle.
         /// </summary>
-        public static bool SegmentIntersectsExpandedRect(Vector2 a, Vector2 b, float radius, Rect rect)
+        public static bool SegmentIntersectsExpandedAabb(Vector2 a, Vector2 b, float radius, AABB bounds)
         {
-            Rect expanded = rect;
-            expanded.xMin -= radius; expanded.xMax += radius; expanded.yMin -= radius; expanded.yMax += radius;
-            return SegmentIntersectsRectInterior(a, b, expanded)
-                || DistanceBetweenSegments(a, b, new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMin)) <= radius + NavigationConstant.Epsilon
-                || DistanceBetweenSegments(a, b, new Vector2(rect.xMax, rect.yMin), new Vector2(rect.xMax, rect.yMax)) <= radius + NavigationConstant.Epsilon
-                || DistanceBetweenSegments(a, b, new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMin, rect.yMax)) <= radius + NavigationConstant.Epsilon
-                || DistanceBetweenSegments(a, b, new Vector2(rect.xMin, rect.yMax), new Vector2(rect.xMin, rect.yMin)) <= radius + NavigationConstant.Epsilon;
+            AABB expanded = bounds.Expand(radius * 2f);
+            return SegmentIntersectsAabbInterior(a, b, expanded)
+                || DistanceBetweenSegments(a, b, new Vector2(bounds.MinX, bounds.MinY), new Vector2(bounds.MaxX, bounds.MinY)) <= radius + NavigationConstant.Epsilon
+                || DistanceBetweenSegments(a, b, new Vector2(bounds.MaxX, bounds.MinY), new Vector2(bounds.MaxX, bounds.MaxY)) <= radius + NavigationConstant.Epsilon
+                || DistanceBetweenSegments(a, b, new Vector2(bounds.MaxX, bounds.MaxY), new Vector2(bounds.MinX, bounds.MaxY)) <= radius + NavigationConstant.Epsilon
+                || DistanceBetweenSegments(a, b, new Vector2(bounds.MinX, bounds.MaxY), new Vector2(bounds.MinX, bounds.MinY)) <= radius + NavigationConstant.Epsilon;
         }
 
         /// <summary>
         /// Returns whether a polygon overlaps a rectangle's interior.
         /// </summary>
-        public static bool PolygonIntersectsRect(Vector2[] vertices, Rect rect)
+        public static bool PolygonIntersectsAabb(Vector2[] vertices, AABB bounds)
         {
             for (int index = 0; index < vertices.Length; index++)
-                if (IsStrictlyInside(vertices[index], rect)) return true;
-            if (PointInPolygon(rect.center, vertices)) return true;
+                if (IsStrictlyInside(vertices[index], bounds)) return true;
+            if (PointInPolygon(bounds.Center, vertices)) return true;
             for (int index = 0; index < vertices.Length; index++)
-                if (SegmentIntersectsRectInterior(vertices[index], vertices[(index + 1) % vertices.Length], rect)) return true;
+                if (SegmentIntersectsAabbInterior(vertices[index], vertices[(index + 1) % vertices.Length], bounds)) return true;
             return false;
         }
 

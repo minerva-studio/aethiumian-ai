@@ -78,10 +78,10 @@ namespace Aethiumian.AI.Navigation
         {
             NonNegativeFinite(bodyWidth, nameof(bodyWidth));
             float centerX = TargetBounds.Center.x;
-            float feetY = TargetBounds.Min.y;
+            float feetY = TargetBounds.MinY;
             float halfWidth = (TargetBounds.Size.x + bodyWidth) * 0.5f + ArrivalTolerance;
-            return new AABB(new Vector2(centerX - halfWidth, feetY - GroundFootHeightTolerance),
-                new Vector2(centerX + halfWidth, feetY + GroundFootHeightTolerance));
+            return new AABB(centerX - halfWidth, feetY - GroundFootHeightTolerance,
+                centerX + halfWidth, feetY + GroundFootHeightTolerance);
         }
 
 
@@ -220,10 +220,10 @@ namespace Aethiumian.AI.Navigation
             if (IsGroundWalk)
                 return DistanceToLowerCenterGoalSegment(start, end, bodySize.x);
 
-            float minX = TargetBounds.Min.x - bodySize.x * 0.5f;
-            float maxX = TargetBounds.Max.x + bodySize.x * 0.5f;
-            float minY = TargetBounds.Min.y - bodySize.y;
-            float maxY = TargetBounds.Max.y;
+            float minX = TargetBounds.MinX - bodySize.x * 0.5f;
+            float maxX = TargetBounds.MaxX + bodySize.x * 0.5f;
+            float minY = TargetBounds.MinY - bodySize.y;
+            float maxY = TargetBounds.MaxY;
             return DistanceMetric.DistanceToSegmentBoundsMetric(start, end, minX, maxX, minY, maxY);
         }
 
@@ -307,8 +307,8 @@ namespace Aethiumian.AI.Navigation
             if (!IsGroundWalk)
                 return Vector2.Distance(Center, latest.Center) <= horizontalThreshold;
 
-            bool horizontalChanged = Mathf.Max(Mathf.Abs(TargetBounds.Min.x - latest.TargetBounds.Min.x), Mathf.Abs(TargetBounds.Max.x - latest.TargetBounds.Max.x)) > horizontalThreshold;
-            bool levelChanged = Mathf.Abs(TargetBounds.Min.y - latest.TargetBounds.Min.y) > verticalThreshold;
+            bool horizontalChanged = Mathf.Max(Mathf.Abs(TargetBounds.MinX - latest.TargetBounds.MinX), Mathf.Abs(TargetBounds.MaxX - latest.TargetBounds.MaxX)) > horizontalThreshold;
+            bool levelChanged = Mathf.Abs(TargetBounds.MinY - latest.TargetBounds.MinY) > verticalThreshold;
             return !horizontalChanged && !levelChanged;
         }
 
@@ -326,7 +326,7 @@ namespace Aethiumian.AI.Navigation
             => new(targetBounds, NavigationGoalGeometry.Retreat, distanceMetric, false, 0f, retreatDistance);
 
         public static NavigationGoalRequest Point(Vector2 destination, NavigationGoalGeometry geometry, DistanceMetric distanceMetric, bool requiresLineOfSight, float arrivalTolerance)
-            => new(new AABB(destination, destination), geometry, distanceMetric, requiresLineOfSight, arrivalTolerance, 0f);
+            => new(AABB.Point(destination), geometry, distanceMetric, requiresLineOfSight, arrivalTolerance, 0f);
 
         /// <summary>Creates an equivalent request with only its captured target bounds replaced.</summary>
         public NavigationGoalRequest WithTargetBounds(AABB targetBounds)

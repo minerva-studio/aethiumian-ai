@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Navigation.Tests
     /// </summary>
     internal static class NavigationWorldSnapshotFixtures
     {
-        private static readonly Rect DefaultBounds = new(-100f, -100f, 200f, 200f);
+        private static readonly AABB DefaultBounds = AABB.FromMinAndSize(-100f, -100f, 200f, 200f);
 
         public static NavigationWorldSnapshot Open()
             => NavigationWorldSnapshot.Create(
