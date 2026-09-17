@@ -63,13 +63,19 @@ namespace Aethiumian.AI.Nodes
         {
             INavigationWorld world = NavigationWorld;
             Vector2 targetFeet = target;
-            if (!world.AreInSameRegion(NavigationGroundAnchor, targetFeet)) return false;
+            if (!IsNavigationDestinationAllowed(NavigationGroundAnchor, targetFeet)) return false;
+
             Vector2 bodySize = NavigationBodySize;
-            if (!world.IsBodyClear(
-                AABB.FromMinAndSize(new Vector2(targetFeet.x - bodySize.x * 0.5f, targetFeet.y), bodySize),
-                0f)) return false;
-            return !requireSupport || world.TryResolveSupport(targetFeet, bodySize,
-                NavigationWorldQueries.SupportSnapDistance, out _);
+            AABB candidateBody = AABB.FromMinAndSize(
+                new Vector2(targetFeet.x - bodySize.x * 0.5f, targetFeet.y), bodySize);
+            if (!world.IsBodyClear(candidateBody, 0f)) return false;
+            if (!requireSupport) return true;
+
+            return world.TryResolveSupport(
+                targetFeet,
+                bodySize,
+                NavigationWorldQueries.SupportSnapDistance,
+                out _);
         }
     }
 }

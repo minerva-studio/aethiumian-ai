@@ -97,7 +97,7 @@ namespace Aethiumian.AI.Navigation
             Vector2 direct = GetGoalCenter(goal, parameters.BodySize);
             if (goal.IsRetreat)
             {
-                Vector2 away = start - goal.Center;
+                Vector2 away = start - goal.Anchor;
                 direct = start + away.normalized * Mathf.Max(NavigationConstant.MinimumRetreatStep, goal.RetreatDistance + parameters.BodySize.magnitude);
             }
             if (World.IsGoalComplete(goal, direct, parameters.BodySize) && LocalStepAllowed(start, direct, goal, parameters))
@@ -126,7 +126,7 @@ namespace Aethiumian.AI.Navigation
         private bool LocalStepAllowed(Vector2 start, Vector2 end, NavigationGoalRequest goal, FlyNavigationParameters parameters)
             => World.IsCenteredBodyClearAt(end, parameters.BodySize)
                 && World.IsCenteredBodySegmentClear(start, end, parameters.BodySize)
-                && (!goal.IsRetreat || !parameters.HasApproachLimit || RetreatNavigationGeometry.SegmentApproachDistance(start, end, goal.Center) <= parameters.RemainingApproachDistance);
+                && (!goal.IsRetreat || !parameters.HasApproachLimit || RetreatNavigationGeometry.SegmentApproachDistance(start, end, goal.Anchor) <= parameters.RemainingApproachDistance);
 
         private IEnumerable<NavigationTransitionWork> EnumerateFlyTransitions(NavigationSearchNode node, NavigationGoalRequest goal, Vector2 resolvedGoal, Vector2Int goalCell, FlyNavigationParameters parameters)
         {
@@ -202,11 +202,11 @@ namespace Aethiumian.AI.Navigation
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(start, goal, World, start,
                     Array.Empty<NavigationRouteSegment>()));
 
-            if (!TryFindRetreatConnectorCell(World, start, goal.Center, parameters, out Vector2Int startCell))
+            if (!TryFindRetreatConnectorCell(World, start, goal.Anchor, parameters, out Vector2Int startCell))
                 return NavigationPlanResult.NoResult;
 
             Vector2 startCellPosition = LatticeCenter(World, startCell);
-            float startApproach = RetreatNavigationGeometry.SegmentApproachDistance(start, startCellPosition, goal.Center);
+            float startApproach = RetreatNavigationGeometry.SegmentApproachDistance(start, startCellPosition, goal.Anchor);
             if (parameters.HasApproachLimit && startApproach > parameters.RemainingApproachDistance + Tolerance)
                 return NavigationPlanResult.NoResult;
 
@@ -243,7 +243,7 @@ namespace Aethiumian.AI.Navigation
                     if (!World.IsCenteredBodyClearAt(nextPosition, parameters.BodySize) || !World.IsCenteredBodySegmentClear(currentPosition, nextPosition, parameters.BodySize)) continue;
 
                     float candidateCost = currentLabel.PathCost + FlightStep;
-                    float candidateApproach = currentLabel.ApproachCost + RetreatNavigationGeometry.SegmentApproachDistance(currentPosition, nextPosition, goal.Center);
+                    float candidateApproach = currentLabel.ApproachCost + RetreatNavigationGeometry.SegmentApproachDistance(currentPosition, nextPosition, goal.Anchor);
                     if (parameters.HasApproachLimit && candidateApproach > parameters.RemainingApproachDistance + Tolerance) continue;
                     RetreatSearchLabel candidate = new(next, currentLabelId, candidateCost, candidateApproach, World.GetGoalCompletionDistance(goal, nextPosition, parameters.BodySize));
                     if (!TryAddRetreatLabel(labels, labelIdsByCell, candidate, out int candidateId)) continue;
@@ -386,7 +386,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Converts a Ground Range lower-center goal into the center anchor used by Fly.</summary>
-        private static Vector2 GetGoalCenter(NavigationGoalRequest goal, Vector2 bodySize) => GetGoalCenter(goal, bodySize, goal.Center);
+        private static Vector2 GetGoalCenter(NavigationGoalRequest goal, Vector2 bodySize) => GetGoalCenter(goal, bodySize, goal.Anchor);
 
         /// <summary>Converts one resolved lower-center candidate into Fly's center-anchor space.</summary>
         private static Vector2 GetGoalCenter(NavigationGoalRequest goal, Vector2 bodySize, Vector2 candidate) => goal.IsGroundWalk ? candidate + Vector2.up * (bodySize.y * 0.5f) : candidate;

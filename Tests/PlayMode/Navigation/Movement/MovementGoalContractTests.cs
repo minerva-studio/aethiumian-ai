@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
@@ -131,6 +132,34 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         [UnityTest]
+        public IEnumerator RegionPolicyGatesPlannerAtCanonicalDestination()
+        {
+            foreach (NavigationRegionPolicy policy in new[]
+                { NavigationRegionPolicy.InRegion, NavigationRegionPolicy.CrossRegion })
+            {
+                using MapNavigationRuntime runtime = new(8, 4096, 4096);
+                runtime.PublishWorld(NavigationWorldSnapshotFixtures.SplitRegions());
+                using RuntimeContextScope context = new(runtime);
+                RequestProbeWalk node = CreateRegionProbeWalk(new Vector2(70f, 1f));
+                node.regionPolicy = policy;
+                MovementHarness harness = CreateHarness(MovementStart, node);
+                harness.Body.gravityScale = 0f;
+
+                yield return WaitForTreeCreated(harness);
+                RequestProbeWalk runtimeNode = (RequestProbeWalk)harness.AI.BehaviourTree.Head;
+                Assert.That(runtimeNode.regionPolicy, Is.EqualTo(policy), DescribeHarness(harness));
+                for (int tick = 0; tick < RuntimeContractTickLimit
+                    && harness.AI.BehaviourTree.IsRunning && runtimeNode.RequestCount == 0; tick++)
+                    yield return new WaitForFixedUpdate();
+
+                Assert.That(runtimeNode.RequestCount,
+                    Is.EqualTo(policy == NavigationRegionPolicy.InRegion ? 0 : 1),
+                    DescribeHarness(harness));
+                if (harness.AI.BehaviourTree.IsRunning) harness.AI.End(false);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator SimpleRetreatCompletesImmediatelyWhenAlreadyBeyondReachDistance()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
@@ -248,6 +277,33 @@ namespace Aethiumian.AI.Navigation.Tests
                 speed = (VariableField<float>)5f,
                 speedModifier = (VariableField<float>)1f,
             };
+
+        private static RequestProbeWalk CreateRegionProbeWalk(Vector2 destination)
+            => new()
+            {
+                uuid = UUID.NewUUID(),
+                path = Movement.PathMode.Simple,
+                type = Movement.Behaviour.FixedDestination,
+                destination = new VariableField(destination),
+                reachDistance = (VariableField<float>)0.2f,
+                speed = (VariableField<float>)5f,
+                speedModifier = (VariableField<float>)1f,
+            };
+
+        [Serializable]
+        public sealed class RequestProbeWalk : Walk
+        {
+            public int RequestCount { get; private set; }
+
+            protected override bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal,
+                NavigationPlanningExtent extent, NavigationPlanningPurpose purpose,
+                CancellationToken cancellation, out NavigationPlanningOperation operation)
+            {
+                RequestCount++;
+                operation = null;
+                return false;
+            }
+        }
     }
 
 }

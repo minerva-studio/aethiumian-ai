@@ -67,6 +67,23 @@ namespace Aethiumian.AI.Navigation.Tests
         public IEnumerator FixedJumpReachedTargetStillLaunchesWhenSkipDisabled()
             => ReachedTargetHonorsSkipContract(FixedJump.JumpTargetMode.Direct, false, true, true);
 
+        [UnityTest]
+        public IEnumerator FixedJumpInRegionRejectsCrossRegionLandingBeforeLaunch()
+        {
+            using MapNavigationRuntime runtime = new(8, 4096, 4096);
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.SplitRegions());
+            using RuntimeContextScope context = new(runtime);
+            FixedJump node = CreateSingleFixedJump(new Vector2(70f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, node);
+
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+
+            Assert.That(harness.Source.JumpCount, Is.Zero, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false),
+                DescribeHarness(harness));
+        }
+
         /// <summary>Verifies a reached PlannedStep target uses the same skip contract.</summary>
         [UnityTest]
         public IEnumerator PlannedStepReachedTargetUsesTheSameSkipContract()

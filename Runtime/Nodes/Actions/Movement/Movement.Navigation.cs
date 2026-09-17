@@ -219,7 +219,7 @@ namespace Aethiumian.AI.Nodes
         private bool TryHandleExistingRoute(NavigationGoalRequest goal, Vector2 anchor, AABB body)
         {
             if (ActiveSegment != null || route == null || routeIndex >= route.Count) return false;
-            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(route.Segments[routeIndex].Start, route.Goal, route.World, route.ResolvedGoal, route.GetRouteSegments(routeIndex), route.ReachesGoal);
+            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(route.Segments[routeIndex].Start, route.Goal, route.World, route.Endpoint, route.GetRouteSegments(routeIndex), route.ReachesGoal);
             ActionPreparation preparation = TryAdoptRoute(remaining, CandidateSource.ExistingRoute, goal, anchor, body);
             if (preparation != ActionPreparation.Unavailable) return true;
 
@@ -395,7 +395,7 @@ namespace Aethiumian.AI.Nodes
 
             if (action != null && !changed && route != null && routeIndex < route.Count)
             {
-                Vector2 endpointCenter = route.ResolvedGoal + body.Center - anchor;
+                Vector2 endpointCenter = route.Endpoint + body.Center - anchor;
                 if (route.ReachesGoal && route.World.IsGoalComplete(goal, endpointCenter, body.Size)) return false;
             }
 

@@ -158,6 +158,16 @@ namespace Aethiumian.AI.Nodes
             bool faulted = false;
             try
             {
+                if (!goal.IsRetreat)
+                {
+                    bool destinationAllowed = IsNavigationDestinationAllowed(anchor, goal.Anchor);
+                    if (!destinationAllowed)
+                    {
+                        EndMovement(false, goal);
+                        return;
+                    }
+                }
+
                 // Keep semantic invalidation inside the existing cleanup boundary so request
                 // cancellation cannot bypass the node's normal fault/finalization handling.
                 planningInvalidated = RefreshPlanningIntent(goal);

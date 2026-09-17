@@ -6,6 +6,13 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    /// <summary>Controls whether a navigation action may choose a destination in another region.</summary>
+    public enum NavigationRegionPolicy
+    {
+        InRegion = 0,
+        CrossRegion = 1,
+    }
+
     /// <summary>
     /// Owns one navigation action's borrowed runtime, readiness and terminal cleanup.
     /// Current is captured once; permission pauses execution, never invalidation or cancellation.
@@ -23,6 +30,9 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private Collider2D bodyCollider;
         [NonSerialized] private Collider2D[] bodyColliders;
 
+        /// <summary>Defines whether the action's final destination must remain in its current region.</summary>
+        public NavigationRegionPolicy regionPolicy = NavigationRegionPolicy.InRegion;
+
         /// <summary>The runtime borrowed for this run; node cleanup never disposes it.</summary>
         public MapNavigationRuntime NavigationRuntime => navigationRuntime;
         /// <summary>The immutable world bound before initialization, never a replacement runtime's world.</summary>
@@ -35,6 +45,23 @@ namespace Aethiumian.AI.Nodes
         public IReadOnlyList<Collider2D> NavigationColliders => bodyColliders;
         /// <summary>Cancelled immediately on action completion, including before the tree consumes its result.</summary>
         protected CancellationToken ExecutionCancellation => executionCancellation.Token;
+
+        /// <summary>
+        /// Checks the action's destination contract without imposing a route or transition constraint.
+        /// Both points must remain inside the immutable navigation world.
+        /// </summary>
+        protected bool IsNavigationDestinationAllowed(Vector2 origin, Vector2 destination)
+        {
+            if (world == null) return false;
+            if (!world.WorldBounds.Contains(origin)) return false;
+            if (!world.WorldBounds.Contains(destination)) return false;
+            return regionPolicy switch
+            {
+                NavigationRegionPolicy.CrossRegion => true,
+                NavigationRegionPolicy.InRegion => world.AreInSameRegion(origin, destination),
+                _ => false,
+            };
+        }
 
         public sealed override void Awake()
         {

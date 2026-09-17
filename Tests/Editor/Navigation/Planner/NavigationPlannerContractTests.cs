@@ -23,7 +23,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(result.Route, Is.Not.Null);
             Assert.That(result.Route.Segments, Is.Not.Empty);
-            Assert.That(world.IsGoalComplete(goal, result.Route.ResolvedGoal + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(goal, result.Route.Endpoint + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
         }
 
         [Test]

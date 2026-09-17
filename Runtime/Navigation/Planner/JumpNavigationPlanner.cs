@@ -149,7 +149,7 @@ namespace Aethiumian.AI.Navigation
             successor = default;
             // A boundary-only landing turns ordinary physics contact error into another jump.
             // Aim toward the goal itself; the normal search handles unsupported destinations.
-            Vector2 landing = new(start.x + Mathf.Clamp(goal.Center.x - start.x, -parameters.JumpLength, parameters.JumpLength), start.y);
+            Vector2 landing = new(start.x + Mathf.Clamp(goal.Anchor.x - start.x, -parameters.JumpLength, parameters.JumpLength), start.y);
             if (Mathf.Abs(landing.x - start.x) <= Tolerance
                 || !jumpSolver.World.IsGoalComplete(goal, landing + Vector2.up * (parameters.BodySize.y * 0.5f), parameters.BodySize))
                 return false;

@@ -49,7 +49,7 @@ namespace Aethiumian.AI.Navigation
         /// Gets the center used as a deterministic planning heuristic. Ground Range reasons about
         /// the continuous lower edge of its target, without integer rounding.
         /// </summary>
-        public Vector2 Center => IsGroundWalk ? TargetBounds.LowerCenter : TargetBounds.Center;
+        public Vector2 Anchor => IsGroundWalk ? TargetBounds.LowerCenter : TargetBounds.Center;
 
         public NavigationGoalRequest(AABB targetBounds, NavigationGoalGeometry geometry, DistanceMetric distanceMetric, bool requiresLineOfSight, float arrivalTolerance, float retreatDistance)
         {
@@ -266,7 +266,7 @@ namespace Aethiumian.AI.Navigation
         public bool IsSamePlanningTarget(NavigationGoalRequest latest)
         {
             if (!HasCompatibleSemantics(latest)) return false;
-            return (Center - latest.Center).sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
+            return (Anchor - latest.Anchor).sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
         }
 
         /// <summary>
@@ -305,7 +305,7 @@ namespace Aethiumian.AI.Navigation
             // Target extents have already passed the sampling-noise check above; only the
             // target position is compared against the re-planning tolerance here.
             if (!IsGroundWalk)
-                return Vector2.Distance(Center, latest.Center) <= horizontalThreshold;
+                return Vector2.Distance(Anchor, latest.Anchor) <= horizontalThreshold;
 
             bool horizontalChanged = Mathf.Max(Mathf.Abs(TargetBounds.MinX - latest.TargetBounds.MinX), Mathf.Abs(TargetBounds.MaxX - latest.TargetBounds.MaxX)) > horizontalThreshold;
             bool levelChanged = Mathf.Abs(TargetBounds.MinY - latest.TargetBounds.MinY) > verticalThreshold;

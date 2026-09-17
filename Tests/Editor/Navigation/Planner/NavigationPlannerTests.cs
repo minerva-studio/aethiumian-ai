@@ -22,7 +22,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(new Vector2(3.5f, 2.5f), goal,
                 new FlyNavigationParameters(bodySize), out NavigationRoute route), Is.True);
             Assert.That(route, Is.Not.Null);
-            Assert.That(world.IsGoalComplete(goal, route.ResolvedGoal, bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(goal, route.Endpoint, bodySize), Is.True);
             Assert.That(route.Segments.Count, Is.GreaterThan(0));
         }
 
@@ -50,8 +50,8 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = NavigationGoalRequest.Retreat(AABB.Point(6.5f, 2.5f), DistanceMetric.Euclidean, 4f);
 
             Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(start, goal, new FlyNavigationParameters(bodySize, 0.25f), out NavigationRoute route), Is.True);
-            Assert.That(world.IsGoalComplete(goal, route.ResolvedGoal, bodySize), Is.True);
-            Assert.That(route.ResolvedGoal.x, Is.LessThan(start.x),
+            Assert.That(world.IsGoalComplete(goal, route.Endpoint, bodySize), Is.True);
+            Assert.That(route.Endpoint.x, Is.LessThan(start.x),
                 "The finite approach budget must prevent the route from spending its budget toward the target.");
         }
 
@@ -103,7 +103,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route, Is.Not.Null);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(world.IsGoalComplete(goal, route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.False);
+            Assert.That(world.IsGoalComplete(goal, route.Endpoint + Vector2.up * 0.75f, bodySize), Is.False);
             Assert.That(world.IsGoalCompleteAlong(goal,
                 route.Segments[0].Start + Vector2.up * 0.75f,
                 route.Segments[0].End + Vector2.up * 0.75f,
@@ -127,7 +127,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route, Is.Not.Null);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(world.IsGoalComplete(goal, route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(goal, route.Endpoint + Vector2.up * 0.75f, bodySize), Is.True);
         }
 
         /// <summary>Verifies continuous ground movement stops safely before terrain that requires another action.</summary>
@@ -153,11 +153,11 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route, Is.Not.Null);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
-            Assert.That(route.ResolvedGoal.x, Is.GreaterThan(3.5f).And.LessThan(5f));
-            Assert.That(route.ResolvedGoal.y, Is.EqualTo(1f));
-            Assert.That(world.CanStandAt(route.ResolvedGoal, bodySize,
+            Assert.That(route.Endpoint.x, Is.GreaterThan(3.5f).And.LessThan(5f));
+            Assert.That(route.Endpoint.y, Is.EqualTo(1f));
+            Assert.That(world.CanStandAt(route.Endpoint, bodySize,
                 WalkParameters(bodySize).SupportSnapDistance, out _), Is.True);
-            Assert.That(world.IsGoalComplete(goal, route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.False);
+            Assert.That(world.IsGoalComplete(goal, route.Endpoint + Vector2.up * 0.75f, bodySize), Is.False);
         }
 
         /// <summary>Verifies centered planners do not promote their comparison tolerance into goal legality.</summary>
@@ -180,7 +180,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 new Vector2(0.5f, 1.5f), flyGoal,
                 new FlyNavigationParameters(flyBodySize), out NavigationRoute flyRoute), Is.True);
             Assert.That(flyRoute.Count, Is.GreaterThan(0));
-            Assert.That(flyWorld.IsGoalComplete(flyGoal, flyRoute.ResolvedGoal, flyBodySize), Is.True);
+            Assert.That(flyWorld.IsGoalComplete(flyGoal, flyRoute.Endpoint, flyBodySize), Is.True);
         }
 
         /// <summary>Verifies Jump does not accept a start that only planner comparison tolerance would admit.</summary>
@@ -198,7 +198,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 out NavigationRoute route), Is.True);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(world.IsGoalComplete(goal, route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(goal, route.Endpoint + Vector2.up * 0.75f, bodySize), Is.True);
         }
 
         /// <summary>Verifies default Smart Walk uses GroundRange to snap physics contact gaps to the ground route without requiring globally cheapest mixed-search routes.</summary>
@@ -217,8 +217,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 start, goalRegion, WalkParameters(bodySize), out NavigationRoute route), Is.True);
             Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
             Assert.That(route.Start, Is.EqualTo(new Vector2(0.5f, 1f)));
-            Assert.That(route.ResolvedGoal.y, Is.EqualTo(1f));
-            Assert.That(world.IsGoalComplete(goalRegion, route.ResolvedGoal + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
+            Assert.That(route.Endpoint.y, Is.EqualTo(1f));
+            Assert.That(world.IsGoalComplete(goalRegion, route.Endpoint + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
         }
 
         /// <summary>Verifies a non-grid real start remains the special request origin while search nodes stay discrete.</summary>
@@ -404,7 +404,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Segments[0].Start.Equals(start), Is.True);
             for (int index = 1; index < route.Count; index++)
                 Assert.That(route.Segments[index - 1].End.Equals(route.Segments[index].Start), Is.True);
-            Assert.That(route.Segments[^1].End.Equals(route.ResolvedGoal), Is.True);
+            Assert.That(route.Segments[^1].End.Equals(route.Endpoint), Is.True);
         }
 
         /// <summary>Verifies Unity-style discrete damping does not disable grounded jump planning.</summary>
@@ -455,7 +455,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 Assert.That(route.Segments[i], Is.TypeOf<JumpRouteSegment>());
             for (int i = 1; i < route.Count; i++)
                 Assert.That(route.Segments[i - 1].End.Equals(route.Segments[i].Start), Is.True);
-            Assert.That(route.Segments[^1].End.Equals(route.ResolvedGoal), Is.True);
+            Assert.That(route.Segments[^1].End.Equals(route.Endpoint), Is.True);
             Assert.That(route.ReachesGoal, Is.True);
         }
 
@@ -559,8 +559,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 new FlyNavigationParameters(bodySize), out NavigationRoute route), Is.True);
             Assert.That(route.Goal.IsGroundWalk, Is.True);
             Assert.That(route.Goal.RequiresLineOfSight, Is.True);
-            Assert.That(world.IsGoalComplete(route.Goal, route.ResolvedGoal, bodySize), Is.True);
-            Assert.That(route.ResolvedGoal.y, Is.EqualTo(2.8f).Within(0.0001f));
+            Assert.That(world.IsGoalComplete(route.Goal, route.Endpoint, bodySize), Is.True);
+            Assert.That(route.Endpoint.y, Is.EqualTo(2.8f).Within(0.0001f));
         }
 
         /// <summary>Verifies detached aerial work executes a long unobstructed plan to completion.</summary>
@@ -601,8 +601,8 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(diagnosed.Termination, Is.EqualTo(synchronous.Termination));
             Assert.That(detached.Route, Is.Not.Null);
             Assert.That(diagnosed.Route, Is.Not.Null);
-            Assert.That(detached.Route.ResolvedGoal, Is.EqualTo(synchronous.Route.ResolvedGoal));
-            Assert.That(diagnosed.Route.ResolvedGoal, Is.EqualTo(synchronous.Route.ResolvedGoal));
+            Assert.That(detached.Route.Endpoint, Is.EqualTo(synchronous.Route.Endpoint));
+            Assert.That(diagnosed.Route.Endpoint, Is.EqualTo(synchronous.Route.Endpoint));
         }
 
         /// <summary>Verifies an external assembly can implement the public generic planner contract.</summary>
@@ -832,8 +832,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 WalkParameters(jumpHeight: 2.99f, jumpLength: 0f), out NavigationRoute highTargetRoute), Is.True);
             Assert.That(highTargetRoute, Is.Not.Null);
             Assert.That(highTargetRoute.ReachesGoal, Is.True);
-            Assert.That(highTargetRoute.ResolvedGoal.y, Is.LessThan(3.25f));
-            Assert.That(world.TryResolveSupport(highTargetRoute.ResolvedGoal, new Vector2(0.8f, 1.5f),
+            Assert.That(highTargetRoute.Endpoint.y, Is.LessThan(3.25f));
+            Assert.That(world.TryResolveSupport(highTargetRoute.Endpoint, new Vector2(0.8f, 1.5f),
                 NavigationWorldQueries.SupportSnapDistance, out _), Is.True);
             foreach (NavigationRouteSegment segment in highTargetRoute.Segments)
             {

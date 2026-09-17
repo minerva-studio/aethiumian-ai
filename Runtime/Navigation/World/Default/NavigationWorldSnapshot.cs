@@ -7,6 +7,8 @@ namespace Aethiumian.AI.Navigation
 {
     /// <summary>
     /// Maps a non-overlapping world-space region rectangle to a captured project region identity.
+    /// Positions inside the world bounds that are not covered by explicit data belong to the
+    /// implicit Global region.
     /// </summary>
     public readonly struct NavigationRegionData
     {
@@ -368,11 +370,15 @@ namespace Aethiumian.AI.Navigation
         {
             Validate.Finite(first, nameof(first));
             Validate.Finite(second, nameof(second));
-            return TryGetRegion(first, out int firstRegion) && TryGetRegion(second, out int secondRegion)
-                && firstRegion == secondRegion;
+            if (!worldBounds.Contains(first) || !worldBounds.Contains(second)) return false;
+
+            bool firstExplicit = TryGetExplicitRegion(first, out int firstRegion);
+            bool secondExplicit = TryGetExplicitRegion(second, out int secondRegion);
+            return firstExplicit == secondExplicit
+                && (!firstExplicit || firstRegion == secondRegion);
         }
 
-        private bool TryGetRegion(Vector2 position, out int region)
+        private bool TryGetExplicitRegion(Vector2 position, out int region)
         {
             Vector2 local = (position - worldBounds.Min) / NavigationConstant.SpatialIndexBucketSize;
             Vector2Int worldIndex = new(Mathf.FloorToInt(local.x), Mathf.FloorToInt(local.y));

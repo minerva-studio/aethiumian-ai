@@ -122,7 +122,7 @@ namespace Aethiumian.AI.Navigation
                 candidates.Enqueue(new JumpCandidateDescriptor(landingCandidate.Id, landingSupport, landing,
                     CouldTrajectoryEnterGoal(start, landing, goal, parameters, maximumApexHeight),
                     startDistance - goal.DistanceToLowerCenterBody(landing, parameters.BodySize),
-                    Mathf.Sign(landing.x - start.x) == Mathf.Sign(goal.Center.x - start.x),
+                    Mathf.Sign(landing.x - start.x) == Mathf.Sign(goal.Anchor.x - start.x),
                     Vector2.Distance(start, landing)));
                 yield return null;
             }

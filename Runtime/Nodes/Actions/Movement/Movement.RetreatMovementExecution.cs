@@ -64,7 +64,7 @@ namespace Aethiumian.AI.Nodes
                 if (!execution.TryObserve(
                     tickStartCenter,
                     center,
-                    tickGoal.Value.Center,
+                    tickGoal.Value.Anchor,
                     startCompletionDistance,
                     completionDistance,
                     out bool madeNewBestProgress))
@@ -109,7 +109,7 @@ namespace Aethiumian.AI.Nodes
                 if (!TryResolveRetreatConstraint(goal, out NavigationGoalRequest constraint)) return true;
 
                 return execution.IsWithinRemainingApproachDistance(
-                    RetreatNavigationGeometry.RouteApproachDistance(anchor, constraint.Center, suffix));
+                    RetreatNavigationGeometry.RouteApproachDistance(anchor, constraint.Anchor, suffix));
             }
 
             public bool AllowsSegment(NavigationGoalRequest goal, Vector2 anchor, Vector2 endpoint)
@@ -117,7 +117,7 @@ namespace Aethiumian.AI.Nodes
                 if (!TryResolveRetreatConstraint(goal, out NavigationGoalRequest constraint)) return true;
 
                 return execution.IsWithinRemainingApproachDistance(
-                    RetreatNavigationGeometry.SegmentApproachDistance(anchor, endpoint, constraint.Center));
+                    RetreatNavigationGeometry.SegmentApproachDistance(anchor, endpoint, constraint.Anchor));
             }
 
             /// <summary>Resolves the retreat constraint to this tick's sample when one exists.</summary>

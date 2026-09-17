@@ -65,7 +65,7 @@ namespace Aethiumian.AI.Nodes
             var segments = new System.Collections.Generic.List<NavigationRouteSegment>
             { new FlyRouteSegment(body.Center, candidate.Segments[furthest].End) };
             for (int i = furthest + 1; i < candidate.Count; i++) segments.Add(candidate.Segments[i]);
-            connected = NavigationRoute.Create(body.Center, candidate.Goal, candidate.World, candidate.ResolvedGoal, segments, candidate.ReachesGoal);
+            connected = NavigationRoute.Create(body.Center, candidate.Goal, candidate.World, candidate.Endpoint, segments, candidate.ReachesGoal);
             return true;
         }
 
@@ -91,7 +91,7 @@ namespace Aethiumian.AI.Nodes
             {
                 if (setFinalPosition)
                 {
-                    RigidBody.position += goal.Value.Center - NavigationCenterAnchor;
+                    RigidBody.position += goal.Value.Anchor - NavigationCenterAnchor;
                     RigidBody.linearVelocity = Vector2.zero;
                 }
                 return;
@@ -153,9 +153,12 @@ namespace Aethiumian.AI.Nodes
                 Vector2 candidate = LimitTargetHeight(center + point);
                 // Fly destinations are body centers. Lowering an authored sample may put the
                 // body inside geometry, so validate the final point rather than the sample.
-                if (world.AreInSameRegion(NavigationCenterAnchor, candidate)
-                    && world.IsBodyClear(AABB.FromCenterAndSize(candidate, NavigationBodySize), 0f))
-                    return candidate;
+                if (!IsNavigationDestinationAllowed(NavigationCenterAnchor, candidate)) continue;
+
+                AABB candidateBody = AABB.FromCenterAndSize(candidate, NavigationBodySize);
+                if (!world.IsBodyClear(candidateBody, 0f)) continue;
+
+                return candidate;
             }
             Debug.LogWarning("Cannot find valid wander location around. Is the entity outside the room?");
             return transform.position;

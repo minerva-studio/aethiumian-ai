@@ -18,6 +18,21 @@ namespace Aethiumian.AI.Navigation.Tests
                 Array.Empty<NavigationShapeData>(),
                 new[] { new NavigationRegionData(DefaultBounds, 0) });
 
+        /// <summary>Publishes two adjacent explicit regions with no explicit coverage between them.</summary>
+        public static NavigationWorldSnapshot SplitRegions()
+        {
+            AABB left = AABB.FromMinAndSize(-100f, -100f, 140f, 200f);
+            AABB right = AABB.FromMinAndSize(40f, -100f, 60f, 200f);
+            return NavigationWorldSnapshot.Create(
+                DefaultBounds,
+                Array.Empty<NavigationShapeData>(),
+                new[]
+                {
+                    new NavigationRegionData(left, 0),
+                    new NavigationRegionData(right, 1),
+                });
+        }
+
         /// <summary>
         /// Publishes a solid floor. Unlike the one-way floor this surface needs no
         /// PlatformEffector2D source binding, so a jump across it creates no platform lease.

@@ -106,7 +106,7 @@ namespace Aethiumian.AI.Navigation.Tests
             ControlledWalk.Request refreshed = ControlledWalk.Requests
                 .FirstOrDefault(candidate => candidate != staleContinuation
                     && candidate.Extent == NavigationPlanningExtent.Route
-                    && Mathf.Abs(candidate.Goal.Center.x - 20f) <= 0.001f);
+                    && Mathf.Abs(candidate.Goal.Anchor.x - 20f) <= 0.001f);
             Assert.That(refreshed, Is.Not.Null, DescribeRequests());
             Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
@@ -362,7 +362,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(smart.Operation.IsCancelled, Is.False);
             Assert.That(fallback.Operation.IsCompleted, Is.True);
             Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(smart.Goal.Center.x).Within(0.25f), "A fallback result published in the same fixed tick must not replace Smart.");
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(smart.Goal.Anchor.x).Within(0.25f), "A fallback result published in the same fixed tick must not replace Smart.");
             Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(2), DescribeHarness(harness));
             if (ControlledWalk.Requests.Count >= 3)
             {
@@ -721,7 +721,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2? endpoint = null,
             bool completesGoal = true)
         {
-            Vector2 resolvedGoal = endpoint ?? new Vector2(request.Goal.Center.x, 1f);
+            Vector2 resolvedGoal = endpoint ?? new Vector2(request.Goal.Anchor.x, 1f);
             Vector2 logicalStart = new(request.Start.x, 1f);
             Vector2 bodyCenter = resolvedGoal + Vector2.up * (BodyHeight * 0.5f);
             bool reachesGoal = request.World.IsGoalComplete(request.Goal, bodyCenter, new Vector2(BodyWidth, BodyHeight));

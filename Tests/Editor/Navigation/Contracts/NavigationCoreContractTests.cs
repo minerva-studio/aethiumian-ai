@@ -327,8 +327,8 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationRoute route = NavigationRoute.Create(Vector2.zero, PointGoal(new Vector2(5, 2), 0f), UnitWorld(), Vector2.right,
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) }, true);
 
-            Assert.That(route.Goal.Center, Is.EqualTo(new Vector2(5, 2)));
-            Assert.That(route.ResolvedGoal, Is.EqualTo(Vector2.right));
+            Assert.That(route.Goal.Anchor, Is.EqualTo(new Vector2(5, 2)));
+            Assert.That(route.Endpoint, Is.EqualTo(Vector2.right));
         }
 
         /// <summary>Verifies semantic route factories and segment replacement preserve route-owned state.</summary>
@@ -349,7 +349,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(replaced.Start, Is.EqualTo(partial.Start));
             Assert.That(replaced.Goal, Is.EqualTo(partial.Goal));
             Assert.That(replaced.World, Is.SameAs(partial.World));
-            Assert.That(replaced.ResolvedGoal, Is.EqualTo(partial.ResolvedGoal));
+            Assert.That(replaced.Endpoint, Is.EqualTo(partial.Endpoint));
             Assert.That(replaced.ReachesGoal, Is.False);
             Assert.That(replaced.Segments[0], Is.TypeOf<FlyRouteSegment>());
         }
@@ -811,7 +811,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest request = NavigationGoalRequest.GroundRange(
                 AABB.FromCenterAndSize(5f, 9f, 2f, 2f), 0.5f);
 
-            Assert.That(request.Center, Is.EqualTo(new Vector2(5f, 8f)));
+            Assert.That(request.Anchor, Is.EqualTo(new Vector2(5f, 8f)));
             Assert.That(request.DistanceToLowerCenterGoal(new Vector2(6.9f, 9f), 0.8f), Is.EqualTo(0f).Within(0.0001f));
             Vector2 bodySize = new(0.8f, 1.5f);
             Vector2 acceptedCenter = new(6.9f, 8.75f);

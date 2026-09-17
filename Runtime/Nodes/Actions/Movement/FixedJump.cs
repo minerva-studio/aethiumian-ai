@@ -106,6 +106,13 @@ namespace Aethiumian.AI.Nodes
             }
 
             NavigationGoalRequest completionGoal = CreateCompletionRequest(targetBounds, arrivalTolerance);
+            Vector2 destination = targetMode == JumpTargetMode.Direct ? directLanding : completionGoal.Anchor;
+            if (!IsNavigationDestinationAllowed(start, destination))
+            {
+                CompleteAction(false);
+                return;
+            }
+
             if (skipReached && IsReached(completionGoal, start))
             {
                 CompleteAction(true);

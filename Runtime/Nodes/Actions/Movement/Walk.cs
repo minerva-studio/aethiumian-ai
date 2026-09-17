@@ -97,7 +97,7 @@ namespace Aethiumian.AI.Nodes
             StopHorizontalVelocity();
             if (success && setFinalPosition && type == Behaviour.Wander)
             {
-                RigidBody.position += goal.Value.Center - NavigationGroundAnchor;
+                RigidBody.position += goal.Value.Anchor - NavigationGroundAnchor;
                 RigidBody.linearVelocity = Vector2.zero;
             }
         }

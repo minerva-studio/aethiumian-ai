@@ -132,8 +132,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex + 1; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(start, route.Goal, route.World, route.ResolvedGoal, segments)
-                : NavigationRoute.Partial(start, route.Goal, route.World, route.ResolvedGoal, segments);
+                ? NavigationRoute.Complete(start, route.Goal, route.World, route.Endpoint, segments)
+                : NavigationRoute.Partial(start, route.Goal, route.World, route.Endpoint, segments);
             return true;
         }
 
@@ -144,8 +144,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(segments[0].Start, route.Goal, route.World, route.ResolvedGoal, segments)
-                : NavigationRoute.Partial(segments[0].Start, route.Goal, route.World, route.ResolvedGoal, segments);
+                ? NavigationRoute.Complete(segments[0].Start, route.Goal, route.World, route.Endpoint, segments)
+                : NavigationRoute.Partial(segments[0].Start, route.Goal, route.World, route.Endpoint, segments);
             return true;
         }
 
@@ -232,7 +232,7 @@ namespace Aethiumian.AI.Navigation
         {
             route = null;
             if (!goal.IsGroundWalk) return false;
-            Vector2 end = new(goal.Center.x, start.y);
+            Vector2 end = new(goal.Anchor.x, start.y);
             if (!world.TryResolveGroundSupport(end, parameters.BodySize, parameters.SupportSnapDistance,
                 out Vector2 snappedEnd, out _)) return false;
             end = snappedEnd;
@@ -346,9 +346,9 @@ namespace Aethiumian.AI.Navigation
                 Mathf.Abs(current.Position.x - start.x), goal, parameters.BodySize);
             float direction = Mathf.Sign(current.Position.x - start.x);
             float spacing = NavigationConstant.MaximumTraversalSampleSpacing;
-            while (!current.CompletesGoal && direction * (goal.Center.x - current.Position.x) > Tolerance)
+            while (!current.CompletesGoal && direction * (goal.Anchor.x - current.Position.x) > Tolerance)
             {
-                Vector2 next = new(Mathf.MoveTowards(current.Position.x, goal.Center.x, spacing), current.Position.y);
+                Vector2 next = new(Mathf.MoveTowards(current.Position.x, goal.Anchor.x, spacing), current.Position.y);
                 NavigationRouteSegment validated = null;
                 foreach (NavigationRouteSegment step in EnumerateGroundMove(world, current.Position, next, parameters))
                 {

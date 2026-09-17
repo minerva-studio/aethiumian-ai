@@ -13,22 +13,34 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public sealed class NavigationRoute
     {
-        /// <summary>Gets the world-space origin used by the planner.</summary>
-        public Vector2 Start { get; }
-
-        /// <summary>Gets the immutable goal this route was planned against.</summary>
-        public NavigationGoalRequest Goal { get; }
-
-        /// <summary>Gets the world-space endpoint selected by the planner.</summary>
-        public Vector2 ResolvedGoal { get; }
-
-        /// <summary>Gets the immutable world this route was planned against.</summary>
+        /// <summary>
+        /// Gets the immutable world this route was planned against.
+        /// </summary>
         public INavigationWorld World { get; }
 
-        /// <summary>Gets the read-only route segments in execution order.</summary>
+        /// <summary>
+        /// Gets the world-space origin used by the planner.
+        /// </summary>
+        public Vector2 Start { get; }
+
+        /// <summary>
+        /// Gets the immutable goal this route was planned against.
+        /// </summary>
+        public NavigationGoalRequest Goal { get; }
+
+        /// <summary>
+        /// Gets the world-space endpoint selected by the planner.
+        /// </summary>
+        public Vector2 Endpoint { get; }
+
+        /// <summary>
+        /// Gets the read-only route segments in execution order.
+        /// </summary>
         public IReadOnlyList<NavigationRouteSegment> Segments { get; }
 
-        /// <summary>Gets the number of route segments.</summary>
+        /// <summary>
+        /// Gets the number of route segments.
+        /// </summary>
         public int Count => Segments.Count;
 
         /// <summary>
@@ -42,7 +54,7 @@ namespace Aethiumian.AI.Navigation
             Start = start;
             Goal = goal;
             World = world;
-            ResolvedGoal = resolvedGoal;
+            Endpoint = resolvedGoal;
             ReachesGoal = reachesGoal;
             Segments = segments;
         }
@@ -64,7 +76,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Replaces this route's segments while preserving its origin, goal, world, endpoint, and completeness.
         /// </summary>
-        public NavigationRoute WithSegments(IEnumerable<NavigationRouteSegment> replacementSegments) => CreateInternal(Start, Goal, World, ResolvedGoal, replacementSegments, ReachesGoal);
+        public NavigationRoute WithSegments(IEnumerable<NavigationRouteSegment> replacementSegments) => CreateInternal(Start, Goal, World, Endpoint, replacementSegments, ReachesGoal);
 
         /// <summary>
         /// Creates a route against an immutable goal with an explicit goal-arrival fact.

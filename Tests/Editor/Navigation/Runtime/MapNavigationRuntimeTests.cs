@@ -201,7 +201,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(operation.Result.World, Is.SameAs(world));
             Assert.That(operation.Result.Goal.IsGroundWalk, Is.True);
             Assert.That(operation.Result.World.WorldBounds, Is.EqualTo(AABB.FromMinAndSize(0f, 0f, 3f, 2.5f)));
-            Assert.That(operation.Result.Goal.Center.y, Is.EqualTo(0.5f));
+            Assert.That(operation.Result.Goal.Anchor.y, Is.EqualTo(0.5f));
         }
 
         /// <summary>Verifies an unresolved Smart Walk start is retried by the worker rather than memoized as a terminal failure.</summary>
@@ -594,7 +594,7 @@ namespace Aethiumian.AI.Navigation.Tests
             if (route == null) return "Route=null";
             string segments = string.Join(", ", route.Segments.Select(segment =>
                 $"{segment.GetType().Name}:{segment.Start}->{segment.End}"));
-            return $"Route.ReachesGoal={route.ReachesGoal}; Route.ResolvedGoal={route.ResolvedGoal}; "
+            return $"Route.ReachesGoal={route.ReachesGoal}; Route.ResolvedGoal={route.Endpoint}; "
                 + $"Route.Segments=[{segments}]";
         }
 

@@ -140,9 +140,9 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2 finalAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
             Assert.That(jumpCallbacks, Is.GreaterThanOrEqualTo(1));
             Assert.That(leftGround, Is.True);
-            Assert.That(Mathf.Abs(finalAnchor.x - route.ResolvedGoal.x),
+            Assert.That(Mathf.Abs(finalAnchor.x - route.Endpoint.x),
                 Is.LessThanOrEqualTo(Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon));
-            Assert.That(Mathf.Abs(GetSupportSurfaceY(collider) - route.ResolvedGoal.y),
+            Assert.That(Mathf.Abs(GetSupportSurfaceY(collider) - route.Endpoint.y),
                 Is.LessThanOrEqualTo(Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon));
         }
 
