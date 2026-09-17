@@ -218,7 +218,7 @@ namespace Aethiumian.AI.Navigation
             {
                 NavigationGoalRequest goal = request.Descriptor.Goal;
                 NavigationProfileKey profileKey = request.Descriptor.ProfileKey;
-                if (!CanPossiblyReachGoal(goal, request.Descriptor.BodySize, world))
+                if (!world.CanBodyPossiblyReachGoal(request.Descriptor.BodySize, goal))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.NoResult);
                     request.IsScheduled = true;
@@ -283,22 +283,6 @@ namespace Aethiumian.AI.Navigation
         private void ThrowIfDisposed()
         {
             if (isDisposed) throw new ObjectDisposedException(nameof(MapNavigationRuntime));
-        }
-
-        /// <summary>
-        /// Conservatively rejects only goals no body AABB can touch from inside the finite world.
-        /// </summary>
-        public static bool CanPossiblyReachGoal(NavigationGoalRequest goal, Vector2 bodySize, INavigationWorld snapshot)
-        {
-            if (snapshot == null) return true;
-            if (goal.IsRetreat) return true;
-            Bounds reachable = goal.IsGroundWalk
-                ? goal.GetLowerCenterAcceptanceBounds(bodySize.x)
-                : goal.TargetBounds;
-            float expansion = Mathf.Max(bodySize.x, bodySize.y) + goal.ArrivalTolerance;
-            reachable.Expand(expansion * 2f);
-            Bounds worldBounds = new(snapshot.WorldBounds.center, snapshot.WorldBounds.size);
-            return reachable.Intersects(worldBounds);
         }
 
         /// <summary>Owns cancellation resources until one queued operation reaches a terminal outcome.</summary>

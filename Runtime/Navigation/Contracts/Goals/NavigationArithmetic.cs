@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
 {
@@ -147,5 +148,16 @@ namespace Aethiumian.AI.Navigation
             return Vector2.Distance(point, start + direction * projection);
         }
 
+        /// <summary>
+        /// Determines whether two points are approximately equal within a given epsilon.
+        /// </summary>
+        /// <param name="first"></param>
+        /// <param name="second"></param>
+        /// <param name="epsilon"></param>
+        /// <returns></returns>
+        public static bool Approximately(Vector2 first, Vector2 second, float epsilon)
+        {
+            return Mathf.Abs(first.x - second.x) <= epsilon && Mathf.Abs(first.y - second.y) <= epsilon;
+        }
     }
 }

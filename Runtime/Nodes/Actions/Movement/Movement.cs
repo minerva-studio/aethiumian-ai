@@ -5,7 +5,6 @@ using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Variables;
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using UnityEditor;
 using UnityEngine;
@@ -20,6 +19,10 @@ namespace Aethiumian.AI.Nodes
     [Serializable]
     public abstract partial class Movement : NavigationAction
     {
+        private const int MaximumNoProgressAttempts = 3;
+
+
+
         public PathMode path;
         public Behaviour type;
 
@@ -83,7 +86,8 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private int retries;
         [NonSerialized] private float executionTime;
         [NonSerialized] private RetreatMovementExecution retreat;
-        private const int MaximumNoProgressAttempts = 3;
+
+
 
         /// <summary>The owned executor instance, exposed for live navigation inspection.</summary>
         public MovementExecutor Executor => executor;
@@ -166,7 +170,7 @@ namespace Aethiumian.AI.Nodes
                 bool swept = !planningInvalidated
                     && previousCenter.HasValue
                     && progressGoal.HasValue
-                    && SameGoal(progressGoal, goal)
+                    && progressGoal.Value.IsReusableFor(goal)
                     && NavigationWorld.IsGoalCompleteAlong(goal, previousCenter.Value, body.center, body.size);
                 RefreshProgressBaseline(goal, anchor, planningInvalidated);
                 bool fallbackReceiptConsumed = TryAcquireAction(goal, anchor, body);
@@ -199,9 +203,11 @@ namespace Aethiumian.AI.Nodes
                     }
                     return;
                 }
-                if ((result.Status == ExecutionStatus.Completed || action.IsReversible)
-                    && IsGoalSatisfied(goal, body, swept))
-                { EndMovement(true, goal); return; }
+                if ((result.Status == ExecutionStatus.Completed || action.IsReversible) && IsGoalSatisfied(goal, body, swept))
+                {
+                    EndMovement(true, goal);
+                    return;
+                }
                 if (result.Status == ExecutionStatus.Completed)
                 {
                     CompleteCurrentAction();
@@ -213,8 +219,7 @@ namespace Aethiumian.AI.Nodes
                 // Planning can overlap execution, but a second physical action never ticks here.
                 RefreshPendingPlanningRequest(goal);
                 if (!IsComplete)
-                    MaintainPlanning(goal, anchor, body,
-                        skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
+                    MaintainPlanning(goal, anchor, body, skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
             }
             catch
             {
@@ -294,6 +299,7 @@ namespace Aethiumian.AI.Nodes
             if (success && goal.HasValue) Finish(true, goal);
             CompleteAction(success);
         }
+
         protected sealed override void OnActionCompleting(bool success)
         {
             if (!success)
@@ -328,10 +334,12 @@ namespace Aethiumian.AI.Nodes
                 }
             }
         }
+
         protected MapNavigationRuntime RequireNavigationRuntime(string caller)
             => NavigationRuntime != null && !NavigationRuntime.IsDisposed
                 ? NavigationRuntime
                 : throw new InvalidOperationException($"{caller} requires this execution's live runtime.");
+
         protected static void RecordStallFailure(ExecutionResult result)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

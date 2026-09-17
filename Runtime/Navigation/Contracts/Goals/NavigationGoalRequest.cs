@@ -23,11 +23,11 @@ namespace Aethiumian.AI.Navigation
         internal const float GroundFootHeightTolerance = 1f;
 
         public AABB TargetBounds { get; }
+        public NavigationGoalGeometry Geometry { get; }
         public DistanceMetric DistanceMetric { get; }
         public bool RequiresLineOfSight { get; }
         public float ArrivalTolerance { get; }
         public float RetreatDistance { get; }
-        public NavigationGoalGeometry Geometry { get; }
 
 
 
@@ -252,6 +252,23 @@ namespace Aethiumian.AI.Navigation
 
 
 
+
+
+
+        /// <summary>
+        /// Returns whether this request is compatible with the previous one for route reuse. 
+        /// The caller's position thresholds are applied to the target center, and the geometry and distance metric must match exactly.
+        /// 
+        /// This is the route-reuse relation and is deliberately looser than <see cref="Equals(NavigationGoalRequest)"/>, which stays exact for cache identity.
+        /// </summary>
+        /// <param name="latest"></param>
+        /// <returns></returns>
+        public bool IsSamePlanningTarget(NavigationGoalRequest latest)
+        {
+            if (!HasCompatibleSemantics(latest)) return false;
+            return (Center - latest.Center).sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
+        }
+
         /// <summary>
         /// Returns whether two requests describe the same goal semantics. Target positions may
         /// differ; only sampling noise in the target extent is tolerated. This is the route-reuse
@@ -265,30 +282,28 @@ namespace Aethiumian.AI.Navigation
                 && RequiresLineOfSight == other.RequiresLineOfSight
                 && ArrivalTolerance.Equals(other.ArrivalTolerance)
                 && RetreatDistance.Equals(other.RetreatDistance)
-                && HasEquivalentTargetSize(TargetBounds.Size, other.TargetBounds.Size);
+                && Approximately(TargetBounds.Size, other.TargetBounds.Size, NavigationWorldQueries.GeometryEpsilon);
         }
 
-        private static bool HasEquivalentTargetSize(Vector2 first, Vector2 second)
-        {
-            float epsilon = NavigationWorldQueries.GeometryEpsilon;
-            return Mathf.Abs(first.x - second.x) <= epsilon
-                && Mathf.Abs(first.y - second.y) <= epsilon;
-        }
+
 
         /// <summary>
-        /// Compares two requests using immutable semantics and the caller's position thresholds.
-        /// The vertical threshold answers "how far may the target level move before this route stops
-        /// being worth reusing"; it is unrelated to Ground Range's fixed foot-height acceptance.
+        /// Route-reuse comparison. The goal semantics must match, and the target may only have drifted
+        /// within the re-planning tolerance: horizontally up to the larger of
+        /// <see cref="NavigationConstant.TargetMotionTolerance"/> and this goal's arrival tolerance,
+        /// vertically up to the target-motion tolerance alone. The vertical bound answers "how far may
+        /// the target level move before this route stops being worth reusing"; it is deliberately
+        /// unrelated to Ground Range's fixed foot-height acceptance rule.
         /// </summary>
-        public bool IsReusableFor(NavigationGoalRequest latest, float horizontalThreshold, float verticalThreshold)
+        public bool IsReusableFor(NavigationGoalRequest latest)
         {
             if (!HasCompatibleSemantics(latest)) return false;
 
-            NonNegativeFinite(horizontalThreshold, nameof(horizontalThreshold));
-            NonNegativeFinite(verticalThreshold, nameof(verticalThreshold));
+            float horizontalThreshold = Mathf.Max(NavigationConstant.TargetMotionTolerance, latest.ArrivalTolerance);
+            float verticalThreshold = NavigationConstant.TargetMotionTolerance;
 
             // Target extents have already passed the sampling-noise check above; only the
-            // target position is compared against the caller's reuse thresholds here.
+            // target position is compared against the re-planning tolerance here.
             if (!IsGroundWalk)
                 return Vector2.Distance(Center, latest.Center) <= horizontalThreshold;
 

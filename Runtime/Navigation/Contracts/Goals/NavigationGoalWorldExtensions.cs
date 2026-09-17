@@ -13,6 +13,23 @@ namespace Aethiumian.AI.Navigation
     public static class NavigationGoalWorldExtensions
     {
         /// <summary>
+        /// Conservatively rejects only goals no body AABB can touch from inside the finite world.
+        /// </summary>
+        public static bool CanBodyPossiblyReachGoal(this INavigationWorld world, Vector2 bodySize, NavigationGoalRequest goal)
+        {
+            if (world == null) return true;
+            if (goal.IsRetreat) return true;
+            Bounds reachable = goal.IsGroundWalk
+                ? goal.GetLowerCenterAcceptanceBounds(bodySize.x)
+                : goal.TargetBounds;
+            float expansion = Mathf.Max(bodySize.x, bodySize.y) + goal.ArrivalTolerance;
+            reachable.Expand(expansion * 2f);
+            Bounds worldBounds = new(world.WorldBounds.center, world.WorldBounds.size);
+            return reachable.Intersects(worldBounds);
+        }
+
+
+        /// <summary>
         /// Gets the completion distance for a center-anchored body, including the optional
         /// line-of-sight constraint.
         /// </summary>

@@ -51,7 +51,14 @@ namespace Aethiumian.AI.Navigation
                 }
             }
 
-            return result.Route == null ? result : result.WithRoute(PrepareRouteForExecution(result.Route, parameters, cancellationToken));
+            if (result.Route == null)
+            {
+                return result;
+            }
+            else
+            {
+                return result.WithRoute(jumpSolver.PrepareRouteForExecution(result.Route, parameters.GetJumpParameters(), cancellationToken));
+            }
         }
 
         /// <summary>Expands only the actual launch support and returns one validated landing action.</summary>
@@ -60,11 +67,17 @@ namespace Aethiumian.AI.Navigation
             ValidatePlanInputs(start, cancellationToken);
             parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
-            if (!World.TryResolveGroundSupport(start, parameters.BodySize,
-                parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support)) return NavigationPlanResult.NoResult;
+            if (!World.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support))
+            {
+                return NavigationPlanResult.NoResult;
+            }
+
             Vector2 center = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
             if (World.IsGoalComplete(goal, center, parameters.BodySize))
+            {
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(resolvedStart, goal, World, resolvedStart, Array.Empty<NavigationRouteSegment>()));
+            }
+
             var node = new NavigationSearchNode(NavigationNodeIdentity.Jump(-1), resolvedStart, support, 0f);
             NavigationTransition? best = null;
             float distance = goal.GuidanceDistance(center, parameters.BodySize);
@@ -85,15 +98,15 @@ namespace Aethiumian.AI.Navigation
             }
             if (!best.HasValue) return budgetReached ? NavigationPlanResult.BudgetReached() : NavigationPlanResult.NoResult;
             NavigationTransition selected = best.Value;
-            NavigationRoute route = NavigationRoute.Create(resolvedStart, goal, World, selected.DestinationPosition,
-                new[] { selected.Segment }, selected.CompletesGoal);
-            route = PrepareRouteForExecution(route, parameters, cancellationToken);
+            NavigationRoute route = NavigationRoute.Create(resolvedStart, goal, World, selected.DestinationPosition, new[] { selected.Segment }, selected.CompletesGoal);
+
+            route = jumpSolver.PrepareRouteForExecution(route, parameters.GetJumpParameters(), cancellationToken);
             return NavigationPlanResult.ResultProduced(route);
         }
 
         private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRequest goal, JumpNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
         {
-            GroundJumpParameters jumpParameters = parameters.GetGroundJumpParameters();
+            GroundJumpParameters jumpParameters = parameters.GetJumpParameters();
 
             if (TryCreateDirectGoalSuccessor(jumpSolver, node.Position, goal, jumpParameters, out Successor nearestGoal))
             {
@@ -172,9 +185,6 @@ namespace Aethiumian.AI.Navigation
             => parameters.GroundContactTolerance > 0f
                 ? parameters
                 : parameters.WithGroundContactTolerance(NavigationWorldQueries.GeometryEpsilon);
-
-        private NavigationRoute PrepareRouteForExecution(NavigationRoute route, JumpNavigationParameters parameters, CancellationToken cancellationToken)
-            => GroundJumpSuccessorEnumerator.PrepareRouteForExecution(jumpSolver, route, parameters.GetGroundJumpParameters(), cancellationToken);
 
         private static JumpNavigationParameters PrepareParameters(JumpNavigationParameters parameters) => CaptureGroundContactTolerance(CaptureSupportSnapDistance(parameters));
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
@@ -38,25 +37,6 @@ namespace Aethiumian.AI.Navigation
                 NavigationRouteSegment segment = segments[index] ?? throw new ArgumentException("Retreat routes cannot contain null segments.", nameof(segments));
                 total += SegmentApproachDistance(previous, segment.End, targetCenter);
                 previous = segment.End;
-            }
-
-            return total;
-        }
-
-        /// <summary>Returns cumulative approach over an explicit unconsumed endpoint chain.</summary>
-        public static float RouteApproachDistance(Vector2 start, Vector2 targetCenter, IReadOnlyList<Vector2> endpoints)
-        {
-            Validate.Finite(start, nameof(start));
-            Validate.Finite(targetCenter, nameof(targetCenter));
-            if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
-
-            float total = 0f;
-            Vector2 previous = start;
-            for (int index = 0; index < endpoints.Count; index++)
-            {
-                Validate.Finite(endpoints[index], nameof(endpoints));
-                total += SegmentApproachDistance(previous, endpoints[index], targetCenter);
-                previous = endpoints[index];
             }
 
             return total;

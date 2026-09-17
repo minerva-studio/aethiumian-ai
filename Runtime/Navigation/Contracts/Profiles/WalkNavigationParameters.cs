@@ -60,6 +60,19 @@ namespace Aethiumian.AI.Navigation
             GroundContactTolerance = 0f;
         }
 
+
+
+        /// <summary>
+        /// Creates a <see cref="GroundJumpParameters"/> from this profile, capturing the main-thread support distance and ground contact tolerance.
+        /// </summary>
+        /// <returns></returns>
+        public GroundJumpParameters GetJumpParameters()
+        {
+            return new(BodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep, SupportSnapDistance, GroundContactTolerance);
+        }
+
+
+
         /// <summary>Copies this profile with a main-thread-captured support distance.</summary>
         internal WalkNavigationParameters WithSupportSnapDistance(float distance)
         {

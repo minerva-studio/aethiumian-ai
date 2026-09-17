@@ -74,7 +74,7 @@ namespace Aethiumian.AI.Navigation
             return new JumpNavigationParameters(this, SupportSnapDistance, tolerance);
         }
 
-        public GroundJumpParameters GetGroundJumpParameters()
+        public GroundJumpParameters GetJumpParameters()
         {
             return new(BodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep, SupportSnapDistance, GroundContactTolerance);
         }

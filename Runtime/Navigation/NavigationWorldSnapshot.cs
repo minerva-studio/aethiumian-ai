@@ -70,7 +70,7 @@ namespace Aethiumian.AI.Navigation
             Dictionary<Vector2Int, int[]> buckets = new();
             foreach (KeyValuePair<Vector2Int, List<int>> pair in mutableBuckets)
             {
-                pair.Value.Sort((left, right) => CompareShape(shapes[left], shapes[right]));
+                pair.Value.Sort((left, right) => shapes[left].SurfaceId.CompareTo(shapes[right].SurfaceId));
                 buckets.Add(pair.Key, pair.Value.ToArray());
             }
 
@@ -697,9 +697,6 @@ namespace Aethiumian.AI.Navigation
             results.Add(candidate);
         }
 
-        private static int CompareShape(Shape left, Shape right)
-            => new NavigationSurfaceId(left.SourceId, left.FeatureId).CompareTo(new NavigationSurfaceId(right.SourceId, right.FeatureId));
-
         private static RectInt GetIndexBounds(Rect worldBounds)
         {
             float bucket = NavigationConstant.SpatialIndexBucketSize;
@@ -735,47 +732,5 @@ namespace Aethiumian.AI.Navigation
         }
 
         private static float Cross(Vector2 left, Vector2 right) => left.x * right.y - left.y * right.x;
-
-        private sealed class Shape
-        {
-            public readonly int SourceId;
-            public readonly int FeatureId;
-            public readonly NavigationShapeType ShapeType;
-            public readonly Vector2[] Vertices;
-            public readonly float Radius;
-            public readonly NavigationSurfaceKind Kind;
-            public readonly bool HasSupport;
-            public readonly Vector2 OneWayDirection;
-            public readonly float OneWayCosHalfArc;
-            public readonly float DirectedNormalSign;
-            public readonly Vector2 Min;
-            public readonly Vector2 Max;
-
-            public Shape(NavigationShapeData data)
-            {
-                SourceId = data.SourceId;
-                FeatureId = data.FeatureId;
-                ShapeType = data.ShapeType;
-                Vertices = Copy(data.Vertices);
-                Radius = data.Radius;
-                Kind = data.Kind;
-                HasSupport = data.HasSupport;
-                OneWayDirection = data.OneWayDirection;
-                OneWayCosHalfArc = data.OneWayCosHalfArc;
-                DirectedNormalSign = data.DirectedNormalSign;
-                Vector2 min = Vertices[0];
-                Vector2 max = Vertices[0];
-                for (int index = 1; index < Vertices.Length; index++) { min = Vector2.Min(min, Vertices[index]); max = Vector2.Max(max, Vertices[index]); }
-                Min = min - Vector2.one * Radius;
-                Max = max + Vector2.one * Radius;
-            }
-
-            private static Vector2[] Copy(IReadOnlyList<Vector2> source)
-            {
-                Vector2[] result = new Vector2[source.Count];
-                for (int index = 0; index < result.Length; index++) result[index] = source[index];
-                return result;
-            }
-        }
     }
 }

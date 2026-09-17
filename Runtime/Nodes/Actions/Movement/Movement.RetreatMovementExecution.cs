@@ -103,31 +103,27 @@ namespace Aethiumian.AI.Nodes
                 DiscardPendingTick();
             }
 
-            /// <summary>Checks caller-selected route endpoints without owning route consumption or planning.</summary>
-            public bool AllowsRoute(NavigationGoalRequest goal, Vector2 anchor, IReadOnlyList<Vector2> suffix)
+            /// <summary>Checks a caller-selected route suffix without owning route consumption or planning.</summary>
+            public bool AllowsRoute(NavigationGoalRequest goal, Vector2 anchor, IReadOnlyList<NavigationRouteSegment> suffix)
             {
-                if (!IsRetreatConstraint(goal)) return true;
+                if (!TryResolveRetreatConstraint(goal, out NavigationGoalRequest constraint)) return true;
 
                 return execution.IsWithinRemainingApproachDistance(
-                    RetreatNavigationGeometry.RouteApproachDistance(
-                        anchor,
-                        tickGoal.Value.Center,
-                        suffix));
+                    RetreatNavigationGeometry.RouteApproachDistance(anchor, constraint.Center, suffix));
             }
 
             public bool AllowsSegment(NavigationGoalRequest goal, Vector2 anchor, Vector2 endpoint)
             {
-                if (!IsRetreatConstraint(goal)) return true;
+                if (!TryResolveRetreatConstraint(goal, out NavigationGoalRequest constraint)) return true;
 
                 return execution.IsWithinRemainingApproachDistance(
-                    RetreatNavigationGeometry.SegmentApproachDistance(
-                        anchor, endpoint, tickGoal.Value.Center));
+                    RetreatNavigationGeometry.SegmentApproachDistance(anchor, endpoint, constraint.Center));
             }
 
             /// <summary>Resolves the retreat constraint to this tick's sample when one exists.</summary>
-            private bool IsRetreatConstraint(NavigationGoalRequest goal)
+            private bool TryResolveRetreatConstraint(NavigationGoalRequest goal, out NavigationGoalRequest constraint)
             {
-                NavigationGoalRequest constraint = tickGoal ?? goal;
+                constraint = tickGoal ?? goal;
                 return constraint.IsRetreat && execution.HasApproachLimit;
             }
         }

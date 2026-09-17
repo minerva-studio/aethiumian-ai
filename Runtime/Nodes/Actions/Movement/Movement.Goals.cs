@@ -34,6 +34,7 @@ namespace Aethiumian.AI.Nodes
             target = new AABB(point, point);
             return true;
         }
+
         private Vector2 GetWanderCenter() => wanderMode switch
         {
             WanderMode.SelfCentered => NavigationGroundAnchor,
@@ -41,6 +42,7 @@ namespace Aethiumian.AI.Nodes
             WanderMode.AbsoluteCentered when centerSpace == Space.Self => centerOfWander.Vector2Value + NavigationGroundAnchor,
             _ => Vector2.zero,
         };
+
         protected NavigationGoalRequest CreateGoal(AABB target, NavigationGoalGeometry defaultGeometry)
         {
             float tolerance = reachDistance;
@@ -51,8 +53,12 @@ namespace Aethiumian.AI.Nodes
             return ground ? NavigationGoalRequest.GroundRange(target, tolerance, sight)
                 : NavigationGoalRequest.Proximity(target, distanceMetric, tolerance, sight);
         }
-        /// <summary>Chooses a destination once per run, using the ability's valid landing geometry.</summary>
+
+        /// <summary>
+        /// Chooses a destination once per run, using the ability's valid landing geometry.
+        /// </summary>
         protected abstract Vector2 GetWanderLocation(Vector2 center);
+
         protected bool IsValidNavigationWanderLocation(Vector2 target, bool requireSupport)
         {
             INavigationWorld world = NavigationWorld;

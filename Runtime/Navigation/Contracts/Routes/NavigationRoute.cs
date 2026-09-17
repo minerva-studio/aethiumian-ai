@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -46,32 +47,47 @@ namespace Aethiumian.AI.Navigation
             Segments = segments;
         }
 
-        /// <summary>Creates a route against an immutable goal with an explicit goal-arrival fact.</summary>
-        public static NavigationRoute Create(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
+
+        /// <summary>
+        /// Gets the route segments starting at the specified index, in execution order.
+        /// </summary>
+        /// <param name="first"></param>
+        /// <returns></returns>
+        public RouteSegmentEnumerator GetRouteSegments(int first)
         {
-            if (world == null) throw new ArgumentNullException(nameof(world));
-            return CreateInternal(start, goal, world, resolvedGoal, segments, reachesGoal);
+            if (first < 0 || first > Count)
+                throw new ArgumentOutOfRangeException(nameof(first), first,
+                    "A route segment suffix must start inside the route, or at its end for an empty suffix.");
+            return new(this, first);
         }
 
-        /// <summary>Creates a route that represents a complete search or direct result.</summary>
-        public static NavigationRoute Complete(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments)
-        {
-            if (world == null) throw new ArgumentNullException(nameof(world));
-            return CreateInternal(start, goal, world, resolvedGoal, segments, true);
-        }
-
-        /// <summary>Creates a produced route whose next action does not yet reach the planning goal.</summary>
-        public static NavigationRoute Partial(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments)
-        {
-            if (world == null) throw new ArgumentNullException(nameof(world));
-            return CreateInternal(start, goal, world, resolvedGoal, segments, false);
-        }
-
-        /// <summary>Replaces this route's segments while preserving its origin, goal, world, endpoint, and completeness.</summary>
+        /// <summary>
+        /// Replaces this route's segments while preserving its origin, goal, world, endpoint, and completeness.
+        /// </summary>
         public NavigationRoute WithSegments(IEnumerable<NavigationRouteSegment> replacementSegments) => CreateInternal(Start, Goal, World, ResolvedGoal, replacementSegments, ReachesGoal);
+
+        /// <summary>
+        /// Creates a route against an immutable goal with an explicit goal-arrival fact.
+        /// </summary>
+        public static NavigationRoute Create(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
+            => CreateInternal(start, goal, world, resolvedGoal, segments, reachesGoal);
+
+        /// <summary>
+        /// Creates a route that represents a complete search or direct result.
+        /// </summary>
+        public static NavigationRoute Complete(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments)
+            => CreateInternal(start, goal, world, resolvedGoal, segments, true);
+
+        /// <summary>
+        /// Creates a produced route whose next action does not yet reach the planning goal.
+        /// </summary>
+        public static NavigationRoute Partial(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments)
+            => CreateInternal(start, goal, world, resolvedGoal, segments, false);
 
         private static NavigationRoute CreateInternal(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
         {
+            if (world == null) throw new ArgumentNullException(nameof(world));
+
             if (!NavigationNumeric.IsFinite(start) || !NavigationNumeric.IsFinite(resolvedGoal))
                 throw new ArgumentException("Navigation plan coordinates must be finite world coordinates.");
 
@@ -117,6 +133,46 @@ namespace Aethiumian.AI.Navigation
             return new NavigationRoute(start, goal, world, resolvedGoal, copiedSegments, reachesGoal);
         }
 
-    }
 
+        public RouteSegmentEnumerator GetEnumerator() => new(this);
+
+
+        public struct RouteSegmentEnumerator : IEnumerator<NavigationRouteSegment>, IEnumerator, IEnumerable<NavigationRouteSegment>, IEnumerable
+        {
+            private readonly NavigationRoute route;
+            private int beginningIndex;
+            private int index;
+
+            internal RouteSegmentEnumerator(NavigationRoute route) : this(route, 0) { }
+            internal RouteSegmentEnumerator(NavigationRoute route, int beginningIndex)
+            {
+                this.route = route;
+                this.beginningIndex = beginningIndex;
+                this.index = beginningIndex - 1;
+            }
+
+            public NavigationRouteSegment Current => route.Segments[index];
+
+            object IEnumerator.Current => Current;
+
+            public bool MoveNext()
+            {
+                if (index < route.Count) index++;
+                return index < route.Count;
+            }
+
+            public void Reset()
+            {
+                index = beginningIndex - 1;
+            }
+
+            public readonly void Dispose() { }
+
+            public readonly RouteSegmentEnumerator GetEnumerator() => this;
+
+            readonly IEnumerator<NavigationRouteSegment> IEnumerable<NavigationRouteSegment>.GetEnumerator() => this;
+
+            readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+    }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 
@@ -97,6 +98,44 @@ namespace Aethiumian.AI.Navigation
 
             trajectory = null;
             return;
+        }
+
+
+        /// <summary>
+        /// Recreates selected jump trajectories and their OneWay crossing records before a route
+        /// crosses the planner boundary. A failed recreation is a planner inconsistency, never an
+        /// executable route without the required collision-lease information.
+        /// </summary>
+        public NavigationRoute PrepareRouteForExecution(NavigationRoute route, GroundJumpParameters parameters, CancellationToken cancellationToken)
+        {
+            if (route == null || route.Count == 0) return route;
+
+            List<NavigationRouteSegment> prepared = null;
+            for (int index = 0; index < route.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                NavigationRouteSegment segment = route.Segments[index];
+                if (segment is not JumpRouteSegment jump)
+                {
+                    prepared?.Add(segment);
+                    continue;
+                }
+
+                if (!GroundJumpGeometry.TryRecreate(this, jump.LaunchSupport, jump.PlannedLanding, jump.MinimumApexHeight, parameters, cancellationToken, out JumpTrajectorySolution trajectory))
+                {
+                    throw new InvalidOperationException("Selected jump trajectory could not be recreated with its planning parameters.");
+                }
+
+                if (prepared == null)
+                {
+                    prepared = new List<NavigationRouteSegment>(route.Count);
+                    for (int copied = 0; copied < index; copied++) prepared.Add(route.Segments[copied]);
+                }
+                prepared.Add(GroundJumpGeometry.CreateSegment(World, trajectory, parameters.BodySize,
+                    parameters.SupportSnapDistance, cancellationToken));
+            }
+
+            return prepared == null ? route : route.WithSegments(prepared);
         }
     }
 }

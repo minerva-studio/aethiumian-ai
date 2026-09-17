@@ -528,7 +528,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest moved = NavigationGoalRequest.GroundRange(
                 AABB.FromCenterAndSize(new Vector2(5f, 6f), firstBounds.size), 1f, true);
             Assert.That(first.HasCompatibleSemantics(moved), Is.True);
-            Assert.That(first.IsReusableFor(moved, 1f, 1f), Is.False);
+            Assert.That(first.IsReusableFor(moved), Is.False);
         }
 
         [Test]
@@ -887,6 +887,31 @@ namespace Aethiumian.AI.Navigation.Tests
                 "The foot-height band must not depend on the world's terrain resolution.");
         }
 
+        /// <summary>Verifies a route segment suffix enumerates only real segments and rejects an invalid start.</summary>
+        [Test]
+        public void NavigationRouteSuffixEnumerationStaysInBounds()
+        {
+            NavigationRouteSegment first = new GroundRouteSegment(Vector2.zero, Vector2.right);
+            NavigationRouteSegment second = new GroundRouteSegment(Vector2.right, new Vector2(2f, 0f));
+            NavigationRoute route = NavigationRoute.Complete(Vector2.zero, PointGoal(new Vector2(2f, 0f), 0f),
+                UnitWorld(), new Vector2(2f, 0f), new[] { first, second });
+
+            List<NavigationRouteSegment> whole = new();
+            foreach (NavigationRouteSegment segment in route.GetRouteSegments(0)) whole.Add(segment);
+            Assert.That(whole, Is.EqualTo(new[] { first, second }));
+
+            List<NavigationRouteSegment> suffix = new();
+            foreach (NavigationRouteSegment segment in route.GetRouteSegments(1)) suffix.Add(segment);
+            Assert.That(suffix, Is.EqualTo(new[] { second }));
+
+            List<NavigationRouteSegment> empty = new();
+            foreach (NavigationRouteSegment segment in route.GetRouteSegments(route.Count)) empty.Add(segment);
+            Assert.That(empty, Is.Empty, "A suffix may start at the route's end and stay empty.");
+
+            Assert.That(() => route.GetRouteSegments(-1), Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(() => route.GetRouteSegments(route.Count + 1), Throws.InstanceOf<ArgumentOutOfRangeException>());
+        }
+
         /// <summary>Verifies same-center goals with different extents cannot reuse a plan.</summary>
         [Test]
         public void GoalReuseRequiresMatchingTargetExtents()
@@ -895,13 +920,14 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest differentExtents = ProximityGoal(AABB.FromCenterAndSize(new Vector2(5f, 3f), new Vector2(4f, 2f)), 0.5f);
             NavigationGoalRequest movedSameExtents = ProximityGoal(AABB.FromCenterAndSize(new Vector2(5.25f, 3f), new Vector2(2f, 2f)), 0.5f);
 
-            Assert.That(baseline.IsReusableFor(differentExtents, 1f, 1f), Is.False);
-            Assert.That(baseline.IsReusableFor(movedSameExtents, 1f, 1f), Is.True);
+            Assert.That(baseline.IsReusableFor(differentExtents), Is.False);
+            Assert.That(baseline.IsReusableFor(movedSameExtents), Is.True);
         }
 
         /// <summary>
-        /// Verifies Ground Walk reuse separates the caller's horizontal tolerance from the vertical
-        /// target-motion threshold, and that neither is the fixed foot-height acceptance rule.
+        /// Verifies Ground Walk reuse bounds horizontal drift by the larger of the target-motion
+        /// tolerance and the goal's arrival tolerance, and level drift by the target-motion tolerance
+        /// alone, neither being the fixed foot-height acceptance rule.
         /// </summary>
         [Test]
         public void GroundWalkReuseSeparatesHorizontalToleranceFromLevelChange()
@@ -910,13 +936,14 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest smallLevelMove = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(5f, 10f)), 3f);
             NavigationGoalRequest largeLevelMove = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(5f, 10.0002f)), 3f);
             NavigationGoalRequest horizontalMove = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(8f, 9f)), 3f);
+            NavigationGoalRequest farHorizontalMove = NavigationGoalRequest.GroundRange(AABB.Point(new Vector2(9.5f, 9f)), 3f);
 
-            const float horizontalThreshold = 3f;
-            const float verticalThreshold = 1f;
-            Assert.That(baseline.IsReusableFor(smallLevelMove, horizontalThreshold, verticalThreshold), Is.True);
-            Assert.That(baseline.IsReusableFor(largeLevelMove, horizontalThreshold, verticalThreshold), Is.False);
-            Assert.That(baseline.IsReusableFor(horizontalMove, horizontalThreshold, verticalThreshold), Is.True);
-            Assert.That(baseline.IsReusableFor(horizontalMove, 0.1f, verticalThreshold), Is.False);
+            Assert.That(baseline.IsReusableFor(smallLevelMove), Is.True);
+            Assert.That(baseline.IsReusableFor(largeLevelMove), Is.False);
+            Assert.That(baseline.IsReusableFor(horizontalMove), Is.True,
+                "A move inside the goal's own arrival tolerance stays reusable.");
+            Assert.That(baseline.IsReusableFor(farHorizontalMove), Is.False,
+                "A move beyond both the tolerance and the arrival bound is not reusable.");
         }
 
         /// <summary>Verifies empty routes and segment continuity are checked at the factory boundary.</summary>

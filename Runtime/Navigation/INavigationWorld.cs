@@ -5,9 +5,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>Identifies a captured navigation surface within one immutable snapshot.</summary>
-    public readonly struct NavigationSurfaceId :
-        IEquatable<NavigationSurfaceId>,
-        IComparable<NavigationSurfaceId>
+    public readonly struct NavigationSurfaceId : IEquatable<NavigationSurfaceId>, IComparable<NavigationSurfaceId>
     {
         public int SourceId { get; }
         public int FeatureId { get; }
