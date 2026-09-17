@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using static Aethiumian.AI.Navigation.NavigationArithmetic;
 
 namespace Aethiumian.AI.Navigation
 {
@@ -121,7 +122,7 @@ namespace Aethiumian.AI.Navigation
             tested.yMin += surfaceContactTolerance;
             if (tested.height <= Epsilon) return true;
             foreach (int index in QueryShapeIndexes(tested))
-                if (shapes[index].Kind == NavigationSurfaceKind.Solid && IsShapeIntersection(shapes[index], tested)) return false;
+                if (shapes[index].Kind == NavigationSurfaceKind.Solid && shapes[index].IsShapeIntersection(tested)) return false;
             return true;
         }
 
@@ -149,7 +150,7 @@ namespace Aethiumian.AI.Navigation
             Vector2 max = Vector2.Max(start, end);
             Rect query = new(min, max - min);
             foreach (int index in QueryShapeIndexes(query))
-                if (shapes[index].Kind == NavigationSurfaceKind.Solid && IsShapeSegmentIntersection(shapes[index], start, end)) return false;
+                if (shapes[index].Kind == NavigationSurfaceKind.Solid && shapes[index].IsShapeSegmentIntersection(start, end)) return false;
             return true;
         }
 
@@ -186,7 +187,7 @@ namespace Aethiumian.AI.Navigation
             {
                 Shape shape = shapes[index];
                 if (!shape.HasSupport
-                    || !TryGetSurfaceAtX(shape, position.x, out float y, out Vector2 normal, Mathf.Min(position.y, worldBounds.yMax), supportedOnly: true)
+                    || !shape.TryGetSurfaceAtX(position.x, out float y, out Vector2 normal, Mathf.Min(position.y, worldBounds.yMax), supportedOnly: true)
                     || y < worldBounds.yMin - Epsilon) continue;
 
                 NavigationSupport candidate = new(new NavigationSurfaceId(shape.SourceId, shape.FeatureId), shape.Kind, new Vector2(position.x, y), normal);
@@ -258,8 +259,8 @@ namespace Aethiumian.AI.Navigation
         private void ConsiderSupportAtX(Shape shape, float probeX, Vector2 feet, Vector2 bodySize, float snapDistance, ref bool found, ref NavigationSupport best, ref float bestDistance)
         {
             if (!shape.HasSupport
-                || !TryGetSurfaceAtX(shape, probeX, out float y, out Vector2 normal, feet.y + snapDistance)
-                || !IsAllowedSupport(shape, normal)
+                || !shape.TryGetSurfaceAtX(probeX, out float y, out Vector2 normal, feet.y + snapDistance)
+                || !shape.IsAllowedSupport(normal)
                 || y > feet.y + snapDistance || y < feet.y - snapDistance) return;
 
             Rect body = new(feet.x - bodySize.x * 0.5f, y, bodySize.x, bodySize.y);
@@ -318,26 +319,25 @@ namespace Aethiumian.AI.Navigation
                 for (int offsetIndex = -1; offsetIndex <= 1; offsetIndex++)
                 {
                     float offset = offsetIndex * halfWidth;
-                    bool previousValid = TryGetSurfaceAtX(shape, previousFeet.x + offset, out _, out _);
-                    float previousDifference = previousValid && TryGetSurfaceAtX(shape, previousFeet.x + offset, out float firstY, out _)
+                    bool previousValid = shape.TryGetSurfaceAtX(previousFeet.x + offset, out _, out _);
+                    float previousDifference = previousValid && shape.TryGetSurfaceAtX(previousFeet.x + offset, out float firstY, out _)
                         ? previousFeet.y - firstY : 0f;
                     for (int stepIndex = 1; stepIndex <= steps; stepIndex++)
                     {
                         float fraction = stepIndex / (float)steps;
                         Vector2 feet = Vector2.Lerp(previousFeet, currentFeet, fraction);
-                        bool currentValid = TryGetSurfaceAtX(shape, feet.x + offset, out float currentY, out Vector2 currentNormal);
+                        bool currentValid = shape.TryGetSurfaceAtX(feet.x + offset, out float currentY, out Vector2 currentNormal);
                         float currentDifference = currentValid ? feet.y - currentY : 0f;
                         bool crossedFromAbove = previousDifference >= -Epsilon && currentDifference < -Epsilon;
                         bool crossedFromBelow = previousDifference < -Epsilon && currentDifference >= -Epsilon;
-                        if (previousValid && currentValid && IsAllowedSupport(shape, currentNormal)
+                        if (previousValid && currentValid && shape.IsAllowedSupport(currentNormal)
                             && (crossedFromAbove || crossedFromBelow))
                         {
                             float denominator = previousDifference - currentDifference;
                             float local = denominator <= Epsilon ? 1f : Mathf.Clamp01(previousDifference / denominator);
                             float eventFraction = ((stepIndex - 1) + local) / steps;
                             float crossingX = Mathf.Lerp(previousFeet.x, currentFeet.x, eventFraction) + offset;
-                            TryGetSurfaceAtX(shape, crossingX, out float crossingY, out Vector2 crossingNormal,
-                                float.PositiveInfinity);
+                            shape.TryGetSurfaceAtX(crossingX, out float crossingY, out Vector2 crossingNormal, float.PositiveInfinity);
                             AddUnique(results, new NavigationSurfaceCrossing(
                                 new NavigationSurfaceId(shape.SourceId, shape.FeatureId),
                                 new Vector2(crossingX, crossingY), crossingNormal, eventFraction));
@@ -388,233 +388,6 @@ namespace Aethiumian.AI.Navigation
                     if (supportCandidateBuckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
                         for (int index = 0; index < entries.Length; index++)
                             yield return entries[index];
-        }
-
-        private static bool IsAllowedSupport(Shape shape, Vector2 normal)
-            => normal.y > Epsilon && (shape.Kind != NavigationSurfaceKind.OneWay || Vector2.Dot(normal, shape.OneWayDirection) >= shape.OneWayCosHalfArc - Epsilon);
-
-        private static bool TryGetSurfaceAtX(Shape shape, float x, out float y, out Vector2 normal, float maxSurfaceY = float.PositiveInfinity, bool supportedOnly = false)
-        {
-            y = float.NegativeInfinity;
-            normal = Vector2.up;
-            bool found = false;
-            switch (shape.ShapeType)
-            {
-                case NavigationShapeType.Circle:
-                    found = TryGetCircleSurface(shape.Vertices[0], shape.Radius, x, out y, out normal);
-                    if (found && (y > maxSurfaceY + Epsilon || supportedOnly && !IsAllowedSupport(shape, normal))) found = false;
-                    break;
-                case NavigationShapeType.Capsule:
-                    found = TryGetCapsuleSurface(shape, x, out y, out normal);
-                    if (found && (y > maxSurfaceY + Epsilon || supportedOnly && !IsAllowedSupport(shape, normal))) found = false;
-                    break;
-                case NavigationShapeType.Edge:
-                    for (int index = 1; index < shape.Vertices.Length; index++)
-                        if (TryGetSegmentSurface(shape.Vertices[index - 1], shape.Vertices[index], x, out float edgeY, out Vector2 edgeNormal, polygonSign: shape.DirectedNormalSign, orientUp: shape.DirectedNormalSign == 0f)
-                            && edgeY <= maxSurfaceY + Epsilon
-                            && (!supportedOnly || IsAllowedSupport(shape, edgeNormal))
-                            && (!found || edgeY > y)) { y = edgeY; normal = edgeNormal; found = true; }
-                    break;
-                default:
-                    float winding = PolygonWinding(shape.Vertices);
-                    for (int index = 0; index < shape.Vertices.Length; index++)
-                    {
-                        Vector2 a = shape.Vertices[index];
-                        Vector2 b = shape.Vertices[(index + 1) % shape.Vertices.Length];
-                        if (TryGetSegmentSurface(a, b, x, out float polygonY, out Vector2 polygonNormal, winding >= 0f ? 1f : -1f, orientUp: !supportedOnly)
-                            && polygonY <= maxSurfaceY + Epsilon
-                            && (!supportedOnly || IsAllowedSupport(shape, polygonNormal))
-                            && (!found || polygonY > y)) { y = polygonY; normal = polygonNormal; found = true; }
-                    }
-                    break;
-            }
-            return found;
-        }
-
-        private static bool TryGetCapsuleSurface(Shape shape, float x, out float y, out Vector2 normal)
-        {
-            y = float.NegativeInfinity; normal = Vector2.up; bool found = false;
-            Vector2 a = shape.Vertices[0];
-            Vector2 b = shape.Vertices[Mathf.Min(1, shape.Vertices.Length - 1)];
-            Vector2 direction = b - a;
-            float length = direction.magnitude;
-            if (length <= Epsilon) return TryGetCircleSurface(a, shape.Radius, x, out y, out normal);
-            Vector2 side = new Vector2(-direction.y, direction.x) / length;
-            if (TryGetSegmentSurface(a + side * shape.Radius, b + side * shape.Radius, x, out float candidateY, out Vector2 candidateNormal)) { y = candidateY; normal = candidateNormal; found = true; }
-            if (TryGetSegmentSurface(a - side * shape.Radius, b - side * shape.Radius, x, out candidateY, out candidateNormal) && (!found || candidateY > y)) { y = candidateY; normal = candidateNormal; found = true; }
-            if (TryGetCircleSurface(a, shape.Radius, x, out candidateY, out candidateNormal) && (!found || candidateY > y)) { y = candidateY; normal = candidateNormal; found = true; }
-            if (TryGetCircleSurface(b, shape.Radius, x, out candidateY, out candidateNormal) && (!found || candidateY > y)) { y = candidateY; normal = candidateNormal; found = true; }
-            return found;
-        }
-
-        private static bool TryGetCircleSurface(Vector2 center, float radius, float x, out float y, out Vector2 normal)
-        {
-            y = float.NegativeInfinity; normal = Vector2.up;
-            float dx = x - center.x;
-            if (Mathf.Abs(dx) > radius + Epsilon || radius <= Epsilon) return false;
-            float dy = Mathf.Sqrt(Mathf.Max(0f, radius * radius - dx * dx));
-            y = center.y + dy;
-            normal = new Vector2(dx, dy).normalized;
-            return true;
-        }
-
-        private static bool TryGetSegmentSurface(Vector2 a, Vector2 b, float x, out float y, out Vector2 normal, float polygonSign = 0f, bool orientUp = true)
-        {
-            y = 0f; normal = Vector2.up;
-            float deltaX = b.x - a.x;
-            if (Mathf.Abs(deltaX) <= Epsilon) return false;
-            float parameter = (x - a.x) / deltaX;
-            if (parameter < -Epsilon || parameter > 1f + Epsilon) return false;
-            y = Mathf.Lerp(a.y, b.y, Mathf.Clamp01(parameter));
-            Vector2 direction = b - a;
-            Vector2 candidate = polygonSign == 0f
-                ? new Vector2(-direction.y, direction.x).normalized
-                : new Vector2(direction.y, -direction.x).normalized * polygonSign;
-            // The downward query must distinguish a polygon's underside from its landing
-            // surface. Existing overlap/standing queries retain their previous orientation.
-            if (orientUp && candidate.y < 0f) candidate = -candidate;
-            normal = candidate;
-            return true;
-        }
-
-        private static bool IsShapeIntersection(Shape shape, Rect rect)
-        {
-            switch (shape.ShapeType)
-            {
-                case NavigationShapeType.Circle: return CircleIntersectsRect(shape.Vertices[0], shape.Radius, rect);
-                case NavigationShapeType.Capsule: return SegmentIntersectsExpandedRect(shape.Vertices[0], shape.Vertices[1], shape.Radius, rect);
-                case NavigationShapeType.Edge:
-                    for (int index = 1; index < shape.Vertices.Length; index++)
-                        if (SegmentIntersectsRectInterior(shape.Vertices[index - 1], shape.Vertices[index], rect)) return true;
-                    return false;
-                default: return PolygonIntersectsRect(shape.Vertices, rect);
-            }
-        }
-
-        private static bool IsShapeSegmentIntersection(Shape shape, Vector2 start, Vector2 end)
-        {
-            switch (shape.ShapeType)
-            {
-                case NavigationShapeType.Circle: return DistancePointToSegment(shape.Vertices[0], start, end) <= shape.Radius + Epsilon;
-                case NavigationShapeType.Capsule: return DistanceSegments(shape.Vertices[0], shape.Vertices[1], start, end) <= shape.Radius + Epsilon;
-                case NavigationShapeType.Edge:
-                    for (int index = 1; index < shape.Vertices.Length; index++)
-                        if (SegmentsIntersect(shape.Vertices[index - 1], shape.Vertices[index], start, end)) return true;
-                    return false;
-                default:
-                    if (PointInPolygon(start, shape.Vertices) || PointInPolygon(end, shape.Vertices)) return true;
-                    for (int index = 0; index < shape.Vertices.Length; index++)
-                        if (SegmentsIntersect(shape.Vertices[index], shape.Vertices[(index + 1) % shape.Vertices.Length], start, end)) return true;
-                    return false;
-            }
-        }
-
-        private static bool CircleIntersectsRect(Vector2 center, float radius, Rect rect)
-        {
-            float dx = Mathf.Max(rect.xMin - center.x, 0f, center.x - rect.xMax);
-            float dy = Mathf.Max(rect.yMin - center.y, 0f, center.y - rect.yMax);
-            return dx * dx + dy * dy < radius * radius - Epsilon;
-        }
-
-        private static bool SegmentIntersectsExpandedRect(Vector2 a, Vector2 b, float radius, Rect rect)
-        {
-            Rect expanded = rect;
-            expanded.xMin -= radius; expanded.xMax += radius; expanded.yMin -= radius; expanded.yMax += radius;
-            return SegmentIntersectsRect(a, b, expanded)
-                || DistanceSegments(a, b, new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMin)) <= radius + Epsilon
-                || DistanceSegments(a, b, new Vector2(rect.xMax, rect.yMin), new Vector2(rect.xMax, rect.yMax)) <= radius + Epsilon
-                || DistanceSegments(a, b, new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMin, rect.yMax)) <= radius + Epsilon
-                || DistanceSegments(a, b, new Vector2(rect.xMin, rect.yMax), new Vector2(rect.xMin, rect.yMin)) <= radius + Epsilon;
-        }
-
-        private static bool PolygonIntersectsRect(Vector2[] vertices, Rect rect)
-        {
-            for (int index = 0; index < vertices.Length; index++)
-                if (IsStrictlyInside(vertices[index], rect)) return true;
-            if (PointInPolygon(rect.center, vertices)) return true;
-            for (int index = 0; index < vertices.Length; index++)
-                if (SegmentIntersectsRectInterior(vertices[index], vertices[(index + 1) % vertices.Length], rect)) return true;
-            return false;
-        }
-
-        private static bool SegmentIntersectsRectInterior(Vector2 a, Vector2 b, Rect rect)
-        {
-            if (Mathf.Min(a.x, b.x) >= rect.xMax - Epsilon || Mathf.Max(a.x, b.x) <= rect.xMin + Epsilon
-                || Mathf.Min(a.y, b.y) >= rect.yMax - Epsilon || Mathf.Max(a.y, b.y) <= rect.yMin + Epsilon)
-                return false;
-            return SegmentIntersectsRect(a, b, rect);
-        }
-
-        private static bool IsStrictlyInside(Vector2 point, Rect rect)
-            => point.x > rect.xMin + Epsilon && point.x < rect.xMax - Epsilon && point.y > rect.yMin + Epsilon && point.y < rect.yMax - Epsilon;
-
-        private static bool SegmentIntersectsRect(Vector2 a, Vector2 b, Rect rect)
-        {
-            float enter = 0f; float exit = 1f; Vector2 delta = b - a;
-            return Clip(-delta.x, a.x - rect.xMin, ref enter, ref exit)
-                && Clip(delta.x, rect.xMax - a.x, ref enter, ref exit)
-                && Clip(-delta.y, a.y - rect.yMin, ref enter, ref exit)
-                && Clip(delta.y, rect.yMax - a.y, ref enter, ref exit)
-                && exit > enter + Epsilon;
-        }
-
-        private static bool Clip(float numerator, float denominator, ref float enter, ref float exit)
-        {
-            if (Mathf.Abs(numerator) <= Epsilon) return denominator >= 0f;
-            float value = denominator / numerator;
-            if (numerator > 0f) exit = Mathf.Min(exit, value); else enter = Mathf.Max(enter, value);
-            return enter <= exit;
-        }
-
-        private static bool PointInPolygon(Vector2 point, Vector2[] vertices)
-        {
-            bool inside = false;
-            for (int index = 0, previous = vertices.Length - 1; index < vertices.Length; previous = index++)
-            {
-                Vector2 a = vertices[index]; Vector2 b = vertices[previous];
-                if ((a.y > point.y) != (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
-            }
-            return inside;
-        }
-
-        private static bool SegmentsIntersect(Vector2 a, Vector2 b, Vector2 c, Vector2 d)
-        {
-            float first = Cross(b - a, c - a); float second = Cross(b - a, d - a);
-            float third = Cross(d - c, a - c); float fourth = Cross(d - c, b - c);
-            bool proper = (first > Epsilon && second < -Epsilon || first < -Epsilon && second > Epsilon)
-                && (third > Epsilon && fourth < -Epsilon || third < -Epsilon && fourth > Epsilon);
-            return proper
-                || Mathf.Abs(first) <= Epsilon && IsPointOnSegment(c, a, b)
-                || Mathf.Abs(second) <= Epsilon && IsPointOnSegment(d, a, b)
-                || Mathf.Abs(third) <= Epsilon && IsPointOnSegment(a, c, d)
-                || Mathf.Abs(fourth) <= Epsilon && IsPointOnSegment(b, c, d);
-        }
-
-        private static bool IsPointOnSegment(Vector2 point, Vector2 start, Vector2 end)
-            => point.x >= Mathf.Min(start.x, end.x) - Epsilon
-                && point.x <= Mathf.Max(start.x, end.x) + Epsilon
-                && point.y >= Mathf.Min(start.y, end.y) - Epsilon
-                && point.y <= Mathf.Max(start.y, end.y) + Epsilon;
-
-        private static float DistancePointToSegment(Vector2 point, Vector2 start, Vector2 end)
-        {
-            Vector2 delta = end - start; float length = delta.sqrMagnitude;
-            float parameter = length <= Epsilon ? 0f : Mathf.Clamp01(Vector2.Dot(point - start, delta) / length);
-            return Vector2.Distance(point, start + delta * parameter);
-        }
-
-        private static float DistanceSegments(Vector2 a, Vector2 b, Vector2 c, Vector2 d)
-        {
-            if (SegmentsIntersect(a, b, c, d)) return 0f;
-            return Mathf.Min(Mathf.Min(DistancePointToSegment(a, c, d), DistancePointToSegment(b, c, d)),
-                Mathf.Min(DistancePointToSegment(c, a, b), DistancePointToSegment(d, a, b)));
-        }
-
-        private static float PolygonWinding(Vector2[] vertices)
-        {
-            float result = 0f;
-            for (int index = 0; index < vertices.Length; index++) result += Cross(vertices[index], vertices[(index + 1) % vertices.Length]);
-            return result;
         }
 
         private static void AddUnique(List<NavigationSupport> results, NavigationSupport candidate)
@@ -676,10 +449,9 @@ namespace Aethiumian.AI.Navigation
         private static void TryAddSupportAtX(Shape shape, float x, List<NavigationSupport> results)
         {
             if (x < shape.Min.x - Epsilon || x > shape.Max.x + Epsilon
-                || !TryGetSurfaceAtX(shape, x, out float y, out Vector2 normal)
-                || !IsAllowedSupport(shape, normal)) return;
-            AddUnique(results, new NavigationSupport(new NavigationSurfaceId(shape.SourceId, shape.FeatureId),
-                shape.Kind, new Vector2(x, y), normal));
+                || !shape.TryGetSurfaceAtX(x, out float y, out Vector2 normal)
+                || !shape.IsAllowedSupport(normal)) return;
+            AddUnique(results, new NavigationSupport(new NavigationSurfaceId(shape.SourceId, shape.FeatureId), shape.Kind, new Vector2(x, y), normal));
         }
 
         private static Vector2Int WorldToIndex(Vector2 position, Rect worldBounds, RectInt indexBounds)
@@ -731,6 +503,5 @@ namespace Aethiumian.AI.Navigation
             maxY = Mathf.Clamp(maxY, indexBounds.yMin, indexBounds.yMax - 1);
         }
 
-        private static float Cross(Vector2 left, Vector2 right) => left.x * right.y - left.y * right.x;
     }
 }

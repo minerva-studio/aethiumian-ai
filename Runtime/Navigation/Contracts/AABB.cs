@@ -159,4 +159,63 @@ namespace Aethiumian.AI.Navigation
 
         public static implicit operator AABB(Rect rect) => new AABB(rect.min, rect.max);
     }
+
+
+
+    /// <summary>
+    /// Represents an axis-aligned bounding box (AABB) in 2D space, defined by its minimum and maximum corners. 
+    /// This struct uses integer coordinates, making it suitable for grid-based navigation and discrete spatial calculations.
+    /// </summary>
+    public struct AABBInt : IEquatable<AABBInt>
+    {
+        /// <summary>
+        /// The minimum corner of the AABB.
+        /// </summary>
+        public Vector2Int Min { get; set; }
+        /// <summary>
+        /// The maximum corner of the AABB.
+        /// </summary>
+        public Vector2Int Max { get; set; }
+
+
+
+        public readonly int MinX => Min.x;
+        public readonly int MinY => Min.y;
+        public readonly int MaxX => Max.x;
+        public readonly int MaxY => Max.y;
+        public readonly int SizeX => Max.x - Min.x;
+        public readonly int SizeY => Max.y - Min.y;
+        public readonly Vector2Int Size => Max - Min;
+        public readonly Vector2Int Center => Min + Size / 2;
+        public readonly Vector2 FloatCenter => new Vector2(Min.x + SizeX * 0.5f, Min.y + SizeY * 0.5f);
+
+
+
+        public AABBInt(Vector2Int min, Vector2Int max)
+        {
+            if (min.x > max.x || min.y > max.y)
+                throw new ArgumentException("Min must be less than or equal to Max.");
+            Min = min;
+            Max = max;
+        }
+
+        public AABBInt(int minX, int minY, int maxX, int maxY) : this(new Vector2Int(minX, minY), new Vector2Int(maxX, maxY)) { }
+
+        public readonly bool Contains(Vector2Int point) => point.x >= Min.x && point.x <= Max.x && point.y >= Min.y && point.y <= Max.y;
+        public override readonly string ToString() => $"AABBInt(Min: {Min}, Max: {Max})";
+
+        public readonly bool Equals(AABBInt other) => Min.Equals(other.Min) && Max.Equals(other.Max);
+        public readonly override bool Equals(object obj) => obj is AABBInt other && Equals(other);
+        public readonly override int GetHashCode() => HashCode.Combine(Min, Max);
+
+        public static bool operator ==(AABBInt left, AABBInt right) => left.Equals(right);
+        public static bool operator !=(AABBInt left, AABBInt right) => !left.Equals(right);
+
+
+        public static implicit operator AABB(AABBInt aabbInt) => new AABB(aabbInt.Min, aabbInt.Max);
+
+        public static implicit operator AABBInt(RectInt rectInt) => new AABBInt(rectInt.min, rectInt.max);
+
+        public static implicit operator RectInt(AABBInt aabbInt) => new RectInt(aabbInt.Min, aabbInt.Max - aabbInt.Min);
+    }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
@@ -85,7 +85,7 @@ namespace Aethiumian.AI.Navigation
         /// <returns></returns>
         public static float DistanceBetweenSegments(Vector2 firstStart, Vector2 firstEnd, Vector2 secondStart, Vector2 secondEnd)
         {
-            if (SegmentIntersectsClosedRect(firstStart, firstEnd, secondStart, secondEnd)) return 0f;
+            if (SegmentsIntersect(firstStart, firstEnd, secondStart, secondEnd)) return 0f;
             float firstStartDistance = DistanceToSegment(firstStart, secondStart, secondEnd);
             float firstEndDistance = DistanceToSegment(firstEnd, secondStart, secondEnd);
             float secondStartDistance = DistanceToSegment(secondStart, firstStart, firstEnd);
@@ -158,6 +158,174 @@ namespace Aethiumian.AI.Navigation
         public static bool Approximately(Vector2 first, Vector2 second, float epsilon)
         {
             return Mathf.Abs(first.x - second.x) <= epsilon && Mathf.Abs(first.y - second.y) <= epsilon;
+        }
+
+        /// <summary>
+        /// Returns the cross product of two vectors, used for orientation tests.
+        /// </summary>
+        public static float Cross(Vector2 left, Vector2 right) => left.x * right.y - left.y * right.x;
+
+        /// <summary>
+        /// Returns the summed winding of a polygon; the sign reports its orientation.
+        /// </summary>
+        public static float PolygonWinding(Vector2[] vertices)
+        {
+            float result = 0f;
+            for (int index = 0; index < vertices.Length; index++) result += Cross(vertices[index], vertices[(index + 1) % vertices.Length]);
+            return result;
+        }
+
+        /// <summary>
+        /// Returns whether a point lies inside a polygon using the crossing-number rule.
+        /// </summary>
+        public static bool PointInPolygon(Vector2 point, Vector2[] vertices)
+        {
+            bool inside = false;
+            for (int index = 0, previous = vertices.Length - 1; index < vertices.Length; previous = index++)
+            {
+                Vector2 a = vertices[index];
+                Vector2 b = vertices[previous];
+                if ((a.y > point.y) != (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+            }
+            return inside;
+        }
+
+        /// <summary>
+        /// Returns whether a point lies on a segment within the navigation epsilon.
+        /// </summary>
+        public static bool IsPointOnSegment(Vector2 point, Vector2 start, Vector2 end)
+            => point.x >= Mathf.Min(start.x, end.x) - NavigationConstant.Epsilon
+                && point.x <= Mathf.Max(start.x, end.x) + NavigationConstant.Epsilon
+                && point.y >= Mathf.Min(start.y, end.y) - NavigationConstant.Epsilon
+                && point.y <= Mathf.Max(start.y, end.y) + NavigationConstant.Epsilon;
+
+        /// <summary>
+        /// Returns whether two segments touch or cross, including collinear contact.
+        /// </summary>
+        public static bool SegmentsIntersect(Vector2 a, Vector2 b, Vector2 c, Vector2 d)
+        {
+            float first = Cross(b - a, c - a);
+            float second = Cross(b - a, d - a);
+            float third = Cross(d - c, a - c);
+            float fourth = Cross(d - c, b - c);
+            bool proper = (first > NavigationConstant.Epsilon && second < -NavigationConstant.Epsilon
+                    || first < -NavigationConstant.Epsilon && second > NavigationConstant.Epsilon)
+                && (third > NavigationConstant.Epsilon && fourth < -NavigationConstant.Epsilon
+                    || third < -NavigationConstant.Epsilon && fourth > NavigationConstant.Epsilon);
+            return proper
+                || Mathf.Abs(first) <= NavigationConstant.Epsilon && IsPointOnSegment(c, a, b)
+                || Mathf.Abs(second) <= NavigationConstant.Epsilon && IsPointOnSegment(d, a, b)
+                || Mathf.Abs(third) <= NavigationConstant.Epsilon && IsPointOnSegment(a, c, d)
+                || Mathf.Abs(fourth) <= NavigationConstant.Epsilon && IsPointOnSegment(b, c, d);
+        }
+
+        /// <summary>
+        /// Returns whether a point lies strictly inside a rectangle, ignoring its boundary.
+        /// </summary>
+        public static bool IsStrictlyInside(Vector2 point, Rect rect)
+            => point.x > rect.xMin + NavigationConstant.Epsilon && point.x < rect.xMax - NavigationConstant.Epsilon
+                && point.y > rect.yMin + NavigationConstant.Epsilon && point.y < rect.yMax - NavigationConstant.Epsilon;
+
+        /// <summary>
+        /// Clips the parametric interval [0, 1] against one rectangle slab. The numerator is the negated
+        /// direction component and the denominator the offset from the slab's lower bound.
+        /// </summary>
+        public static bool ClipRectAxis(float numerator, float denominator, ref float enter, ref float exit)
+        {
+            if (Mathf.Abs(numerator) <= NavigationConstant.Epsilon) return denominator >= 0f;
+            float value = denominator / numerator;
+            if (numerator > 0f) exit = Mathf.Min(exit, value); else enter = Mathf.Max(enter, value);
+            return enter <= exit;
+        }
+
+        /// <summary>
+        /// Returns whether a segment crosses the interior of a rectangle. Boundary contact alone does not
+        /// count, which is what separates this predicate from <see cref="SegmentIntersectsClosedRect"/>.
+        /// </summary>
+        public static bool SegmentIntersectsRectInterior(Vector2 a, Vector2 b, Rect rect)
+        {
+            float enter = 0f;
+            float exit = 1f;
+            Vector2 delta = b - a;
+            return ClipRectAxis(-delta.x, a.x - rect.xMin, ref enter, ref exit)
+                && ClipRectAxis(delta.x, rect.xMax - a.x, ref enter, ref exit)
+                && ClipRectAxis(-delta.y, a.y - rect.yMin, ref enter, ref exit)
+                && ClipRectAxis(delta.y, rect.yMax - a.y, ref enter, ref exit)
+                && exit > enter + NavigationConstant.Epsilon;
+        }
+
+        /// <summary>
+        /// Returns whether a circle overlaps a rectangle's interior.
+        /// </summary>
+        public static bool CircleIntersectsRect(Vector2 center, float radius, Rect rect)
+        {
+            float dx = Mathf.Max(rect.xMin - center.x, 0f, center.x - rect.xMax);
+            float dy = Mathf.Max(rect.yMin - center.y, 0f, center.y - rect.yMax);
+            return dx * dx + dy * dy < radius * radius - NavigationConstant.Epsilon;
+        }
+
+        /// <summary>
+        /// Returns whether a capsule around a segment overlaps a rectangle.
+        /// </summary>
+        public static bool SegmentIntersectsExpandedRect(Vector2 a, Vector2 b, float radius, Rect rect)
+        {
+            Rect expanded = rect;
+            expanded.xMin -= radius; expanded.xMax += radius; expanded.yMin -= radius; expanded.yMax += radius;
+            return SegmentIntersectsRectInterior(a, b, expanded)
+                || DistanceBetweenSegments(a, b, new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMin)) <= radius + NavigationConstant.Epsilon
+                || DistanceBetweenSegments(a, b, new Vector2(rect.xMax, rect.yMin), new Vector2(rect.xMax, rect.yMax)) <= radius + NavigationConstant.Epsilon
+                || DistanceBetweenSegments(a, b, new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMin, rect.yMax)) <= radius + NavigationConstant.Epsilon
+                || DistanceBetweenSegments(a, b, new Vector2(rect.xMin, rect.yMax), new Vector2(rect.xMin, rect.yMin)) <= radius + NavigationConstant.Epsilon;
+        }
+
+        /// <summary>
+        /// Returns whether a polygon overlaps a rectangle's interior.
+        /// </summary>
+        public static bool PolygonIntersectsRect(Vector2[] vertices, Rect rect)
+        {
+            for (int index = 0; index < vertices.Length; index++)
+                if (IsStrictlyInside(vertices[index], rect)) return true;
+            if (PointInPolygon(rect.center, vertices)) return true;
+            for (int index = 0; index < vertices.Length; index++)
+                if (SegmentIntersectsRectInterior(vertices[index], vertices[(index + 1) % vertices.Length], rect)) return true;
+            return false;
+        }
+
+
+
+
+
+
+
+
+        public static bool TryGetCircleSurface(Vector2 center, float radius, float x, out float y, out Vector2 normal)
+        {
+            y = float.NegativeInfinity; normal = Vector2.up;
+            float dx = x - center.x;
+            if (Mathf.Abs(dx) > radius + NavigationConstant.Epsilon || radius <= NavigationConstant.Epsilon) return false;
+            float dy = Mathf.Sqrt(Mathf.Max(0f, radius * radius - dx * dx));
+            y = center.y + dy;
+            normal = new Vector2(dx, dy).normalized;
+            return true;
+        }
+
+        public static bool TryGetSegmentSurface(Vector2 a, Vector2 b, float x, out float y, out Vector2 normal, float polygonSign = 0f, bool orientUp = true)
+        {
+            y = 0f; normal = Vector2.up;
+            float deltaX = b.x - a.x;
+            if (Mathf.Abs(deltaX) <= NavigationConstant.Epsilon) return false;
+            float parameter = (x - a.x) / deltaX;
+            if (parameter < -NavigationConstant.Epsilon || parameter > 1f + NavigationConstant.Epsilon) return false;
+            y = Mathf.Lerp(a.y, b.y, Mathf.Clamp01(parameter));
+            Vector2 direction = b - a;
+            Vector2 candidate = polygonSign == 0f
+                ? new Vector2(-direction.y, direction.x).normalized
+                : new Vector2(direction.y, -direction.x).normalized * polygonSign;
+            // The downward query must distinguish a polygon's underside from its landing
+            // surface. Existing overlap/standing queries retain their previous orientation.
+            if (orientUp && candidate.y < 0f) candidate = -candidate;
+            normal = candidate;
+            return true;
         }
     }
 }
