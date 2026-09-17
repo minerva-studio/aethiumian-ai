@@ -5,7 +5,30 @@ using static Aethiumian.AI.Navigation.NavigationArithmetic;
 
 namespace Aethiumian.AI.Navigation
 {
-    /// <summary>Managed immutable navigation snapshot backed by captured geometry and spatial buckets.</summary>
+    /// <summary>
+    /// Maps a non-overlapping world-space region rectangle to a captured project region identity.
+    /// </summary>
+    public readonly struct NavigationRegionData
+    {
+        /// <summary>Gets the world-space rectangle covered by this region. The rectangle is half-open.</summary>
+        public AABB WorldBounds { get; }
+        public int RegionId { get; }
+
+        public NavigationRegionData(AABB worldBounds, int regionId)
+        {
+            if (!NavigationNumeric.IsFinite(worldBounds.Min) || !NavigationNumeric.IsFinite(worldBounds.Max)
+                || worldBounds.SizeX <= 0f || worldBounds.SizeY <= 0f)
+                throw new ArgumentException("Region bounds must be positive and finite.", nameof(worldBounds));
+            WorldBounds = worldBounds;
+            RegionId = regionId;
+        }
+    }
+
+    /// <summary>
+    /// A default implementation of <see cref="INavigationWorld"/> that captures geometry and builds spatial indexes for efficient queries.
+    /// 
+    /// Managed immutable navigation snapshot backed by captured geometry and spatial buckets.
+    /// </summary>
     public sealed class NavigationWorldSnapshot : NavigationWorld
     {
         private const float Epsilon = NavigationConstant.Epsilon;

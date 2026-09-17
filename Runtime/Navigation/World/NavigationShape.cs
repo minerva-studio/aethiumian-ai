@@ -5,18 +5,118 @@ using static Aethiumian.AI.Navigation.NavigationArithmetic;
 
 namespace Aethiumian.AI.Navigation
 {
+    /// <summary>Shape primitive used by a detached navigation snapshot.</summary>
+    public enum NavigationShapeType
+    {
+        Polygon,
+        Edge,
+        Circle,
+        Capsule,
+    }
+
+    /// <summary>
+    /// Classifies captured geometry for collision and support queries.
+    /// </summary>
+    public enum NavigationSurfaceKind
+    {
+        Solid,
+        OneWay,
+    }
+
+
+    /// <summary>
+    /// Detached geometry captured from one source collider or geometry provider.
+    /// </summary>
+    public readonly struct NavigationShapeData
+    {
+        public NavigationSurfaceId SurfaceId { get; }
+        public NavigationShapeType ShapeType { get; }
+        public NavigationSurfaceKind Kind { get; }
+        public IReadOnlyList<Vector2> Vertices { get; }
+        public float Radius { get; }
+        public bool HasSupport { get; }
+        public Vector2 OneWayDirection { get; }
+        public float OneWayCosHalfArc { get; }
+        /// <summary>
+        /// Zero denotes an undirected edge. A nonzero sign preserves the captured edge's
+        /// right-hand normal, including orientation changes from mirrored transforms.
+        /// </summary>
+        public float DirectedNormalSign { get; }
+
+        public NavigationShapeData(
+            int sourceId,
+            int featureId,
+            NavigationShapeType shapeType,
+            IReadOnlyList<Vector2> vertices,
+            float radius,
+            NavigationSurfaceKind kind,
+            bool hasSupport,
+            Vector2 oneWayDirection = default,
+            float oneWayCosHalfArc = 1f,
+            float directedNormalSign = 0f)
+            : this(new NavigationSurfaceId(sourceId, featureId), shapeType, vertices, radius, kind, hasSupport, oneWayDirection, oneWayCosHalfArc, directedNormalSign)
+        {
+        }
+
+        public NavigationShapeData(
+            NavigationSurfaceId surfaceId,
+            NavigationShapeType shapeType,
+            IReadOnlyList<Vector2> vertices,
+            float radius,
+            NavigationSurfaceKind kind,
+            bool hasSupport,
+            Vector2 oneWayDirection = default,
+            float oneWayCosHalfArc = 1f,
+            float directedNormalSign = 0f)
+        {
+            if (!Enum.IsDefined(typeof(NavigationShapeType), shapeType)) throw new ArgumentOutOfRangeException(nameof(shapeType));
+            if (vertices == null || vertices.Count == 0) throw new ArgumentException("A navigation shape needs vertices.", nameof(vertices));
+            if (!NavigationNumeric.IsFinite(radius) || radius < 0f) throw new ArgumentOutOfRangeException(nameof(radius));
+            if (!NavigationNumeric.IsFinite(oneWayDirection) || !NavigationNumeric.IsFinite(oneWayCosHalfArc) || oneWayCosHalfArc < -1f || oneWayCosHalfArc > 1f)
+                throw new ArgumentException("One-way direction data must be finite and normalized.");
+            if (!NavigationNumeric.IsFinite(directedNormalSign)) throw new ArgumentOutOfRangeException(nameof(directedNormalSign));
+            for (int index = 0; index < vertices.Count; index++)
+                if (!NavigationNumeric.IsFinite(vertices[index])) throw new ArgumentException("Shape vertices must be finite.", nameof(vertices));
+
+            SurfaceId = surfaceId;
+            ShapeType = shapeType;
+            Vertices = Copy(vertices);
+            Radius = radius;
+            Kind = kind;
+            HasSupport = hasSupport;
+            OneWayDirection = oneWayDirection;
+            OneWayCosHalfArc = oneWayCosHalfArc;
+            DirectedNormalSign = directedNormalSign;
+        }
+
+        private static Vector2[] Copy(IReadOnlyList<Vector2> source)
+        {
+            Vector2[] copy = new Vector2[source.Count];
+            for (int index = 0; index < copy.Length; index++) copy[index] = source[index];
+            return copy;
+        }
+
+    }
+
+    /// <summary>
+    /// Persistent geometry captured from one source collider or geometry provider, including its surface identity and bounding box.
+    /// </summary>
     public sealed class Shape
     {
         public readonly NavigationSurfaceId SurfaceId;
         public readonly NavigationShapeType ShapeType;
+        public readonly NavigationSurfaceKind Kind;
         public readonly Vector2[] Vertices;
         public readonly float Radius;
-        public readonly NavigationSurfaceKind Kind;
         public readonly bool HasSupport;
         public readonly Vector2 OneWayDirection;
         public readonly float OneWayCosHalfArc;
         public readonly float DirectedNormalSign;
-        /// <summary>Continuous bounding box of the shape, including its radius.</summary>
+
+        /// <summary>
+        /// Continuous bounding box of the shape, including its radius.
+        /// (Cached result from the vertices and radius)
+        /// </summary>
         public readonly AABB Bounds;
 
 
