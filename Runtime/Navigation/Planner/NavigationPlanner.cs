@@ -60,9 +60,10 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Validates the request-owned common input before mode-specific planning. The goal carries no
-        /// world binding, so this planner's world is the only world a produced route can belong to.
-        /// External derived planners should invoke this at the start of their <see cref="Plan"/> override.
+        /// Validates the request-owned common input before mode-specific planning. This planner owns
+        /// the World used by its geometry queries; the produced route carries only the resulting goal
+        /// and segment chain. External derived planners should invoke this at the start of their
+        /// <see cref="Plan"/> override.
         /// </summary>
         protected void ValidatePlanInputs(AABB body, CancellationToken cancellationToken)
         {

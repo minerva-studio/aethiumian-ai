@@ -98,8 +98,7 @@ namespace Aethiumian.AI.Navigation
                 {
                     // The immutable world already proved the original segment. Only the
                     // bridge before its start is new geometry; do not rescan the entire tail.
-                    Vector2 connectionEnd = ReferenceEquals(world, route.World)
-                        ? (projectedDistance < 0f ? ground.Start : snappedStart) : end;
+                    Vector2 connectionEnd = projectedDistance < 0f ? ground.Start : snappedStart;
                     if (!TryValidateGroundConnection(world, AABB.FromLowerCenter(snappedStart, bodySize),
                         AABB.FromLowerCenter(connectionEnd, bodySize), supportSnapDistance, groundContactTolerance))
                         return false;
@@ -135,8 +134,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex + 1; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(route.Goal, route.World, segments)
-                : NavigationRoute.Partial(route.Goal, route.World, segments);
+                ? NavigationRoute.Complete(route.Goal, segments)
+                : NavigationRoute.Partial(route.Goal, segments);
             return true;
         }
 
@@ -147,8 +146,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(route.Goal, route.World, segments)
-                : NavigationRoute.Partial(route.Goal, route.World, segments);
+                ? NavigationRoute.Complete(route.Goal, segments)
+                : NavigationRoute.Partial(route.Goal, segments);
             return true;
         }
 
@@ -180,7 +179,7 @@ namespace Aethiumian.AI.Navigation
                 AABB resolvedStartBody = AABB.FromLowerCenter(resolvedStart, parameters.BodySize);
                 if (World.IsGoalComplete(goal, resolvedStartBody))
                 {
-                    NavigationRoute route = NavigationRoute.Empty(resolvedStart, goal, World, NavigationRouteCoordinateFrame.GroundAnchor, true);
+                    NavigationRoute route = NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true);
                     result = NavigationPlanResult.ResultProduced(route);
                 }
                 else if (TryCreateDirectGroundRoute(World, resolvedStart, goal, parameters,
@@ -245,7 +244,7 @@ namespace Aethiumian.AI.Navigation
                     parameters.SupportSnapDistance, parameters.GroundContactTolerance))
                 return false;
 
-            route = NavigationRoute.Complete(goal, world,
+            route = NavigationRoute.Complete(goal,
                 new NavigationRouteSegment[] { new GroundRouteSegment(start, end) });
             return true;
         }
@@ -284,7 +283,7 @@ namespace Aethiumian.AI.Navigation
             float startGuidanceDistance = goal.GuidanceDistance(startBody);
             if (World.IsGoalComplete(goal, startBody))
             {
-                yield return NavigationRoute.Empty(resolvedStart, goal, World,
+                yield return NavigationRoute.Empty(resolvedStart, goal,
                     NavigationRouteCoordinateFrame.GroundAnchor, true);
                 yield break;
             }
@@ -596,7 +595,7 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>Builds a plan containing exactly one validated local traversal step.</summary>
         private NavigationRoute BuildSingleStepPlan(NavigationGoalRequest goal, Successor successor)
-            => NavigationRoute.Complete(goal, World, new[] { successor.Step });
+            => NavigationRoute.Complete(goal, new[] { successor.Step });
 
         /// <summary>Compares Simple Walk actions under the local completion and progress contract.</summary>
         private static bool IsBetterSingleStep(Successor candidate, Successor best)

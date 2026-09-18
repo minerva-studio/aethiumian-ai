@@ -37,7 +37,7 @@ namespace Aethiumian.AI.Navigation
                 AABB startBody = AABB.FromLowerCenter(resolvedStart, parameters.BodySize);
                 if (World.IsGoalComplete(goal, startBody))
                 {
-                    var complete = NavigationRoute.Empty(resolvedStart, goal, World, NavigationRouteCoordinateFrame.GroundAnchor, true);
+                    var complete = NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true);
                     result = NavigationPlanResult.ResultProduced(complete);
                 }
                 else
@@ -75,7 +75,7 @@ namespace Aethiumian.AI.Navigation
             AABB startBody = AABB.FromLowerCenter(resolvedStart, parameters.BodySize);
             if (World.IsGoalComplete(goal, startBody))
             {
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(resolvedStart, goal, World, NavigationRouteCoordinateFrame.GroundAnchor, true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true));
             }
 
             var node = new NavigationSearchNode(NavigationNodeIdentity.Jump(-1), resolvedStart, support, 0f);
@@ -98,7 +98,7 @@ namespace Aethiumian.AI.Navigation
             }
             if (!best.HasValue) return budgetReached ? NavigationPlanResult.BudgetReached() : NavigationPlanResult.NoResult;
             NavigationTransition selected = best.Value;
-            NavigationRoute route = NavigationRoute.Create(goal, World, new[] { selected.Segment }, selected.CompletesGoal);
+            NavigationRoute route = NavigationRoute.Create(goal, new[] { selected.Segment }, selected.CompletesGoal);
 
             route = jumpSolver.PrepareRouteForExecution(route, parameters.GetJumpParameters(), cancellationToken);
             return NavigationPlanResult.ResultProduced(route);

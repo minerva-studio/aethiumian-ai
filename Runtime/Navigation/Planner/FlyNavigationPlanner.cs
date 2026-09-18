@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Navigation
             if (!hasGoal)
                 return NavigationPlanResult.NoResult;
             if (start.Equals(resolvedGoal))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, World, NavigationRouteCoordinateFrame.BodyCenter, true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
 
             bool directClear = false;
             foreach (bool? segmentClear in EnumerateCenteredSegmentClear(World, start, resolvedGoal,
@@ -73,8 +73,7 @@ namespace Aethiumian.AI.Navigation
                 }
             }
             if (directClear)
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, World,
-                    new[] { new FlyRouteSegment(start, resolvedGoal) }));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, new[] { new FlyRouteSegment(start, resolvedGoal) }));
 
             if (!TryFindConnectorCell(World, start, parameters.BodySize, out Vector2Int startCell)
                 || !TryFindConnectorCell(World, resolvedGoal, parameters.BodySize, out Vector2Int goalCell))
@@ -95,7 +94,7 @@ namespace Aethiumian.AI.Navigation
             Vector2 start = body.Center;
             if (!IsFlyBodyClear(World, start, parameters.BodySize)) return NavigationPlanResult.NoResult;
             if (World.IsGoalComplete(goal, CenteredBody(start, parameters.BodySize)))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, World, NavigationRouteCoordinateFrame.BodyCenter, true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
             Vector2 direct = GetGoalCenter(goal, parameters.BodySize);
             if (goal.IsRetreat)
             {
@@ -103,7 +102,7 @@ namespace Aethiumian.AI.Navigation
                 direct = start + away.normalized * Mathf.Max(NavigationConstant.MinimumRetreatStep, goal.RetreatDistance + parameters.BodySize.magnitude);
             }
             if (World.IsGoalComplete(goal, CenteredBody(direct, parameters.BodySize)) && LocalStepAllowed(start, direct, goal, parameters))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, World, new[] { new FlyRouteSegment(start, direct) }));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, new[] { new FlyRouteSegment(start, direct) }));
             Vector2? best = null;
             float bestDistance = goal.GuidanceDistance(body);
             Vector2Int cell = ToLattice(World, start);
@@ -121,8 +120,8 @@ namespace Aethiumian.AI.Navigation
             }
             if (!best.HasValue) return NavigationPlanResult.NoResult;
             Vector2 endpoint = best.Value;
-            return NavigationPlanResult.ResultProduced(NavigationRoute.Create(goal, World,
-                new[] { new FlyRouteSegment(start, endpoint) }, World.IsGoalComplete(goal, CenteredBody(endpoint, parameters.BodySize))));
+            NavigationRoute route = NavigationRoute.Create(goal, new[] { new FlyRouteSegment(start, endpoint) }, World.IsGoalComplete(goal, CenteredBody(endpoint, parameters.BodySize)));
+            return NavigationPlanResult.ResultProduced(route);
         }
 
         /// <summary>Expresses one center-space fly position as the body box the world queries expect.</summary>
@@ -215,8 +214,7 @@ namespace Aethiumian.AI.Navigation
         private NavigationPlanResult PlanRetreat(Vector2 start, NavigationGoalRequest goal, FlyNavigationParameters parameters, CancellationToken cancellationToken, NavigationPlanningDiagnostics diagnostics)
         {
             if (World.IsGoalComplete(goal, CenteredBody(start, parameters.BodySize)))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, World,
-                    NavigationRouteCoordinateFrame.BodyCenter, true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
 
             if (!TryFindRetreatConnectorCell(World, start, goal.TargetBounds.Center, parameters, out Vector2Int startCell))
                 return NavigationPlanResult.NoResult;
@@ -309,7 +307,7 @@ namespace Aethiumian.AI.Navigation
                 previous = finalEndpoint.Value;
             }
 
-            return NavigationRoute.Complete(goal, snapshot, segments);
+            return NavigationRoute.Complete(goal, segments);
         }
 
         private static bool TryAddRetreatLabel(List<RetreatSearchLabel> labels, Dictionary<Vector2Int, List<int>> labelIdsByCell, RetreatSearchLabel candidate, out int candidateId)

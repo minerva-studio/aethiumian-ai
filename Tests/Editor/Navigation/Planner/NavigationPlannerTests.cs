@@ -992,7 +992,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 Assert.That(parameters, Is.EqualTo(17));
                 CoreCount++;
                 PrepareRouteCount++;
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(body.LowerCenter, goal, World,
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(body.LowerCenter, goal,
                     NavigationRouteCoordinateFrame.GroundAnchor, true));
             }
         }

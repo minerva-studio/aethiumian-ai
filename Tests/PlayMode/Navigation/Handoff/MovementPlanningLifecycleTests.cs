@@ -724,31 +724,20 @@ namespace Aethiumian.AI.Navigation.Tests
 
         /// <summary>Builds a contract-valid route for a captured controlled request.</summary>
 
-        private static NavigationRoute CreateGroundRoute(
-            ControlledWalk.Request request,
-            Vector2? endpoint = null,
-            bool completesGoal = true)
+        private static NavigationRoute CreateGroundRoute(ControlledWalk.Request request, Vector2? endpoint = null, bool completesGoal = true)
         {
             Vector2 resolvedGoal = endpoint ?? new Vector2(request.Goal.TargetBounds.CenterX, 1f);
             Vector2 logicalStart = new(request.StartBody.LowerCenter.x, 1f);
             Vector2 bodyCenter = resolvedGoal + Vector2.up * (BodyHeight * 0.5f);
             bool reachesGoal = request.World.IsGoalComplete(request.Goal, AABB.FromCenterAndSize(bodyCenter, new Vector2(BodyWidth, BodyHeight)));
             if (completesGoal)
-                Assert.That(reachesGoal, Is.True,
-                    $"Fixture endpoint {resolvedGoal} does not satisfy the captured goal {request.Goal}.");
-            return NavigationRoute.Create(request.Goal, request.World,
-                new[] { new GroundRouteSegment(logicalStart, resolvedGoal) },
-                reachesGoal);
+                Assert.That(reachesGoal, Is.True, $"Fixture endpoint {resolvedGoal} does not satisfy the captured goal {request.Goal}.");
+            return NavigationRoute.Create(request.Goal, new[] { new GroundRouteSegment(logicalStart, resolvedGoal) }, reachesGoal);
         }
 
         /// <summary>Builds a deterministic irreversible route for the package handoff owner.</summary>
-        private static NavigationRoute CreateJumpRoute(
-            ControlledWalk.Request request, Vector2 launchSupport, float travel = 6f)
-            => NavigationRoute.Create(
-                request.Goal,
-                request.World,
-                new[] { new JumpRouteSegment(launchSupport, launchSupport + Vector2.right * travel, 0f) },
-                true);
+        private static NavigationRoute CreateJumpRoute(ControlledWalk.Request request, Vector2 launchSupport, float travel = 6f)
+            => NavigationRoute.Create(request.Goal, new[] { new JumpRouteSegment(launchSupport, launchSupport + Vector2.right * travel, 0f) }, true);
 
         private static IEnumerator WaitForRequest()
         {
@@ -815,8 +804,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             for (int frame = 0; ControlledWalk.Requests.Count < count && frame < PlanningFrameLimit; frame++)
                 yield return new WaitForFixedUpdate();
-            Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(count),
-                DescribeRequests());
+            Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(count), DescribeRequests());
         }
 
         private static string DescribeRequests()

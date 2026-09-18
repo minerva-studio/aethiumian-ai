@@ -108,7 +108,7 @@ namespace Aethiumian.AI.Navigation.Tests
                     new[] { new Vector2(0f, 1f), new Vector2(7f, 1f) }, 0f,
                     NavigationSurfaceKind.Solid, true));
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(6f, 1f)), DistanceMetric.Euclidean, 0f);
-            NavigationRoute route = NavigationRoute.Create(goal, world,
+            NavigationRoute route = NavigationRoute.Create(goal,
                 new NavigationRouteSegment[]
                 {
                     new GroundRouteSegment(new Vector2(1f, 1f), new Vector2(4f, 1f)),
@@ -133,7 +133,7 @@ namespace Aethiumian.AI.Navigation.Tests
                     new[] { new Vector2(0f, 1f), new Vector2(7f, 1f) }, 0f,
                     NavigationSurfaceKind.Solid, true));
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(5f, 1f)), DistanceMetric.Euclidean, 0f);
-            NavigationRoute route = NavigationRoute.Create(goal, world,
+            NavigationRoute route = NavigationRoute.Create(goal,
                 new[] { new GroundRouteSegment(new Vector2(3f, 1f), new Vector2(5f, 1f)) }, true);
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
@@ -156,7 +156,7 @@ namespace Aethiumian.AI.Navigation.Tests
                     new[] { new Vector2(4f, 1f), new Vector2(7f, 1f) }, 0f,
                     NavigationSurfaceKind.Solid, true));
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(6f, 1f)), DistanceMetric.Euclidean, 0f);
-            NavigationRoute route = NavigationRoute.Create(goal, world,
+            NavigationRoute route = NavigationRoute.Create(goal,
                 new[] { new GroundRouteSegment(new Vector2(4f, 1f), new Vector2(6f, 1f)) }, true);
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
@@ -312,7 +312,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationRouteCopiesAndProtectsSegments()
         {
             List<NavigationRouteSegment> source = new() { new GroundRouteSegment(Vector2.zero, Vector2.right) };
-            NavigationRoute route = NavigationRoute.Create(PointGoal(new Vector2(2, 1), 0f), UnitWorld(), source, true);
+            NavigationRoute route = NavigationRoute.Create(PointGoal(new Vector2(2, 1), 0f), source, true);
             source.Add(new FlyRouteSegment(Vector2.right, new Vector2(2, 1)));
 
             Assert.That(route.Count, Is.EqualTo(1));
@@ -324,7 +324,7 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationRoutePreservesRequestedAndResolvedGoals()
         {
-            NavigationRoute route = NavigationRoute.Create(PointGoal(new Vector2(5, 2), 0f), UnitWorld(),
+            NavigationRoute route = NavigationRoute.Create(PointGoal(new Vector2(5, 2), 0f),
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) }, true);
 
             Assert.That(route.Goal.TargetBounds.Center, Is.EqualTo(new Vector2(5, 2)));
@@ -335,20 +335,15 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationRouteFactoriesDescribeCompletenessAndPreserveStateWhenReplacingSegments()
         {
-            TestNavigationWorld world = UnitWorld();
             NavigationGoalRequest goal = PointGoal(new Vector2(5f, 2f), 0f);
-            NavigationRoute complete = NavigationRoute.Complete(goal, world,
-                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
-            NavigationRoute partial = NavigationRoute.Partial(goal, world,
-                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
-            NavigationRoute replaced = partial.WithSegments(
-                new[] { new FlyRouteSegment(Vector2.zero, Vector2.right) });
+            NavigationRoute complete = NavigationRoute.Complete(goal, new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
+            NavigationRoute partial = NavigationRoute.Partial(goal, new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
+            NavigationRoute replaced = partial.WithSegments(new[] { new FlyRouteSegment(Vector2.zero, Vector2.right) });
 
             Assert.That(complete.ReachesGoal, Is.True);
             Assert.That(partial.ReachesGoal, Is.False);
             Assert.That(replaced.Start, Is.EqualTo(partial.Start));
             Assert.That(replaced.Goal, Is.EqualTo(partial.Goal));
-            Assert.That(replaced.World, Is.SameAs(partial.World));
             Assert.That(replaced.Endpoint, Is.EqualTo(partial.Endpoint));
             Assert.That(replaced.ReachesGoal, Is.False);
             Assert.That(replaced.Segments[0], Is.TypeOf<FlyRouteSegment>());
@@ -358,7 +353,7 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationPlanResultFactoriesPreserveTerminationAndRouteAvailability()
         {
-            NavigationRoute route = NavigationRoute.Complete(PointGoal(Vector2.right, 0f), UnitWorld(),
+            NavigationRoute route = NavigationRoute.Complete(PointGoal(Vector2.right, 0f),
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
 
             Assert.That(NavigationPlanResult.ResultProduced(route).Termination,
@@ -385,7 +380,7 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSearchUpdateFactoriesSetExpectedTerminalState()
         {
-            NavigationRoute route = NavigationRoute.Complete(PointGoal(Vector2.right, 0f), UnitWorld(),
+            NavigationRoute route = NavigationRoute.Complete(PointGoal(Vector2.right, 0f),
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
             NavigationSearchUpdate pending = NavigationSearchUpdate.Pending(3);
             NavigationSearchUpdate completed = NavigationSearchUpdate.CompletedRoute(route, 4, 5);
@@ -908,7 +903,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationRouteSegment first = new GroundRouteSegment(Vector2.zero, Vector2.right);
             NavigationRouteSegment second = new GroundRouteSegment(Vector2.right, new Vector2(2f, 0f));
             NavigationRoute route = NavigationRoute.Complete(PointGoal(new Vector2(2f, 0f), 0f),
-                UnitWorld(), new[] { first, second });
+                new[] { first, second });
 
             List<NavigationRouteSegment> whole = new();
             foreach (NavigationRouteSegment segment in route.GetRouteSegments(0)) whole.Add(segment);
@@ -965,31 +960,27 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationRouteEnforcesContinuityAndEmptyRouteRules()
         {
             Vector2 microscopicOffset = new(0.000005f, 0f);
-            TestNavigationWorld world = UnitWorld();
             NavigationGoalRequest goal = PointGoal(Vector2.right, 0f);
-            Assert.That(() => NavigationRoute.Create(goal, null, Array.Empty<NavigationRouteSegment>(), true),
-                Throws.InstanceOf<ArgumentNullException>(),
-                "A route must always retain the world it was planned against.");
-            Assert.That(() => NavigationRoute.Create(goal, world, Array.Empty<NavigationRouteSegment>(), true),
+            Assert.That(() => NavigationRoute.Create(goal, Array.Empty<NavigationRouteSegment>(), true),
                 Throws.InstanceOf<ArgumentException>(),
                 "Only an explicit frame declaration can make a zero-length route.");
-            Assert.DoesNotThrow(() => NavigationRoute.Create(goal, world,
+            Assert.DoesNotThrow(() => NavigationRoute.Create(goal,
                 new NavigationRouteSegment[] { new GroundRouteSegment(new Vector2(0f, 0f), new Vector2(1f, 0f)) }, true));
-            Assert.That(() => NavigationRoute.Create(goal, world,
+            Assert.That(() => NavigationRoute.Create(goal,
                 new NavigationRouteSegment[]
                 {
                     new GroundRouteSegment(Vector2.zero, Vector2.right),
                     new GroundRouteSegment(Vector2.up, Vector2.up),
                 }, true), Throws.InstanceOf<ArgumentException>(),
                 "Segments must form a continuous world-space chain.");
-            Assert.That(() => NavigationRoute.Create(goal, world,
+            Assert.That(() => NavigationRoute.Create(goal,
                 new NavigationRouteSegment[]
                 {
                     new GroundRouteSegment(Vector2.zero, Vector2.right),
                     new FlyRouteSegment(microscopicOffset, Vector2.right),
                 }, true), Throws.InstanceOf<ArgumentException>(),
                 "A route cannot mix coordinate frames.");
-            Assert.That(() => NavigationRoute.Create(goal, world,
+            Assert.That(() => NavigationRoute.Create(goal,
                 new NavigationRouteSegment[] { new GroundRouteSegment(Vector2.zero, Vector2.right),
                     new FlyRouteSegment(Vector2.right + microscopicOffset, Vector2.up) }, true), Throws.InstanceOf<ArgumentException>());
         }
@@ -1014,10 +1005,9 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationRouteRejectsMixedCoordinateFrames()
         {
-            TestNavigationWorld world = UnitWorld();
             NavigationGoalRequest goal = PointGoal(new Vector2(2f, 0f), 0f);
 
-            Assert.That(() => NavigationRoute.Complete(goal, world,
+            Assert.That(() => NavigationRoute.Complete(goal,
                 new NavigationRouteSegment[]
                 {
                     new GroundRouteSegment(Vector2.zero, Vector2.right),
@@ -1030,10 +1020,9 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationRouteEmptyRouteKeepsZeroLengthPositionAndDeclaredFrame()
         {
-            TestNavigationWorld world = UnitWorld();
             NavigationGoalRequest goal = PointGoal(new Vector2(5f, 2f), 0f);
             Vector2 position = new(5f, 2f);
-            NavigationRoute route = NavigationRoute.Empty(position, goal, world,
+            NavigationRoute route = NavigationRoute.Empty(position, goal,
                 NavigationRouteCoordinateFrame.BodyCenter, true);
 
             Assert.That(route.Count, Is.Zero);
@@ -1046,22 +1035,19 @@ namespace Aethiumian.AI.Navigation.Tests
                 "A body-center route does not raise its endpoint.");
             Assert.That(route.ResolveEndpointBody(template).SizeX, Is.EqualTo(template.SizeX).Within(0.0001f));
             Assert.That(route.ResolveEndpointBody(template).SizeY, Is.EqualTo(template.SizeY).Within(0.0001f));
-            Assert.That(() => NavigationRoute.Empty(position, goal, null,
-                NavigationRouteCoordinateFrame.GroundAnchor, true), Throws.InstanceOf<ArgumentNullException>());
         }
 
         /// <summary>Verifies endpoint conversion produces the body each route frame declares.</summary>
         [Test]
         public void NavigationRouteResolvesEndpointBodyFromItsSegmentFrame()
         {
-            TestNavigationWorld world = UnitWorld();
             NavigationGoalRequest goal = PointGoal(new Vector2(2f, 1f), 0f);
             Vector2 bodySize = new(0.8f, 1.5f);
             Vector2 endpoint = new(2f, 1f);
             AABB template = AABB.FromCenterAndSize(Vector2.zero, bodySize);
-            NavigationRoute groundRoute = NavigationRoute.Complete(goal, world,
+            NavigationRoute groundRoute = NavigationRoute.Complete(goal,
                 new NavigationRouteSegment[] { new GroundRouteSegment(Vector2.zero, endpoint) });
-            NavigationRoute flyRoute = NavigationRoute.Complete(goal, world,
+            NavigationRoute flyRoute = NavigationRoute.Complete(goal,
                 new NavigationRouteSegment[] { new FlyRouteSegment(Vector2.zero, endpoint) });
 
             Assert.That(groundRoute.CoordinateFrame, Is.EqualTo(NavigationRouteCoordinateFrame.GroundAnchor));

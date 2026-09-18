@@ -203,9 +203,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(operation.Result, Is.Not.Null);
             Assert.That(operation.Result.Goal, Is.EqualTo(captured));
-            Assert.That(operation.Result.World, Is.SameAs(world));
             Assert.That(operation.Result.Goal.IsGroundWalk, Is.True);
-            Assert.That(operation.Result.World.WorldBounds, Is.EqualTo(AABB.FromMinAndSize(0f, 0f, 3f, 2.5f)));
             Assert.That(operation.Result.Goal.TargetBounds.LowerCenter.y, Is.EqualTo(0.5f));
         }
 

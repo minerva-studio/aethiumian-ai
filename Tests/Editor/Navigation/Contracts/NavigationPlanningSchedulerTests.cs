@@ -61,7 +61,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanningOperation operation = new();
             operation.RegisterCancellation(cancellation.Token);
             NavigationRoute route = NavigationRoute.Complete(
-                PointGoal(Vector2.right), UnitWorld(),
+                PointGoal(Vector2.right),
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
 
             Assert.That(operation.TryPrepareCompletion(NavigationPlanResult.ResultProduced(route),
@@ -128,9 +128,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(() => new NavigationPlanningScheduler(0), Throws.InstanceOf<ArgumentException>());
         }
 
-        private static TestNavigationWorld UnitWorld()
-            => new(new AABBInt(-4, -4, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-
         private static NavigationGoalRequest PointGoal(Vector2 point)
             => NavigationGoalRequest.Proximity(AABB.Point(point), DistanceMetric.Euclidean, 0f);
 
@@ -161,8 +158,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 cancellationToken.ThrowIfCancellationRequested();
                 if (failure != null) throw failure;
                 callback?.Invoke();
-                TestNavigationWorld world = UnitWorld();
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(PointGoal(goal), world,
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(PointGoal(goal),
                     new[] { new GroundRouteSegment(start, goal) }));
             }
 

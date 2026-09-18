@@ -61,11 +61,10 @@ namespace Aethiumian.AI.Nodes
                 }
                 else if (active != null)
                 {
-                    // A historical action keeps the goal and world it was planned against; an
-                    // irreversible predecessor must never be re-labelled with the newest target.
+                    // A historical action keeps its goal; an irreversible predecessor must never
+                    // be re-labelled with the newest target.
                     NavigationGoalRequest historicalGoal = route != null ? route.Goal : goal;
-                    INavigationWorld historicalWorld = route != null ? route.World : NavigationWorld;
-                    route = NavigationRoute.Partial(historicalGoal, historicalWorld, new[] { active });
+                    route = NavigationRoute.Partial(historicalGoal, new[] { active });
                     routeIndex = 0;
                 }
                 else { route = null; routeIndex = 0; }
@@ -96,14 +95,13 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>
-        /// Returns whether a route's remaining suffix already satisfies the current goal. The route is
-        /// evaluated in the world that planned it, which is also the world-ownership check that used to
-        /// be carried by the goal's bound snapshot.
+        /// Returns whether a route's remaining suffix already satisfies the current goal. The active
+        /// Movement owns the single World used for this evaluation.
         /// </summary>
-        private static bool RouteCoversGoal(NavigationRoute candidate, int first, AABB body, NavigationGoalRequest goal)
+        private bool RouteCoversGoal(NavigationRoute candidate, int first, AABB body, NavigationGoalRequest goal)
         {
             if (candidate == null || first >= candidate.Count) return false;
-            INavigationWorld world = candidate.World;
+            INavigationWorld world = NavigationWorld;
             for (int i = first; i < candidate.Count; i++)
             {
                 NavigationRouteSegment segment = candidate.Segments[i];
@@ -216,7 +214,7 @@ namespace Aethiumian.AI.Nodes
         private bool TryHandleExistingRoute(NavigationGoalRequest goal, AABB body)
         {
             if (ActiveSegment != null || route == null || routeIndex >= route.Count) return false;
-            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(route.Goal, route.World, route.GetRouteSegments(routeIndex), route.ReachesGoal);
+            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(route.Goal, route.GetRouteSegments(routeIndex), route.ReachesGoal);
             ActionPreparation preparation = TryAdoptRoute(remaining, CandidateSource.ExistingRoute, goal, body);
             if (preparation != ActionPreparation.Unavailable) return true;
 
@@ -393,7 +391,7 @@ namespace Aethiumian.AI.Nodes
             if (action != null && !changed && route != null && routeIndex < route.Count)
             {
                 AABB endpointBody = route.ResolveEndpointBody(body);
-                if (route.ReachesGoal && route.World.IsGoalComplete(goal, endpointBody)) return false;
+                if (route.ReachesGoal && NavigationWorld.IsGoalComplete(goal, endpointBody)) return false;
             }
 
             NavigationRouteSegment predecessor = null;
