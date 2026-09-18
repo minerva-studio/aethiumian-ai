@@ -91,13 +91,13 @@ namespace Aethiumian.AI.Nodes
             AABB targetBounds = capturedTargetBounds;
             Vector2 directLanding = capturedLanding;
 
-            Vector2 start = NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
+            AABB startBody = NavigationBodyGeometry.GetMergedAabb(navigationColliders);
+            Vector2 start = startBody.LowerCenter;
             if (!NavigationNumeric.IsFinite(start))
             {
                 CompleteAction(false);
                 return;
             }
-
             float arrivalTolerance = GetArrivalTolerance();
             if (!NavigationNumeric.IsFinite(arrivalTolerance) || arrivalTolerance < 0f)
             {
@@ -106,14 +106,23 @@ namespace Aethiumian.AI.Nodes
             }
 
             NavigationGoalRequest completionGoal = CreateCompletionRequest(targetBounds, arrivalTolerance);
-            Vector2 destination = targetMode == JumpTargetMode.Direct ? directLanding : completionGoal.Anchor;
-            if (!IsNavigationDestinationAllowed(start, destination))
+            // Both jump modes check a ground-anchor destination: Direct uses its resolved landing
+            // point, while PlannedStep uses the target's lower center. The region gate takes the body
+            // center, matching every other NavigationAction; the jump itself stays lower-center based.
+            Vector2 destination = targetMode == JumpTargetMode.Direct ? directLanding : completionGoal.TargetBounds.LowerCenter;
+            if (!IsNavigationDestinationAllowed(startBody.Center, destination))
             {
                 CompleteAction(false);
                 return;
             }
 
-            if (skipReached && IsReached(completionGoal, start))
+            if (!NavigationNumeric.IsFinite(startBody.Min) || !NavigationNumeric.IsFinite(startBody.Max))
+            {
+                CompleteAction(false);
+                return;
+            }
+
+            if (skipReached && IsReached(completionGoal, startBody))
             {
                 CompleteAction(true);
                 return;
@@ -125,7 +134,7 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
-            if (IsReached(completionGoal, start))
+            if (IsReached(completionGoal, startBody))
             {
                 // PlannedStep is still an action command when skipReached is false. Use the
                 // current support as the landing so this does not enter the global search graph.
@@ -134,7 +143,7 @@ namespace Aethiumian.AI.Nodes
             }
 
             NavigationGoalRequest request = CreateCompletionRequest(targetBounds, arrivalTolerance);
-            planningOperation = navigation.PlanJumpAsync(start, request, jumpParameters, NavigationPlanningExtent.NextAction, ExecutionCancellation);
+            planningOperation = navigation.PlanJumpAsync(startBody, request, jumpParameters, NavigationPlanningExtent.NextAction, ExecutionCancellation);
         }
 
         private NavigationGoalRequest CreateCompletionRequest(AABB targetBounds, float arrivalTolerance)
@@ -147,12 +156,10 @@ namespace Aethiumian.AI.Nodes
                     requiresLineOfSight);
         }
 
-        private bool IsReached(NavigationGoalRequest completionGoal, Vector2 groundAnchor)
+        private bool IsReached(NavigationGoalRequest completionGoal, AABB body)
         {
-            if (!navigation.TryResolvePlanningGroundSupport(
-                groundAnchor, bodySize, out _, out _)) return false;
-            Vector2 center = groundAnchor + Vector2.up * (bodySize.y * 0.5f);
-            return NavigationWorld.IsGoalComplete(completionGoal, center, bodySize);
+            if (!navigation.TryResolvePlanningGroundSupport(body, out _, out _)) return false;
+            return NavigationWorld.IsGoalComplete(completionGoal, body);
         }
 
         /// <summary>Advances planning or the committed single jump on the fixed-step path.</summary>
@@ -178,10 +185,10 @@ namespace Aethiumian.AI.Nodes
 
                 if (route.Count == 0)
                 {
-                    Vector2 currentStart = NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
+                    AABB currentBody = NavigationBodyGeometry.GetMergedAabb(navigationColliders);
                     bool currentlyReached = IsReached(
                         CreateCompletionRequest(capturedTargetBounds, GetArrivalTolerance()),
-                        currentStart);
+                        currentBody);
                     if (skipReached && currentlyReached)
                     {
                         CompleteAction(true);
@@ -193,7 +200,7 @@ namespace Aethiumian.AI.Nodes
                     // remains an explicit action unless skipReached was requested, so launch
                     // one in-place jump from the current grounded support.
                     if (targetMode == JumpTargetMode.PlannedStep
-                        && TryStartDirectJump(NavigationWorld, currentStart, currentStart))
+                        && TryStartDirectJump(NavigationWorld, currentBody.LowerCenter, currentBody.LowerCenter))
                         return;
 
                     CompleteAction(false);
@@ -314,7 +321,7 @@ namespace Aethiumian.AI.Nodes
 
             targetBounds = NavigationBodyGeometry.GetMergedAabb(targetColliders);
             targetBounds = targetBounds.Translate(targetOffset);
-            directLanding = new Vector2(targetBounds.CenterX, targetBounds.MinY);
+            directLanding = targetBounds.LowerCenter;
             if (!NavigationNumeric.IsFinite(directLanding)
                 || !NavigationNumeric.IsFinite(targetBounds.Min)
                 || !NavigationNumeric.IsFinite(targetBounds.Max))
@@ -350,17 +357,17 @@ namespace Aethiumian.AI.Nodes
             if (route.Segments[0] is not JumpRouteSegment jump) return false;
             INavigationWorld world = NavigationWorld;
 
-            Vector2 start = NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
-            if (!navigation.TryResolvePlanningGroundSupport(
-                start, bodySize, out _, out NavigationSupport currentSupport)
+            AABB body = NavigationBodyGeometry.GetMergedAabb(navigationColliders);
+            Vector2 start = body.LowerCenter;
+            if (!navigation.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport currentSupport)
                 || !navigation.TryResolvePlanningGroundSupport(
-                    jump.LaunchSupport, bodySize, out _, out NavigationSupport plannedSupport)
+                    AABB.FromLowerCenter(jump.Start, bodySize), out _, out NavigationSupport plannedSupport)
                 || currentSupport.Surface != plannedSupport.Surface)
                 return false;
 
             GroundJumpParameters parameters = CreateGeometryParameters(jumpParameters);
             if (!navigation.TryGetJumpSolver(out GroundJumpSolver jumpSolver)
-                || !jumpSolver.TrySolve(start, jump.PlannedLanding, parameters,
+                || !jumpSolver.TrySolve(start, jump.End, parameters,
                     out JumpTrajectorySolution solved))
                 return false;
 

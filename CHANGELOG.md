@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Legacy-node migration mappings and editor upgrade paths for supported obsolete nodes.
 - `Aggregate` flow and decorator-node support.
 - Package documentation, including English and Chinese documentation portals and a generic documentation sample.
+- A single coordinate frame per navigation route: `NavigationRoute.CoordinateFrame`, `NavigationRouteSegment.CoordinateFrame`, `NavigationRoute.ResolveBodyAt`/`ResolveEndpointBody`, and the explicit `NavigationRoute.Empty` factory for zero-length routes. A non-empty route derives `Start` and `Endpoint` from its own segment chain, so `Create`/`Complete`/`Partial` no longer ask callers to restate both positions.
+- `AABB.FromLowerCenter` for the lower-center body pose that ground-anchored capabilities plan and execute with.
 
 ### Changed
 
@@ -25,6 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Reorganized the AI Editor around UI Toolkit chrome with IMGUI-backed Nodes, Variables, and Properties pages.
 - Rebuilt Graph node search, creation, selection, topology editing, layout, and visual hierarchy.
 - Updated `Sequence` to short-circuit AND semantics; it no longer performs the prior full-execution OR aggregation. Existing assets are not migrated automatically.
+- Consolidated navigation positions: `NavigationRoute.Start` and `Endpoint` are derived from the route segments, goals expose their target geometry through `TargetBounds` instead of a universal anchor point, and `NavigationBodyGeometry.GetCenterAnchor` is now `GetBodyCenter`.
+- A body pose is now one `AABB` wherever an API needs both a position and a size. `NavigationGoalRequest` completion, guidance, and distance members, the goal world extensions, `NavigationPlanner.Plan`/`PlanSingleStep`, the `MapNavigationRuntime` planning requests, the `Movement` goal and route hooks, and the `INavigationWorld` support and crossing queries all take a body AABB. Planners derive their own Walk/Jump lower-center or Fly center start, `Movement` no longer interprets coordinates on a capability's behalf, and `NavigationRoute.ResolveBodyAt` converts every route position into the body it represents. `NavigationRoute` keeps one source of truth for its own geometry: the segment chain declares `Start`, `Endpoint`, and the coordinate frame. Region membership is one destination-level rule for every movement action: the sampled body's center against the goal target's center, including the Wander candidate pre-check and `FixedJump`, which keeps its lower-center jump geometry. Body profile dimensions and route segment positions remain positional values.
 
 ### Fixed
 

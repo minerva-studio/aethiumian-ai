@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -60,8 +60,8 @@ namespace Aethiumian.AI.Navigation.Tests
             using CancellationTokenSource cancellation = new();
             NavigationPlanningOperation operation = new();
             operation.RegisterCancellation(cancellation.Token);
-            NavigationRoute route = NavigationRoute.Complete(Vector2.zero,
-                PointGoal(Vector2.right), UnitWorld(), Vector2.right,
+            NavigationRoute route = NavigationRoute.Complete(
+                PointGoal(Vector2.right), UnitWorld(),
                 new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
 
             Assert.That(operation.TryPrepareCompletion(NavigationPlanResult.ResultProduced(route),
@@ -162,7 +162,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 if (failure != null) throw failure;
                 callback?.Invoke();
                 TestNavigationWorld world = UnitWorld();
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(start, PointGoal(goal), world, goal,
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(PointGoal(goal), world,
                     new[] { new GroundRouteSegment(start, goal) }));
             }
 

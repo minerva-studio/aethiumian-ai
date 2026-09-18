@@ -70,6 +70,11 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest groundGoal = NavigationGoalRequest.GroundRange(AABB.Point(PlanGoalPoint), 0.1f);
             NavigationGoalRequest centeredGoal = NavigationGoalRequest.Proximity(
                 AABB.Point(PlanGoalPoint), DistanceMetric.Euclidean, 0.5f);
+            // The sampled body pose is loop invariant, so it is built once outside the measured loop:
+            // each row still times exactly one goal call on one already-built body AABB.
+            AABB sampleBody = AABB.FromCenterAndSize(SampleCenter, BodySize);
+            AABB sweepStartBody = AABB.FromCenterAndSize(SweepStart, BodySize);
+            AABB sweepEndBody = AABB.FromCenterAndSize(SweepEnd, BodySize);
 
             RunBatch("Control.EmptyLoop", () =>
                 {
@@ -78,22 +83,22 @@ namespace Aethiumian.AI.Navigation.Tests
             RunBatch("Goal.IsGoalComplete.GroundRange", () =>
                 {
                     for (int index = 0; index < Batch; index++)
-                        sink += world.IsGoalComplete(groundGoal, SampleCenter, BodySize) ? 1f : 0f;
+                        sink += world.IsGoalComplete(groundGoal, sampleBody) ? 1f : 0f;
                 });
             RunBatch("Goal.IsGoalCompleteAlong.Sweep", () =>
                 {
                     for (int index = 0; index < Batch; index++)
-                        sink += world.IsGoalCompleteAlong(groundGoal, SweepStart, SweepEnd, BodySize) ? 1f : 0f;
+                        sink += world.IsGoalCompleteAlong(groundGoal, sweepStartBody, sweepEndBody) ? 1f : 0f;
                 });
             RunBatch("Goal.GetGoalCompletionDistance.Proximity", () =>
                 {
                     for (int index = 0; index < Batch; index++)
-                        sink += world.GetGoalCompletionDistance(centeredGoal, SampleCenter, BodySize);
+                        sink += world.GetGoalCompletionDistance(centeredGoal, sampleBody);
                 });
             RunBatch("Goal.GuidanceDistance", () =>
                 {
                     for (int index = 0; index < Batch; index++)
-                        sink += groundGoal.GuidanceDistance(SampleCenter, BodySize);
+                        sink += groundGoal.GuidanceDistance(sampleBody);
                 });
 
             LogRows(Batch, "per-operation goal cost over " + Batch + " ops per sample (ns/op, Editor/Mono upper bound)",
@@ -194,7 +199,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             diagnostics = new NavigationPlanningDiagnostics();
             WalkNavigationPlanner planner = new(world, 256, new GroundJumpSolver(world));
-            NavigationPlanResult result = planner.Plan(PlanStart, goal, parameters, default, diagnostics);
+            NavigationPlanResult result = planner.Plan(AABB.FromLowerCenter(PlanStart, parameters.BodySize), goal, parameters, default, diagnostics);
             sink += result.Route == null ? 0f : result.Route.Count;
         }
 

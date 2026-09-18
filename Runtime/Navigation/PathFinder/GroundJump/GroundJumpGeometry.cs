@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Aethiumian.AI.Navigation;
@@ -65,7 +65,7 @@ namespace Aethiumian.AI.Navigation
                 cancellationToken.ThrowIfCancellationRequested();
                 Vector2 current = trajectory.GetPosition(trajectory.FlightDuration * sample / samples);
                 events.Clear();
-                world.CollectOneWayCrossings(previous, current, bodySize.x, events);
+                world.CollectOneWayCrossings(AABB.FromLowerCenter(previous, bodySize), current - previous, events);
                 for (int index = 0; index < events.Count; index++)
                 {
                     NavigationSurfaceCrossing crossing = events[index];
@@ -77,7 +77,7 @@ namespace Aethiumian.AI.Navigation
                 previous = current;
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (world.TryResolveSupport(trajectory.LandingPosition, bodySize, Tolerance, out NavigationSupport landingSupport)
+            if (world.TryResolveSupport(AABB.FromLowerCenter(trajectory.LandingPosition, bodySize), Tolerance, out NavigationSupport landingSupport)
                 && landingSupport.Kind == NavigationSurfaceKind.OneWay)
             {
                 AddUnique(crossings, new JumpSurfaceCrossing(landingSupport.Surface, landingSupport.Position,

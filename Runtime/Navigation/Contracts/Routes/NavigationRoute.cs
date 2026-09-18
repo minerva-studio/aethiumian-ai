@@ -6,32 +6,30 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>
-    /// Immutable planner snapshot for one world, start anchor, and goal.
+    /// Immutable planner snapshot for one world, start position, and goal. Every position this route
+    /// exposes - <see cref="Start"/>, <see cref="Endpoint"/>, and every segment position - is
+    /// expressed in its single <see cref="CoordinateFrame"/>.
     /// Coordinators may replace uncommitted suffixes; this object never owns execution.
     /// The captured <see cref="World"/> is the world the goal was planned against, so route
     /// consumers can still prove that a route belongs to the world they are executing in.
     /// </summary>
     public sealed class NavigationRoute
     {
+        // An empty route has no segment that could declare its frame or its positions, so it stores
+        // one zero-length position together with the frame its caller declared. Both fields stay
+        // unused for a non-empty route, whose positions and frame derive from its segments.
+        private readonly Vector2 emptyPosition;
+        private readonly NavigationRouteCoordinateFrame emptyFrame;
+
         /// <summary>
         /// Gets the immutable world this route was planned against.
         /// </summary>
         public INavigationWorld World { get; }
 
         /// <summary>
-        /// Gets the world-space origin used by the planner.
-        /// </summary>
-        public Vector2 Start { get; }
-
-        /// <summary>
         /// Gets the immutable goal this route was planned against.
         /// </summary>
         public NavigationGoalRequest Goal { get; }
-
-        /// <summary>
-        /// Gets the world-space endpoint selected by the planner.
-        /// </summary>
-        public Vector2 Endpoint { get; }
 
         /// <summary>
         /// Gets the read-only route segments in execution order.
@@ -44,19 +42,45 @@ namespace Aethiumian.AI.Navigation
         public int Count => Segments.Count;
 
         /// <summary>
+        /// Gets the world-space origin used by the planner, in <see cref="CoordinateFrame"/>: the
+        /// first segment's start, or the stored zero-length position of an empty route.
+        /// </summary>
+        public Vector2 Start => Count == 0 ? emptyPosition : Segments[0].Start;
+
+        /// <summary>
+        /// Gets the world-space endpoint selected by the planner, in <see cref="CoordinateFrame"/>:
+        /// the final segment's end, or the stored zero-length position of an empty route.
+        /// </summary>
+        public Vector2 Endpoint => Count == 0 ? emptyPosition : Segments[Count - 1].End;
+
+        /// <summary>
+        /// Gets the coordinate frame shared by <see cref="Start"/>, <see cref="Endpoint"/>, and every
+        /// segment position. It is derived from the segments; an empty route keeps the frame its
+        /// caller declared.
+        /// </summary>
+        public NavigationRouteCoordinateFrame CoordinateFrame => Count == 0 ? emptyFrame : Segments[0].CoordinateFrame;
+
+        /// <summary>
         /// Gets whether this route reaches the goal captured when the route was created.
         /// It does not mean the movement's current goal is already satisfied.
         /// </summary>
         public bool ReachesGoal { get; }
 
-        private NavigationRoute(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, NavigationRouteSegment[] segments, bool reachesGoal)
+        /// <summary>Creates a non-empty route whose coordinate frame is declared by its segments.</summary>
+        private NavigationRoute(NavigationGoalRequest goal, INavigationWorld world, NavigationRouteSegment[] segments, bool reachesGoal)
         {
-            Start = start;
             Goal = goal;
             World = world;
-            Endpoint = resolvedGoal;
-            ReachesGoal = reachesGoal;
             Segments = segments;
+            ReachesGoal = reachesGoal;
+        }
+
+        /// <summary>Creates the zero-length route of one declared position.</summary>
+        private NavigationRoute(Vector2 position, NavigationRouteCoordinateFrame frame, NavigationGoalRequest goal, INavigationWorld world, bool reachesGoal)
+            : this(goal, world, Array.Empty<NavigationRouteSegment>(), reachesGoal)
+        {
+            emptyPosition = position;
+            emptyFrame = frame;
         }
 
 
@@ -74,35 +98,118 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Replaces this route's segments while preserving its origin, goal, world, endpoint, and completeness.
+        /// Resolves <see cref="Endpoint"/> into the body AABB it represents, using the supplied body as
+        /// the size template. A <see cref="NavigationRouteCoordinateFrame.GroundAnchor"/> endpoint
+        /// becomes the lower-center anchor of a body of that size; a
+        /// <see cref="NavigationRouteCoordinateFrame.BodyCenter"/> endpoint is already a body center.
+        /// This is the route's body conversion, so consumers never re-derive an anchor themselves.
         /// </summary>
-        public NavigationRoute WithSegments(IEnumerable<NavigationRouteSegment> replacementSegments) => CreateInternal(Start, Goal, World, Endpoint, replacementSegments, ReachesGoal);
+        public AABB ResolveEndpointBody(AABB bodyTemplate) => ResolveBodyAt(Endpoint, bodyTemplate);
 
         /// <summary>
-        /// Creates a route against an immutable goal with an explicit goal-arrival fact.
+        /// Resolves one route position expressed in <see cref="CoordinateFrame"/> into the body AABB it
+        /// represents, using the supplied body as the size template. Every route position - an endpoint,
+        /// a predecessor segment end, or a continuation origin - goes through this single conversion.
         /// </summary>
-        public static NavigationRoute Create(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
-            => CreateInternal(start, goal, world, resolvedGoal, segments, reachesGoal);
+        public AABB ResolveBodyAt(Vector2 routePosition, AABB bodyTemplate)
+        {
+            Validate.Aabb(bodyTemplate, nameof(bodyTemplate));
+            Validate.Finite(routePosition, nameof(routePosition));
+            return CoordinateFrame == NavigationRouteCoordinateFrame.GroundAnchor
+                ? AABB.FromLowerCenter(routePosition, bodyTemplate.Size)
+                : AABB.FromCenterAndSize(routePosition, bodyTemplate.Size);
+        }
+
+        /// <summary>
+        /// Replaces this route's segments while preserving its goal, world, completeness, and the
+        /// positions its replacement spans. An empty replacement is valid only for a zero-length
+        /// route, and keeps that route's declared coordinate frame.
+        /// </summary>
+        public NavigationRoute WithSegments(IEnumerable<NavigationRouteSegment> replacementSegments)
+        {
+            NavigationRouteSegment[] copiedSegments = CopySegments(replacementSegments);
+            if (copiedSegments.Length == 0)
+            {
+                if (!Start.Equals(Endpoint))
+                    throw new ArgumentException("An empty route is valid only when Start equals Endpoint.", nameof(replacementSegments));
+
+                return new NavigationRoute(Start, CoordinateFrame, Goal, World, ReachesGoal);
+            }
+
+            // A replacement is not a new route: it must still span the positions it replaces.
+            if (!copiedSegments[0].Start.Equals(Start) || !copiedSegments[^1].End.Equals(Endpoint))
+                throw new ArgumentException("A route replacement must span the positions it replaces.", nameof(replacementSegments));
+
+            return CreateInternal(Goal, World, copiedSegments, ReachesGoal);
+        }
+
+        /// <summary>
+        /// Creates a route against an immutable goal with an explicit goal-arrival fact. The route
+        /// derives <see cref="Start"/> and <see cref="Endpoint"/> from its own segment chain, which must
+        /// be continuous and declare one coordinate frame; a zero-length route uses <see cref="Empty"/>
+        /// instead, because an empty segment collection cannot declare a frame.
+        /// </summary>
+        public static NavigationRoute Create(NavigationGoalRequest goal, INavigationWorld world, IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
+            => CreateInternal(goal, world, CopySegments(segments), reachesGoal);
 
         /// <summary>
         /// Creates a route that represents a complete search or direct result.
         /// </summary>
-        public static NavigationRoute Complete(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments)
-            => CreateInternal(start, goal, world, resolvedGoal, segments, true);
+        public static NavigationRoute Complete(NavigationGoalRequest goal, INavigationWorld world, IEnumerable<NavigationRouteSegment> segments)
+            => CreateInternal(goal, world, CopySegments(segments), true);
 
         /// <summary>
         /// Creates a produced route whose next action does not yet reach the planning goal.
         /// </summary>
-        public static NavigationRoute Partial(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments)
-            => CreateInternal(start, goal, world, resolvedGoal, segments, false);
+        public static NavigationRoute Partial(NavigationGoalRequest goal, INavigationWorld world, IEnumerable<NavigationRouteSegment> segments)
+            => CreateInternal(goal, world, CopySegments(segments), false);
 
-        private static NavigationRoute CreateInternal(Vector2 start, NavigationGoalRequest goal, INavigationWorld world, Vector2 resolvedGoal, IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
+        /// <summary>
+        /// Creates the zero-length route of a plan that is already at its position. An empty route has
+        /// no segment to declare its coordinate frame, so the caller states it explicitly.
+        /// </summary>
+        public static NavigationRoute Empty(Vector2 position, NavigationGoalRequest goal, INavigationWorld world, NavigationRouteCoordinateFrame frame, bool reachesGoal)
         {
             if (world == null) throw new ArgumentNullException(nameof(world));
 
-            if (!NavigationNumeric.IsFinite(start) || !NavigationNumeric.IsFinite(resolvedGoal))
-                throw new ArgumentException("Navigation plan coordinates must be finite world coordinates.");
+            if (!NavigationNumeric.IsFinite(position))
+                throw new ArgumentException("Navigation plan coordinates must be finite world coordinates.", nameof(position));
 
+            if (!Enum.IsDefined(typeof(NavigationRouteCoordinateFrame), frame))
+                throw new ArgumentOutOfRangeException(nameof(frame), frame, "Unknown route coordinate frame.");
+
+            return new NavigationRoute(position, frame, goal, world, reachesGoal);
+        }
+
+        private static NavigationRoute CreateInternal(NavigationGoalRequest goal, INavigationWorld world, NavigationRouteSegment[] segments, bool reachesGoal)
+        {
+            if (world == null) throw new ArgumentNullException(nameof(world));
+
+            if (segments.Length == 0)
+                throw new ArgumentException("An empty route must declare its coordinate frame explicitly; use NavigationRoute.Empty.", nameof(segments));
+
+            for (int i = 1; i < segments.Length; i++)
+            {
+                if (!segments[i - 1].End.Equals(segments[i].Start))
+                {
+                    throw new ArgumentException("Route segments must form a continuous world-space chain.", nameof(segments));
+                }
+            }
+
+            NavigationRouteCoordinateFrame frame = segments[0].CoordinateFrame;
+            for (int i = 1; i < segments.Length; i++)
+            {
+                if (segments[i].CoordinateFrame != frame)
+                {
+                    throw new ArgumentException("A navigation route cannot mix coordinate frames.", nameof(segments));
+                }
+            }
+
+            return new NavigationRoute(goal, world, segments, reachesGoal);
+        }
+
+        private static NavigationRouteSegment[] CopySegments(IEnumerable<NavigationRouteSegment> segments)
+        {
             if (segments == null) throw new ArgumentNullException(nameof(segments));
 
             NavigationRouteSegment[] copiedSegments = new List<NavigationRouteSegment>(segments).ToArray();
@@ -114,35 +221,7 @@ namespace Aethiumian.AI.Navigation
                 }
             }
 
-            if (copiedSegments.Length == 0)
-            {
-                if (!start.Equals(resolvedGoal))
-                {
-                    throw new ArgumentException("An empty route is valid only when Start equals ResolvedGoal.", nameof(segments));
-                }
-
-                return new NavigationRoute(start, goal, world, resolvedGoal, copiedSegments, reachesGoal);
-            }
-
-            if (!copiedSegments[0].Start.Equals(start))
-            {
-                throw new ArgumentException("The first route segment must start at Start.", nameof(segments));
-            }
-
-            for (int i = 1; i < copiedSegments.Length; i++)
-            {
-                if (!copiedSegments[i - 1].End.Equals(copiedSegments[i].Start))
-                {
-                    throw new ArgumentException("Route segments must form a continuous world-space chain.", nameof(segments));
-                }
-            }
-
-            if (!copiedSegments[^1].End.Equals(resolvedGoal))
-            {
-                throw new ArgumentException("The final route segment must end at ResolvedGoal.", nameof(segments));
-            }
-
-            return new NavigationRoute(start, goal, world, resolvedGoal, copiedSegments, reachesGoal);
+            return copiedSegments;
         }
 
 

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System;
@@ -106,7 +106,7 @@ namespace Aethiumian.AI.Navigation.Tests
             ControlledWalk.Request refreshed = ControlledWalk.Requests
                 .FirstOrDefault(candidate => candidate != staleContinuation
                     && candidate.Extent == NavigationPlanningExtent.Route
-                    && Mathf.Abs(candidate.Goal.Anchor.x - 20f) <= 0.001f);
+                    && Mathf.Abs(candidate.Goal.TargetBounds.CenterX - 20f) <= 0.001f);
             Assert.That(refreshed, Is.Not.Null, DescribeRequests());
             Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
@@ -362,7 +362,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(smart.Operation.IsCancelled, Is.False);
             Assert.That(fallback.Operation.IsCompleted, Is.True);
             Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(smart.Goal.Anchor.x).Within(0.25f), "A fallback result published in the same fixed tick must not replace Smart.");
+            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(smart.Goal.TargetBounds.CenterX).Within(0.25f), "A fallback result published in the same fixed tick must not replace Smart.");
             Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(2), DescribeHarness(harness));
             if (ControlledWalk.Requests.Count >= 3)
             {
@@ -435,7 +435,9 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             Assert.That(launchRequest, Is.Not.Null, DescribeRequests());
-            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, new Vector2(launchRequest.Start.x, 1f)));
+            NavigationRoute launchRoute = CreateJumpRoute(launchRequest,
+                new Vector2(launchRequest.StartBody.LowerCenter.x, 1f));
+            ControlledWalk.Complete(launchRequest, launchRoute);
             for (int frame = 0; harness.Source.JumpCount == 0 && frame < PlanningFrameLimit; frame++)
                 yield return new WaitForFixedUpdate();
             Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
@@ -452,6 +454,12 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             Assert.That(replacement, Is.Not.Null, DescribeRequests());
+            // The continuation starts where the committed predecessor's own route frame ends, not at a
+            // Movement-compensated body anchor.
+            Assert.That(replacement.StartBody.LowerCenter.x, Is.EqualTo(launchRoute.Endpoint.x).Within(0.0001f),
+                "A continuation must start from the predecessor endpoint the route frame resolves. " + DescribeRequests());
+            Assert.That(replacement.StartBody.LowerCenter.y, Is.EqualTo(launchRoute.Endpoint.y).Within(0.0001f),
+                "A continuation must start from the predecessor endpoint the route frame resolves. " + DescribeRequests());
             ControlledWalk.Complete(replacement, CreateGroundRoute(replacement, new Vector2(40.5f, 1f), false));
 
             bool airborne = false;
@@ -499,7 +507,7 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             Assert.That(launchRequest, Is.Not.Null, DescribeRequests());
-            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, new Vector2(launchRequest.Start.x, 1f)));
+            ControlledWalk.Complete(launchRequest, CreateJumpRoute(launchRequest, new Vector2(launchRequest.StartBody.LowerCenter.x, 1f)));
             for (int frame = 0; harness.Source.JumpCount == 0 && frame < PlanningFrameLimit; frame++)
                 yield return new WaitForFixedUpdate();
             Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
@@ -721,14 +729,14 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2? endpoint = null,
             bool completesGoal = true)
         {
-            Vector2 resolvedGoal = endpoint ?? new Vector2(request.Goal.Anchor.x, 1f);
-            Vector2 logicalStart = new(request.Start.x, 1f);
+            Vector2 resolvedGoal = endpoint ?? new Vector2(request.Goal.TargetBounds.CenterX, 1f);
+            Vector2 logicalStart = new(request.StartBody.LowerCenter.x, 1f);
             Vector2 bodyCenter = resolvedGoal + Vector2.up * (BodyHeight * 0.5f);
-            bool reachesGoal = request.World.IsGoalComplete(request.Goal, bodyCenter, new Vector2(BodyWidth, BodyHeight));
+            bool reachesGoal = request.World.IsGoalComplete(request.Goal, AABB.FromCenterAndSize(bodyCenter, new Vector2(BodyWidth, BodyHeight)));
             if (completesGoal)
                 Assert.That(reachesGoal, Is.True,
                     $"Fixture endpoint {resolvedGoal} does not satisfy the captured goal {request.Goal}.");
-            return NavigationRoute.Create(logicalStart, request.Goal, request.World, resolvedGoal,
+            return NavigationRoute.Create(request.Goal, request.World,
                 new[] { new GroundRouteSegment(logicalStart, resolvedGoal) },
                 reachesGoal);
         }
@@ -737,10 +745,8 @@ namespace Aethiumian.AI.Navigation.Tests
         private static NavigationRoute CreateJumpRoute(
             ControlledWalk.Request request, Vector2 launchSupport, float travel = 6f)
             => NavigationRoute.Create(
-                launchSupport,
                 request.Goal,
                 request.World,
-                launchSupport + Vector2.right * travel,
                 new[] { new JumpRouteSegment(launchSupport, launchSupport + Vector2.right * travel, 0f) },
                 true);
 
@@ -756,17 +762,18 @@ namespace Aethiumian.AI.Navigation.Tests
             internal sealed class Request
             {
                 internal NavigationPlanningOperation Operation { get; }
-                internal Vector2 Start { get; }
+                /// <summary>The sampled body pose the movement submitted with this request.</summary>
+                internal AABB StartBody { get; }
                 internal NavigationGoalRequest Goal { get; }
                 internal INavigationWorld World { get; }
                 internal NavigationPlanningExtent Extent { get; }
                 internal NavigationPlanningPurpose Purpose { get; }
 
-                internal Request(NavigationPlanningOperation operation, Vector2 start, NavigationGoalRequest goal,
+                internal Request(NavigationPlanningOperation operation, AABB startBody, NavigationGoalRequest goal,
                     INavigationWorld world, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose)
                 {
                     Operation = operation;
-                    Start = start;
+                    StartBody = startBody;
                     Goal = goal;
                     World = world;
                     Extent = extent;
@@ -790,7 +797,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 => Assert.That(request.Operation.TryFail(exception), Is.True);
 
             protected override bool TryRequestRoute(
-                Vector2 start,
+                AABB body,
                 NavigationGoalRequest goal,
                 NavigationPlanningExtent extent,
                 NavigationPlanningPurpose purpose,
@@ -799,7 +806,7 @@ namespace Aethiumian.AI.Navigation.Tests
             {
                 operation = new NavigationPlanningOperation();
                 operation.RegisterCancellation(cancellationToken);
-                Requests.Add(new Request(operation, start, goal, NavigationWorld, extent, purpose));
+                Requests.Add(new Request(operation, body, goal, NavigationWorld, extent, purpose));
                 return true;
             }
         }
@@ -819,7 +826,7 @@ namespace Aethiumian.AI.Navigation.Tests
             for (int index = 0; index < ControlledWalk.Requests.Count; index++)
             {
                 ControlledWalk.Request request = ControlledWalk.Requests[index];
-                descriptions.Add($"#{index}: {request.Extent}/{request.Purpose} Start={request.Start} "
+                descriptions.Add($"#{index}: {request.Extent}/{request.Purpose} StartBody={request.StartBody.LowerCenter} "
                     + $"Completed={request.Operation.IsCompleted} Cancelled={request.Operation.IsCancelled} "
                     + $"Termination={request.Operation.PlanResult.Termination}");
             }

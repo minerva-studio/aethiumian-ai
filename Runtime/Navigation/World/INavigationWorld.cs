@@ -33,10 +33,11 @@ namespace Aethiumian.AI.Navigation
         bool IsLineOfSightClear(Vector2 start, Vector2 end);
 
         /// <summary>
-        /// Resolves physical support for a body lower-center anchor. A valid support may contact any
-        /// overlapping part of the body's foot interval; it is not limited to a center-ray hit.
+        /// Resolves physical support for a body. A valid support may contact any overlapping part of the
+        /// body's foot interval; it is not limited to a center-ray hit. Returned anchors retain the
+        /// supplied body's horizontal center.
         /// </summary>
-        bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support);
+        bool TryResolveSupport(AABB body, float snapDistance, out NavigationSupport support);
 
         /// <summary>
         /// Finds the nearest upward-facing support at the point's X, at or below its Y within
@@ -58,9 +59,10 @@ namespace Aethiumian.AI.Navigation
         void CollectSupportCandidates(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results);
 
         /// <summary>
-        /// Collects directed one-way surface crossings along a lower-center body segment.
+        /// Collects directed one-way surface crossings along one swept body. The displacement is separate
+        /// from the body geometry, exactly as it is for <see cref="IsBodyPathClear"/>.
         /// </summary>
-        void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, List<NavigationSurfaceCrossing> results);
+        void CollectOneWayCrossings(AABB previousBody, Vector2 displacement, List<NavigationSurfaceCrossing> results);
 
         /// <summary>
         /// Checks whether two positions belong to the same captured navigation region.

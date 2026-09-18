@@ -19,7 +19,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Reconnects an uncommitted Ground route to an observed grounded anchor.
+        /// Reconnects an uncommitted Ground route to an observed grounded body.
         /// The first Ground segment may be trimmed when the body has already entered it,
         /// or replaced with a short validated connection when the body is still within
         /// the preceding executor completion range. Every replacement rechecks support
@@ -28,10 +28,10 @@ namespace Aethiumian.AI.Navigation
         /// planner; this method validates only the newly created connection.
         /// </summary>
         public static bool TryReconnectGroundRoute(INavigationWorld world, NavigationRoute route,
-            Vector2 observedStart, Vector2 bodySize, float supportSnapDistance,
+            AABB observedBody, float supportSnapDistance,
             float groundContactTolerance, out NavigationRoute reconnectedRoute)
         {
-            return TryReconnectGroundRoute(world, route, observedStart, bodySize,
+            return TryReconnectGroundRoute(world, route, observedBody,
                 supportSnapDistance, groundContactTolerance,
                 Mathf.Max(NavigationConstant.ArrivalFloor, supportSnapDistance + NavigationWorldQueries.GeometryEpsilon),
                 out reconnectedRoute);
@@ -43,21 +43,22 @@ namespace Aethiumian.AI.Navigation
         /// speed and fixed-step values.
         /// </summary>
         public static bool TryReconnectGroundRoute(INavigationWorld world, NavigationRoute route,
-            Vector2 observedStart, Vector2 bodySize, float supportSnapDistance,
+            AABB observedBody, float supportSnapDistance,
             float groundContactTolerance, float executionHorizontalCompletionTolerance,
             out NavigationRoute reconnectedRoute)
         {
             reconnectedRoute = null;
-            if (world == null || route == null || route.Count == 0 || !NavigationNumeric.IsFinite(observedStart)
-                || !NavigationNumeric.IsFinite(bodySize) || bodySize.x <= 0f || bodySize.y <= 0f
+            if (world == null || route == null || route.Count == 0
+                || !NavigationNumeric.IsFinite(observedBody.Min) || !NavigationNumeric.IsFinite(observedBody.Max)
+                || observedBody.SizeX <= 0f || observedBody.SizeY <= 0f
                 || !NavigationNumeric.IsFinite(supportSnapDistance) || supportSnapDistance < 0f
                 || !NavigationNumeric.IsFinite(groundContactTolerance) || groundContactTolerance < 0f
                 || !NavigationNumeric.IsFinite(executionHorizontalCompletionTolerance)
                 || executionHorizontalCompletionTolerance < 0f
                 || route.Segments[0] is not GroundRouteSegment)
                 return false;
-            if (!world.TryResolveGroundSupport(observedStart, bodySize, supportSnapDistance,
-                out Vector2 snappedStart, out _))
+            Vector2 bodySize = observedBody.Size;
+            if (!world.TryResolveGroundSupport(observedBody, supportSnapDistance, out Vector2 snappedStart, out _))
                 return false;
 
             int segmentIndex = 0;
@@ -99,8 +100,9 @@ namespace Aethiumian.AI.Navigation
                     // bridge before its start is new geometry; do not rescan the entire tail.
                     Vector2 connectionEnd = ReferenceEquals(world, route.World)
                         ? (projectedDistance < 0f ? ground.Start : snappedStart) : end;
-                    if (!TryValidateGroundConnection(world, snappedStart, connectionEnd, bodySize,
-                        supportSnapDistance, groundContactTolerance)) return false;
+                    if (!TryValidateGroundConnection(world, AABB.FromLowerCenter(snappedStart, bodySize),
+                        AABB.FromLowerCenter(connectionEnd, bodySize), supportSnapDistance, groundContactTolerance))
+                        return false;
                     return BuildReconnectedGroundRoute(route, segmentIndex, snappedStart, end,
                         out reconnectedRoute);
                 }
@@ -114,8 +116,9 @@ namespace Aethiumian.AI.Navigation
             NavigationRouteSegment next = route.Segments[segmentIndex];
             if (next is GroundRouteSegment nextGround)
             {
-                if (!TryValidateGroundConnection(world, snappedStart, nextGround.End, bodySize,
-                    supportSnapDistance, groundContactTolerance)) return false;
+                if (!TryValidateGroundConnection(world, AABB.FromLowerCenter(snappedStart, bodySize),
+                    AABB.FromLowerCenter(nextGround.End, bodySize), supportSnapDistance, groundContactTolerance))
+                    return false;
                 return BuildReconnectedGroundRoute(route, segmentIndex, snappedStart, nextGround.End,
                     out reconnectedRoute);
             }
@@ -132,8 +135,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex + 1; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(start, route.Goal, route.World, route.Endpoint, segments)
-                : NavigationRoute.Partial(start, route.Goal, route.World, route.Endpoint, segments);
+                ? NavigationRoute.Complete(route.Goal, route.World, segments)
+                : NavigationRoute.Partial(route.Goal, route.World, segments);
             return true;
         }
 
@@ -144,8 +147,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex; index < route.Count; index++)
                 segments.Add(route.Segments[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(segments[0].Start, route.Goal, route.World, route.Endpoint, segments)
-                : NavigationRoute.Partial(segments[0].Start, route.Goal, route.World, route.Endpoint, segments);
+                ? NavigationRoute.Complete(route.Goal, route.World, segments)
+                : NavigationRoute.Partial(route.Goal, route.World, segments);
             return true;
         }
 
@@ -154,30 +157,30 @@ namespace Aethiumian.AI.Navigation
                 + NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
 
         /// <summary>Builds a Ground Walk goal from a physical lower-center target and plans against it.</summary>
-        public bool TryPlan(Vector2 start, Vector2 physicalGoal, float arrivalErrorBound, WalkNavigationParameters parameters, out NavigationRoute route)
+        public bool TryPlan(AABB body, Vector2 physicalGoal, float arrivalErrorBound, WalkNavigationParameters parameters, out NavigationRoute route)
         {
             NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(AABB.Point(physicalGoal), arrivalErrorBound);
-            return TryPlan(start, goal, parameters, out route);
+            return TryPlan(body, goal, parameters, out route);
         }
 
         /// <summary>Runs the shared action-graph search for a Walk request.</summary>
-        public override NavigationPlanResult Plan(Vector2 start, NavigationGoalRequest goal, WalkNavigationParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null)
+        public override NavigationPlanResult Plan(AABB body, NavigationGoalRequest goal, WalkNavigationParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null)
         {
-            ValidatePlanInputs(start, cancellationToken);
+            ValidatePlanInputs(body, cancellationToken);
             parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
 
             NavigationPlanResult result;
-            if (!World.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
+            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
             {
                 return NavigationPlanResult.NoResult;
             }
             else
             {
-                Vector2 startCenter = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
-                if (World.IsGoalComplete(goal, startCenter, parameters.BodySize))
+                AABB resolvedStartBody = AABB.FromLowerCenter(resolvedStart, parameters.BodySize);
+                if (World.IsGoalComplete(goal, resolvedStartBody))
                 {
-                    NavigationRoute route = NavigationRoute.Complete(resolvedStart, goal, World, resolvedStart, Array.Empty<NavigationRouteSegment>());
+                    NavigationRoute route = NavigationRoute.Empty(resolvedStart, goal, World, NavigationRouteCoordinateFrame.GroundAnchor, true);
                     result = NavigationPlanResult.ResultProduced(route);
                 }
                 else if (TryCreateDirectGroundRoute(World, resolvedStart, goal, parameters,
@@ -206,12 +209,12 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Runs one Simple Walk action without entering Smart search.</summary>
-        public override NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRequest goal, WalkNavigationParameters parameters, CancellationToken cancellationToken = default)
+        public override NavigationPlanResult PlanSingleStep(AABB body, NavigationGoalRequest goal, WalkNavigationParameters parameters, CancellationToken cancellationToken = default)
         {
-            ValidatePlanInputs(start, cancellationToken);
+            ValidatePlanInputs(body, cancellationToken);
             parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
-            foreach (NavigationRoute route in PlanSingleStepIncremental(start, goal, parameters))
+            foreach (NavigationRoute route in PlanSingleStepIncremental(body, goal, parameters))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (route != null)
@@ -232,17 +235,17 @@ namespace Aethiumian.AI.Navigation
         {
             route = null;
             if (!goal.IsGroundWalk) return false;
-            Vector2 end = new(goal.Anchor.x, start.y);
-            if (!world.TryResolveGroundSupport(end, parameters.BodySize, parameters.SupportSnapDistance,
+            Vector2 end = new(goal.TargetBounds.CenterX, start.y);
+            if (!world.TryResolveGroundSupport(AABB.FromLowerCenter(end, parameters.BodySize), parameters.SupportSnapDistance,
                 out Vector2 snappedEnd, out _)) return false;
             end = snappedEnd;
-            Vector2 endCenter = end + Vector2.up * (parameters.BodySize.y * 0.5f);
-            if (!world.IsGoalComplete(goal, endCenter, parameters.BodySize)
-                || !TryValidateGroundConnection(world, start, end, parameters.BodySize,
+            if (!world.IsGoalComplete(goal, AABB.FromLowerCenter(end, parameters.BodySize))
+                || !TryValidateGroundConnection(world, AABB.FromLowerCenter(start, parameters.BodySize),
+                    AABB.FromLowerCenter(end, parameters.BodySize),
                     parameters.SupportSnapDistance, parameters.GroundContactTolerance))
                 return false;
 
-            route = NavigationRoute.Complete(start, goal, world, end,
+            route = NavigationRoute.Complete(goal, world,
                 new NavigationRouteSegment[] { new GroundRouteSegment(start, end) });
             return true;
         }
@@ -261,29 +264,28 @@ namespace Aethiumian.AI.Navigation
             {
                 yield return NavigationTransitionWork.WorkUnit;
                 if (jump == null) continue;
-                Vector2 landingCenter = jump.Trajectory.LandingPosition + Vector2.up * (parameters.BodySize.y * 0.5f);
                 yield return NavigationTransitionWork.Edge(NavigationTransition.JumpLanding(
                     NavigationNodeIdentity.Ground(jump.LandingCandidateId), jump.Trajectory.LandingPosition,
                     jump.LandingSupport, jump.CreateSegment(),
                     Vector2.Distance(node.Position, jump.Trajectory.LandingPosition)
                         + jump.Trajectory.FlightDuration + 0.5f,
-                    World.IsGoalComplete(goal, landingCenter, parameters.BodySize)));
+                    World.IsGoalComplete(goal, AABB.FromLowerCenter(jump.Trajectory.LandingPosition, parameters.BodySize))));
             }
         }
 
         /// <summary>Expands the current supported position once and returns its best valid action.</summary>
-        private IEnumerable<NavigationRoute> PlanSingleStepIncremental(Vector2 start, NavigationGoalRequest goal, WalkNavigationParameters parameters)
+        private IEnumerable<NavigationRoute> PlanSingleStepIncremental(AABB body, NavigationGoalRequest goal, WalkNavigationParameters parameters)
         {
-            if (!World.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
+            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
                 yield break;
 
-            Vector2 startCenter = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
-            float startDistance = World.GetGoalCompletionDistance(goal, startCenter, parameters.BodySize);
-            float startGuidanceDistance = goal.GuidanceDistance(startCenter, parameters.BodySize);
-            if (World.IsGoalComplete(goal, startCenter, parameters.BodySize))
+            AABB startBody = AABB.FromLowerCenter(resolvedStart, parameters.BodySize);
+            float startDistance = World.GetGoalCompletionDistance(goal, startBody);
+            float startGuidanceDistance = goal.GuidanceDistance(startBody);
+            if (World.IsGoalComplete(goal, startBody))
             {
-                yield return NavigationRoute.Complete(resolvedStart, goal, World, resolvedStart,
-                    Array.Empty<NavigationRouteSegment>());
+                yield return NavigationRoute.Empty(resolvedStart, goal, World,
+                    NavigationRouteCoordinateFrame.GroundAnchor, true);
                 yield break;
             }
 
@@ -299,7 +301,7 @@ namespace Aethiumian.AI.Navigation
                 if (!best.HasValue || IsBetterSingleStep(candidate, best.Value)) best = candidate;
             }
 
-            if (best.HasValue) yield return BuildSingleStepPlan(resolvedStart, goal, best.Value);
+            if (best.HasValue) yield return BuildSingleStepPlan(goal, best.Value);
         }
 
         /// <summary>Enumerates every valid Simple Walk action while retaining incremental work boundaries.</summary>
@@ -346,9 +348,9 @@ namespace Aethiumian.AI.Navigation
                 Mathf.Abs(current.Position.x - start.x), goal, parameters.BodySize);
             float direction = Mathf.Sign(current.Position.x - start.x);
             float spacing = NavigationConstant.MaximumTraversalSampleSpacing;
-            while (!current.CompletesGoal && direction * (goal.Anchor.x - current.Position.x) > Tolerance)
+            while (!current.CompletesGoal && direction * (goal.TargetBounds.CenterX - current.Position.x) > Tolerance)
             {
-                Vector2 next = new(Mathf.MoveTowards(current.Position.x, goal.Anchor.x, spacing), current.Position.y);
+                Vector2 next = new(Mathf.MoveTowards(current.Position.x, goal.TargetBounds.CenterX, spacing), current.Position.y);
                 NavigationRouteSegment validated = null;
                 foreach (NavigationRouteSegment step in EnumerateGroundMove(world, current.Position, next, parameters))
                 {
@@ -424,8 +426,8 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Enumerates horizontal ground validation samples.</summary>
         private static IEnumerable<NavigationRouteSegment> EnumerateGroundMove(INavigationWorld world, Vector2 start, Vector2 end, WalkNavigationParameters parameters)
         {
-            if (!world.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 snappedStart, out _)
-                || !world.TryResolveGroundSupport(end, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 snappedEnd, out _)
+            if (!world.TryResolveGroundSupport(AABB.FromLowerCenter(start, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 snappedStart, out _)
+                || !world.TryResolveGroundSupport(AABB.FromLowerCenter(end, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 snappedEnd, out _)
                 || Mathf.Abs(snappedStart.y - snappedEnd.y) > parameters.GroundContactTolerance)
             {
                 yield return null;
@@ -440,9 +442,9 @@ namespace Aethiumian.AI.Navigation
             for (int i = 0; i <= samples; i++)
             {
                 Vector2 position = Vector2.Lerp(snappedStart, snappedEnd, i / (float)samples);
-                bool clear = i == 0 || world.IsLowerCenterSegmentClear(previous, position, parameters.BodySize,
-                    parameters.GroundContactTolerance);
-                clear &= world.CanStandAt(position, parameters.BodySize, parameters.SupportSnapDistance, out _);
+                bool clear = i == 0 || world.IsBodyPathClear(AABB.FromLowerCenter(previous, parameters.BodySize),
+                    position - previous, parameters.GroundContactTolerance);
+                clear &= world.CanStandAt(AABB.FromLowerCenter(position, parameters.BodySize), parameters.SupportSnapDistance, out _);
                 previous = position;
                 yield return null;
                 if (!clear)
@@ -456,10 +458,11 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Validates continuous support and body clearance without imposing a route-length limit.</summary>
-        public static bool TryValidateGroundConnection(INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize, float supportSnapDistance, float groundContactTolerance)
+        public static bool TryValidateGroundConnection(INavigationWorld world, AABB startBody, AABB endBody, float supportSnapDistance, float groundContactTolerance)
         {
-            if (!world.TryResolveGroundSupport(start, bodySize, supportSnapDistance, out Vector2 snappedStart, out _)
-                || !world.TryResolveGroundSupport(end, bodySize, supportSnapDistance, out Vector2 snappedEnd, out _)
+            Vector2 bodySize = startBody.Size;
+            if (!world.TryResolveGroundSupport(startBody, supportSnapDistance, out Vector2 snappedStart, out _)
+                || !world.TryResolveGroundSupport(endBody, supportSnapDistance, out Vector2 snappedEnd, out _)
                 || Mathf.Abs(snappedStart.y - snappedEnd.y) > groundContactTolerance)
                 return false;
 
@@ -472,9 +475,9 @@ namespace Aethiumian.AI.Navigation
             for (int index = 0; index <= samples; index++)
             {
                 Vector2 current = Vector2.Lerp(snappedStart, snappedEnd, index / (float)samples);
-                bool clear = index == 0 || world.IsLowerCenterSegmentClear(previous, current,
-                    bodySize, groundContactTolerance);
-                clear &= world.CanStandAt(current, bodySize, supportSnapDistance, out _);
+                bool clear = index == 0 || world.IsBodyPathClear(AABB.FromLowerCenter(previous, bodySize),
+                    current - previous, groundContactTolerance);
+                clear &= world.CanStandAt(AABB.FromLowerCenter(current, bodySize), supportSnapDistance, out _);
                 if (!clear) return false;
                 previous = current;
             }
@@ -485,8 +488,8 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Enumerates downward one-way validation samples.</summary>
         private static IEnumerable<NavigationRouteSegment> EnumerateDropThrough(INavigationWorld world, Vector2 start, Vector2 end, WalkNavigationParameters parameters)
         {
-            if (!world.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 snappedStart, out NavigationSupport support)
-                || !world.TryResolveGroundSupport(end, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 snappedEnd, out _)
+            if (!world.TryResolveGroundSupport(AABB.FromLowerCenter(start, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 snappedStart, out NavigationSupport support)
+                || !world.TryResolveGroundSupport(AABB.FromLowerCenter(end, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 snappedEnd, out _)
                 || support.Kind != NavigationSurfaceKind.OneWay || snappedEnd.y >= snappedStart.y - Tolerance
                 || Mathf.Abs(snappedEnd.x - snappedStart.x) > Tolerance)
             {
@@ -499,9 +502,10 @@ namespace Aethiumian.AI.Navigation
             for (int i = 1; i <= samples; i++)
             {
                 Vector2 current = Vector2.Lerp(snappedStart, snappedEnd, i / (float)samples);
-                bool clear = world.IsLowerCenterSegmentClear(previous, current, parameters.BodySize,
-                    parameters.GroundContactTolerance)
-                    && !world.CrossesOneWayDown(previous, current, parameters.BodySize.x, snappedStart.y);
+                bool clear = world.IsBodyPathClear(AABB.FromLowerCenter(previous, parameters.BodySize),
+                    current - previous, parameters.GroundContactTolerance)
+                    && !world.CrossesOneWayDown(AABB.FromLowerCenter(previous, parameters.BodySize),
+                        current - previous, snappedStart.y);
                 previous = current;
                 yield return null;
                 if (!clear)
@@ -517,8 +521,8 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Enumerates horizontal exit and downward fall samples.</summary>
         private static IEnumerable<NavigationRouteSegment> EnumerateFall(INavigationWorld world, Vector2 start, Vector2 end, WalkNavigationParameters parameters)
         {
-            if (!world.TryResolveGroundSupport(start, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 snappedStart, out _)
-                || !world.TryResolveGroundSupport(end, parameters.BodySize, parameters.SupportSnapDistance, out Vector2 snappedEnd, out _))
+            if (!world.TryResolveGroundSupport(AABB.FromLowerCenter(start, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 snappedStart, out _)
+                || !world.TryResolveGroundSupport(AABB.FromLowerCenter(end, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 snappedEnd, out _))
             {
                 yield return null;
                 yield break;
@@ -537,8 +541,8 @@ namespace Aethiumian.AI.Navigation
             for (int i = 1; i <= horizontalSamples; i++)
             {
                 Vector2 current = Vector2.Lerp(snappedStart, ledgeExit, i / (float)horizontalSamples);
-                bool clear = world.IsLowerCenterSegmentClear(previous, current, parameters.BodySize,
-                    parameters.GroundContactTolerance);
+                bool clear = world.IsBodyPathClear(AABB.FromLowerCenter(previous, parameters.BodySize),
+                    current - previous, parameters.GroundContactTolerance);
                 previous = current;
                 yield return null;
                 if (!clear)
@@ -553,9 +557,9 @@ namespace Aethiumian.AI.Navigation
             for (int i = 1; i <= descentSamples; i++)
             {
                 Vector2 current = Vector2.Lerp(ledgeExit, snappedEnd, i / (float)descentSamples);
-                bool clear = world.IsLowerCenterSegmentClear(previous, current, parameters.BodySize,
-                    parameters.GroundContactTolerance)
-                    && !world.CrossesOneWayDown(previous, current, parameters.BodySize.x);
+                bool clear = world.IsBodyPathClear(AABB.FromLowerCenter(previous, parameters.BodySize),
+                    current - previous, parameters.GroundContactTolerance)
+                    && !world.CrossesOneWayDown(AABB.FromLowerCenter(previous, parameters.BodySize), current - previous);
                 previous = current;
                 yield return null;
                 if (!clear)
@@ -577,13 +581,13 @@ namespace Aethiumian.AI.Navigation
         private Successor CreateSuccessor(int candidateId, NavigationSupport support, NavigationRouteSegment step, float cost, NavigationGoalRequest goal, Vector2 bodySize)
         {
             Vector2 position = step.End;
-            Vector2 startCenter = step.Start + Vector2.up * (bodySize.y * 0.5f);
-            Vector2 endCenter = position + Vector2.up * (bodySize.y * 0.5f);
-            float endpointDistance = World.GetGoalCompletionDistance(goal, endCenter, bodySize);
-            bool completesGoal = World.IsGoalComplete(goal, endCenter, bodySize)
-                || step is GroundRouteSegment && World.IsGoalCompleteAlong(goal, startCenter, endCenter, bodySize);
+            AABB startBody = AABB.FromLowerCenter(step.Start, bodySize);
+            AABB endBody = AABB.FromLowerCenter(position, bodySize);
+            float endpointDistance = World.GetGoalCompletionDistance(goal, endBody);
+            bool completesGoal = World.IsGoalComplete(goal, endBody)
+                || step is GroundRouteSegment && World.IsGoalCompleteAlong(goal, startBody, endBody);
             return new Successor(candidateId, support, position, step, cost, endpointDistance,
-                goal.GuidanceDistance(endCenter, bodySize), completesGoal);
+                goal.GuidanceDistance(endBody), completesGoal);
         }
 
         /// <summary>Accepts a Simple Walk candidate only when completion or plateau guidance strictly improves.</summary>
@@ -591,8 +595,8 @@ namespace Aethiumian.AI.Navigation
             => IsStrictlyLess(candidate.CompletionDistance, startCompletionDistance) || (IsEquivalent(candidate.CompletionDistance, startCompletionDistance) && IsStrictlyLess(candidate.GuidanceDistance, startGuidanceDistance));
 
         /// <summary>Builds a plan containing exactly one validated local traversal step.</summary>
-        private NavigationRoute BuildSingleStepPlan(Vector2 start, NavigationGoalRequest goal, Successor successor)
-            => NavigationRoute.Complete(start, goal, World, successor.Position, new[] { successor.Step });
+        private NavigationRoute BuildSingleStepPlan(NavigationGoalRequest goal, Successor successor)
+            => NavigationRoute.Complete(goal, World, new[] { successor.Step });
 
         /// <summary>Compares Simple Walk actions under the local completion and progress contract.</summary>
         private static bool IsBetterSingleStep(Successor candidate, Successor best)

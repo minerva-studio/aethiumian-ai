@@ -80,7 +80,8 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
                     Assert.That(candidates[index].Support.Position.y, Is.Not.EqualTo(15.9687f).Within(0.0001f));
 
                 List<NavigationSurfaceCrossing> crossings = new();
-                world.CollectOneWayCrossings(new Vector2(x, 15.99f), new Vector2(x, 15.5f), 0.5f, crossings);
+                world.CollectOneWayCrossings(AABB.FromLowerCenter(new Vector2(x, 15.99f), new Vector2(0.5f, 0f)),
+                    new Vector2(x, 15.5f) - new Vector2(x, 15.99f), crossings);
                 Assert.That(crossings, Is.Empty);
             }
         }
@@ -90,7 +91,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         {
             NavigationWorldSnapshot world = DirectedCompositeWorld(false);
             Vector2 lowerAnchor = new(3f, 9f);
-            Assert.That(world.CanStandAt(lowerAnchor, new Vector2(0.5f, 1f), out bool isOneWay), Is.True);
+            Assert.That(world.CanStandAt(AABB.FromLowerCenter(lowerAnchor, new Vector2(0.5f, 1f)), out bool isOneWay), Is.True);
             Assert.That(isOneWay, Is.True);
 
             List<NavigationSupportCandidate> candidates = new();
@@ -172,7 +173,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
                 },
                 new[] { new NavigationRegionData(AABB.FromMinAndSize(0, 0, 4, 4), 11) });
 
-            Assert.That(world.TryResolveSupport(new Vector2(1.25f, 1.01f), new Vector2(0.8f, 1.2f),
+            Assert.That(world.TryResolveSupport(AABB.FromLowerCenter(new Vector2(1.25f, 1.01f), new Vector2(0.8f, 1.2f)),
                 0.1f, out NavigationSupport support), Is.True);
             Assert.That(support.Surface, Is.EqualTo(surface));
             Assert.That(support.Kind, Is.EqualTo(NavigationSurfaceKind.OneWay));
@@ -195,7 +196,8 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
                 }, Array.Empty<NavigationRegionData>());
             List<NavigationSurfaceCrossing> crossings = new();
 
-            world.CollectOneWayCrossings(new Vector2(1.5f, 2f), new Vector2(1.5f, 0.5f), 0.8f, crossings);
+            world.CollectOneWayCrossings(AABB.FromLowerCenter(new Vector2(1.5f, 2f), new Vector2(0.8f, 0f)),
+                new Vector2(1.5f, 0.5f) - new Vector2(1.5f, 2f), crossings);
 
             Assert.That(crossings, Has.Count.EqualTo(3));
             for (int index = 0; index < crossings.Count; index++)
@@ -219,8 +221,10 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
                         NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, directedNormalSign: 0f),
                 }, Array.Empty<NavigationRegionData>());
 
-            Assert.That(world.CrossesOneWayDown(new Vector2(1.5f, 5.5f), new Vector2(1.5f, 5.2f), 0.8f), Is.True);
-            Assert.That(world.CrossesOneWayDown(new Vector2(1.5f, 5.5f), new Vector2(1.5f, 5.39f), 0.8f), Is.False);
+            Assert.That(world.CrossesOneWayDown(AABB.FromLowerCenter(new Vector2(1.5f, 5.5f), new Vector2(0.8f, 0f)),
+                new Vector2(1.5f, 5.2f) - new Vector2(1.5f, 5.5f)), Is.True);
+            Assert.That(world.CrossesOneWayDown(AABB.FromLowerCenter(new Vector2(1.5f, 5.5f), new Vector2(0.8f, 0f)),
+                new Vector2(1.5f, 5.39f) - new Vector2(1.5f, 5.5f)), Is.False);
         }
 
         private static NavigationWorldSnapshot World(params NavigationShapeData[] shapes)

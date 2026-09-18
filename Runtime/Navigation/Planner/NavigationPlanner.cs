@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using UnityEngine;
 
@@ -29,29 +29,32 @@ namespace Aethiumian.AI.Navigation
         protected int MaxExpandedNodes { get; }
 
         /// <summary>
-        /// Runs planning synchronously against this planner's immutable navigation world.
+        /// Runs planning synchronously against this planner's immutable navigation world. The body AABB
+        /// carries the caller's pose: each planner derives its own mode-specific start anchor from it
+        /// (Walk and Jump from the lower center, Fly from the center), so no caller ever supplies a
+        /// separate start vector. The profile still owns the body dimension the search is generated with.
         /// </summary>
-        public abstract NavigationPlanResult Plan(Vector2 start, NavigationGoalRequest goal, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null);
+        public abstract NavigationPlanResult Plan(AABB body, NavigationGoalRequest goal, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null);
 
         /// <summary>
         /// Attempts to create the first executable route produced by this planner.
         /// </summary>
-        public bool TryPlan(Vector2 start, NavigationGoalRequest goal, TParameters parameters, out NavigationRoute route)
+        public bool TryPlan(AABB body, NavigationGoalRequest goal, TParameters parameters, out NavigationRoute route)
         {
-            route = Plan(start, goal, parameters).Route;
+            route = Plan(body, goal, parameters).Route;
             return route != null;
         }
 
         /// <summary>
         /// Runs a single-step planning request, which may be a direct connection or a local neighbour expansion. 
         /// </summary>
-        /// <param name="start"></param>
+        /// <param name="body"></param>
         /// <param name="goal"></param>
         /// <param name="parameters"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        public virtual NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRequest goal, TParameters parameters, CancellationToken cancellationToken = default)
+        public virtual NavigationPlanResult PlanSingleStep(AABB body, NavigationGoalRequest goal, TParameters parameters, CancellationToken cancellationToken = default)
         {
             return NavigationPlanResult.NoResult;
         }
@@ -61,10 +64,10 @@ namespace Aethiumian.AI.Navigation
         /// world binding, so this planner's world is the only world a produced route can belong to.
         /// External derived planners should invoke this at the start of their <see cref="Plan"/> override.
         /// </summary>
-        protected void ValidatePlanInputs(Vector2 start, CancellationToken cancellationToken)
+        protected void ValidatePlanInputs(AABB body, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Validate.Finite(start, nameof(start));
+            Validate.Aabb(body, nameof(body));
         }
 
         /// <summary>

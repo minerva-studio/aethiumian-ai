@@ -173,13 +173,14 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>
         /// Resolves support under a body, preferring a center hit before considering an overlapping
-        /// foot-edge contact. Returned anchors always retain the supplied body-center x coordinate.
+        /// foot-edge contact. Returned anchors always retain the supplied body's center x coordinate.
         /// </summary>
-        public override bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
+        public override bool TryResolveSupport(AABB body, float snapDistance, out NavigationSupport support)
         {
-            Validate.Finite(feet, nameof(feet));
-            Validate.PositiveVector(bodySize, nameof(bodySize));
+            Validate.Aabb(body, nameof(body));
             Validate.NonNegativeFinite(snapDistance, nameof(snapDistance));
+            Vector2 feet = body.LowerCenter;
+            Vector2 bodySize = body.Size;
             AABB query = AABB.FromMinAndSize(
                 new Vector2(feet.x - bodySize.x * 0.5f, feet.y - snapDistance - Epsilon),
                 new Vector2(bodySize.x, bodySize.y + snapDistance + Epsilon));
@@ -281,7 +282,7 @@ namespace Aethiumian.AI.Navigation
                 || !shape.IsAllowedSupport(normal)
                 || y > feet.y + snapDistance || y < feet.y - snapDistance) return;
 
-            AABB body = AABB.FromMinAndSize(new Vector2(feet.x - bodySize.x * 0.5f, y), bodySize);
+            AABB body = AABB.FromLowerCenter(new Vector2(feet.x, y), bodySize);
             if (!IsBodyClear(body, snapDistance)) return;
 
             NavigationSupport candidate = new(shape.SurfaceId, shape.Kind, new Vector2(feet.x, y), normal);
@@ -302,20 +303,24 @@ namespace Aethiumian.AI.Navigation
                 NavigationSupportCandidate candidate = supportCandidates[candidateId];
                 NavigationSupport support = candidate.Support;
                 if (!anchorBounds.Contains(support.Position)) continue;
-                AABB body = AABB.FromMinAndSize(
-                    new Vector2(support.Position.x - bodySize.x * 0.5f, support.Position.y), bodySize);
+                AABB body = AABB.FromLowerCenter(support.Position, bodySize);
                 if (IsBodyClear(body, Epsilon)) results.Add(candidate);
             }
             results.Sort((left, right) => left.Id.CompareTo(right.Id));
         }
 
-        public override void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, List<NavigationSurfaceCrossing> results)
+        public override void CollectOneWayCrossings(AABB previousBody, Vector2 displacement, List<NavigationSurfaceCrossing> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
-            Validate.Finite(previousFeet, nameof(previousFeet));
-            Validate.Finite(currentFeet, nameof(currentFeet));
-            if (!NavigationNumeric.IsFinite(bodyWidth) || bodyWidth <= 0f) throw new ArgumentOutOfRangeException(nameof(bodyWidth));
+            Validate.Aabb(previousBody, nameof(previousBody));
+            Validate.Finite(displacement, nameof(displacement));
+            float bodyWidth = previousBody.SizeX;
+            if (bodyWidth <= 0f)
+                throw new ArgumentOutOfRangeException(nameof(previousBody), bodyWidth,
+                    "A one-way crossing sweep needs a body with a positive width.");
             results.Clear();
+            Vector2 previousFeet = previousBody.LowerCenter;
+            Vector2 currentFeet = previousFeet + displacement;
             Vector2 delta = currentFeet - previousFeet;
             if (delta.sqrMagnitude <= Epsilon * Epsilon) return;
             int steps = Mathf.Max(8, Mathf.CeilToInt(delta.magnitude / Mathf.Max(Epsilon, NavigationConstant.OneWayCrossingSampleSpacing)));

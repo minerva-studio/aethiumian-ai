@@ -38,7 +38,7 @@ namespace Aethiumian.AI.Navigation.Editor
             if (movement == null) return;
 
             AABB bodyBounds = movement.NavigationBodyAabb;
-            Vector2 groundAnchor = movement.NavigationGroundAnchor;
+            Vector2 groundAnchor = bodyBounds.LowerCenter;
             Handles.color = Color.white;
             DrawBounds(bodyBounds);
             Handles.DrawSolidDisc(groundAnchor, Vector3.forward, 0.035f);
@@ -123,7 +123,7 @@ namespace Aethiumian.AI.Navigation.Editor
             NavigationSupport support = default;
             bool hasNavigationSupport = runtime != null
                 && !runtime.IsDisposed
-                && runtime.TryResolvePlanningGroundSupport(groundAnchor, bodyBounds.Size, out navigationSupport, out support);
+                && runtime.TryResolvePlanningGroundSupport(bodyBounds, out navigationSupport, out support);
 
             if (hasPhysicsSupport)
             {

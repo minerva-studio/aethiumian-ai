@@ -55,13 +55,13 @@ namespace Aethiumian.AI.Navigation
             Validate.Finite(start, nameof(start));
             Validate.Finite(end, nameof(end));
             Validate.NonNegativeFinite(completionDistance, nameof(completionDistance));
-            Vector2 center = NavigationBodyGeometry.GetCenterAnchor(navigationColliders);
+            Vector2 bodyCenter = NavigationBodyGeometry.GetBodyCenter(navigationColliders);
             if (IsExecuting)
-                bestRemainingDistance += Vector2.Distance(end, center) - Vector2.Distance(steeringTarget, center);
+                bestRemainingDistance += Vector2.Distance(end, bodyCenter) - Vector2.Distance(steeringTarget, bodyCenter);
             else
             {
                 BeginExecution();
-                bestRemainingDistance = Vector2.Distance(end, center);
+                bestRemainingDistance = Vector2.Distance(end, bodyCenter);
             }
             waypointStart = start;
             steeringTarget = end;
@@ -71,7 +71,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Steers with the current smoothing history; collision sliding remains a valid running step.</summary>
         protected override ExecutionResult Tick_Internal(float fixedDeltaTime)
         {
-            Vector2 displacement = steeringTarget - NavigationBodyGeometry.GetCenterAnchor(navigationColliders);
+            Vector2 displacement = steeringTarget - NavigationBodyGeometry.GetBodyCenter(navigationColliders);
             float remainingDistance = displacement.magnitude;
             if (remainingDistance <= completionDistance)
             {
@@ -88,9 +88,9 @@ namespace Aethiumian.AI.Navigation
             // The node chooses whether to replan or finish; no retry counter lives here.
             if (blocked) return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
             Vector2 segment = steeringTarget - waypointStart;
-            Vector2 center = NavigationBodyGeometry.GetCenterAnchor(navigationColliders);
+            Vector2 bodyCenter = NavigationBodyGeometry.GetBodyCenter(navigationColliders);
             if (segment.sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon
-                || Vector2.Dot(center - waypointStart, segment) >= segment.sqrMagnitude)
+                || Vector2.Dot(bodyCenter - waypointStart, segment) >= segment.sqrMagnitude)
                 return ExecutionResult.Completed;
             return ExecutionResult.Running;
         }
@@ -99,7 +99,7 @@ namespace Aethiumian.AI.Navigation
         protected override ProgressObservation ObserveProgress()
         {
             float remaining = Vector2.Distance(steeringTarget,
-                NavigationBodyGeometry.GetCenterAnchor(navigationColliders));
+                NavigationBodyGeometry.GetBodyCenter(navigationColliders));
             if (remaining < bestRemainingDistance - NavigationWorldQueries.GeometryEpsilon)
             {
                 bestRemainingDistance = remaining;
@@ -111,7 +111,7 @@ namespace Aethiumian.AI.Navigation
         protected override void ResetProgressBaselineCore()
         {
             bestRemainingDistance = Vector2.Distance(steeringTarget,
-                NavigationBodyGeometry.GetCenterAnchor(navigationColliders));
+                NavigationBodyGeometry.GetBodyCenter(navigationColliders));
         }
 
         private Vector2 ClampToCollision(Vector2 velocity, float fixedDeltaTime, out bool blocked)

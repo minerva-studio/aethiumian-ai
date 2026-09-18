@@ -97,7 +97,8 @@ namespace Aethiumian.AI.Navigation
             landingSupports = builtLandings;
 
             JumpCandidateHeap candidates = new();
-            float startDistance = goal.DistanceToLowerCenterBody(start, parameters.BodySize);
+            AABB startBody = AABB.FromLowerCenter(start, parameters.BodySize);
+            float startDistance = goal.DistanceToLowerCenterBody(startBody);
             for (int i = 0; i < landingSupports.Count; i++)
             {
                 NavigationSupportCandidate landingCandidate = landingSupports[i];
@@ -121,8 +122,8 @@ namespace Aethiumian.AI.Navigation
                 }
                 candidates.Enqueue(new JumpCandidateDescriptor(landingCandidate.Id, landingSupport, landing,
                     CouldTrajectoryEnterGoal(start, landing, goal, parameters, maximumApexHeight),
-                    startDistance - goal.DistanceToLowerCenterBody(landing, parameters.BodySize),
-                    Mathf.Sign(landing.x - start.x) == Mathf.Sign(goal.Anchor.x - start.x),
+                    startDistance - goal.DistanceToLowerCenterBody(AABB.FromLowerCenter(landing, parameters.BodySize)),
+                    Mathf.Sign(landing.x - start.x) == Mathf.Sign(goal.TargetBounds.CenterX - start.x),
                     Vector2.Distance(start, landing)));
                 yield return null;
             }

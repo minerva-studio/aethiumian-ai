@@ -226,22 +226,22 @@ namespace Aethiumian.AI.Navigation.Tests
                     : tracing != null && tracing.GameObjectValue
                         ? AABB.FromBounds(tracing.GameObjectValue.GetComponent<Collider2D>().bounds)
                         : AABB.Point(Vector3.zero);
-                return BuildGoal(target, NavigationBodyAabb, out _);
+                return BuildGoal(target, NavigationBodyAabb);
             }
 
-            protected override Vector2 GetWanderLocation(Vector2 center)
+            protected override Vector2 GetWanderLocation(Vector2 center, AABB body)
             {
                 WanderSelections++;
-                return SelectedWander = base.GetWanderLocation(center);
+                return SelectedWander = base.GetWanderLocation(center, body);
             }
 
             protected override bool TryRequestRoute(
-                Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent,
+                AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent,
                 NavigationPlanningPurpose purpose,
                 CancellationToken cancellationToken, out NavigationPlanningOperation operation)
             {
                 PlannedGoal = goal.TargetBounds;
-                return base.TryRequestRoute(start, goal, extent, purpose, cancellationToken, out operation);
+                return base.TryRequestRoute(body, goal, extent, purpose, cancellationToken, out operation);
             }
         }
     }

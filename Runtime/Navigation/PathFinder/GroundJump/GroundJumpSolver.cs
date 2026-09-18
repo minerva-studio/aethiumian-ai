@@ -47,9 +47,9 @@ namespace Aethiumian.AI.Navigation
         {
             cancellationToken.ThrowIfCancellationRequested();
             trajectory = null;
-            if (!World.TryResolveSupport(start, parameters.BodySize, parameters.SupportSnapDistance,
+            if (!World.TryResolveSupport(AABB.FromLowerCenter(start, parameters.BodySize), parameters.SupportSnapDistance,
                     out NavigationSupport startSupport)
-                || !World.TryResolveSupport(landing, parameters.BodySize, parameters.SupportSnapDistance,
+                || !World.TryResolveSupport(AABB.FromLowerCenter(landing, parameters.BodySize), parameters.SupportSnapDistance,
                     out NavigationSupport endSupport)
                 || Mathf.Abs(endSupport.Position.x - startSupport.Position.x) > parameters.JumpLength + Tolerance)
                 return;
@@ -80,8 +80,7 @@ namespace Aethiumian.AI.Navigation
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     Vector2 next = trajectory.GetPosition(trajectory.FlightDuration * index / samples);
-                    AABB body = AABB.FromMinAndSize(
-                        new Vector2(previous.x - parameters.BodySize.x * 0.5f, previous.y), parameters.BodySize);
+                    AABB body = AABB.FromLowerCenter(previous, parameters.BodySize);
                     if (!World.IsBodyPathClear(body, next - previous, parameters.GroundContactTolerance))
                     {
                         clear = false;
@@ -121,7 +120,7 @@ namespace Aethiumian.AI.Navigation
                     continue;
                 }
 
-                if (!GroundJumpGeometry.TryRecreate(this, jump.LaunchSupport, jump.PlannedLanding, jump.MinimumApexHeight, parameters, cancellationToken, out JumpTrajectorySolution trajectory))
+                if (!GroundJumpGeometry.TryRecreate(this, jump.Start, jump.End, jump.MinimumApexHeight, parameters, cancellationToken, out JumpTrajectorySolution trajectory))
                 {
                     throw new InvalidOperationException("Selected jump trajectory could not be recreated with its planning parameters.");
                 }

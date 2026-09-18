@@ -9,7 +9,7 @@ namespace Aethiumian.AI.Tests.Navigation
     {
         /// <summary>Verifies horizontal and vertical collider offsets affect both ground and center anchors.</summary>
         [Test]
-        public void AnchorsComeFromOffsetColliderBounds()
+        public void GroundAnchorAndBodyCenterComeFromOffsetColliderBounds()
         {
             GameObject gameObject = new("navigation-body-geometry");
             try
@@ -22,7 +22,7 @@ namespace Aethiumian.AI.Tests.Navigation
 
                 AABB bounds = AABB.FromBounds(collider.bounds);
                 Assert.That(NavigationBodyGeometry.GetGroundAnchor(collider), Is.EqualTo(new Vector2(bounds.Center.x, bounds.MinY)));
-                Assert.That(NavigationBodyGeometry.GetCenterAnchor(collider), Is.EqualTo(bounds.Center));
+                Assert.That(NavigationBodyGeometry.GetBodyCenter(collider), Is.EqualTo(bounds.Center));
                 Assert.That(NavigationBodyGeometry.GetWorldAabbSize(collider), Is.EqualTo(bounds.Size));
             }
             finally

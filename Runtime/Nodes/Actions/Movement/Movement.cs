@@ -74,8 +74,8 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private NavigationPlanningRequest request;
         [NonSerialized] private NavigationPlanningRequest fallbackRequest;
         [NonSerialized] private int fallbackBackoffLevel;
-        [NonSerialized] private Vector2? previousCenter;
-        [NonSerialized] private Vector2? retryAnchor;
+        [NonSerialized] private AABB? previousBody;
+        [NonSerialized] private AABB? retryPlannerBody;
         // The accepted intent and the progress sample have different lifetimes. The former
         // remains stable while an irreversible segment carries historical route metadata;
         // the latter is refreshed when retry/sweep evidence is reset. A null value means no
@@ -91,14 +91,11 @@ namespace Aethiumian.AI.Nodes
 
         /// <summary>The owned executor instance, exposed for live navigation inspection.</summary>
         public MovementExecutor Executor => executor;
-        /// <summary>Gets the merged world-space AABB used by planning and arrival checks.</summary>
+        /// <summary>
+        /// Gets the merged world-space AABB used by planning and arrival checks. This is the node's
+        /// single body-pose contract: position and size are read from it, never recombined by callers.
+        /// </summary>
         public AABB NavigationBodyAabb => NavigationBodyGeometry.GetMergedAabb(NavigationColliders);
-        /// <summary>Gets the lower-center anchor of the merged navigation body AABB.</summary>
-        public Vector2 NavigationGroundAnchor => NavigationBodyGeometry.GetGroundAnchor(NavigationColliders);
-        /// <summary>Gets the center anchor of the merged navigation body AABB.</summary>
-        public Vector2 NavigationCenterAnchor => NavigationBodyGeometry.GetCenterAnchor(NavigationColliders);
-        /// <summary>Gets the merged navigation body AABB size.</summary>
-        public Vector2 NavigationBodySize => NavigationBodyAabb.Size;
         /// <summary>
         /// Gets the current route, which may be null if no route has been acquired or if the last route was completed or cancelled?
         /// </summary>
@@ -132,8 +129,8 @@ namespace Aethiumian.AI.Nodes
             fallbackRequest = null;
             fallbackBackoffLevel = 0;
             executor = null;
-            previousCenter = null;
-            retryAnchor = null;
+            previousBody = null;
+            retryPlannerBody = null;
             intentGoal = null;
             progressGoal = null;
             simpleWaitTicks = 0;
@@ -146,11 +143,11 @@ namespace Aethiumian.AI.Nodes
         protected sealed override void TickAction()
         {
             AABB body = NavigationBodyAabb;
-            if (!TryReadTarget(out AABB target, out GameObject targetObject))
+            if (!TryReadTarget(body, out AABB target, out GameObject targetObject))
             {
                 EndMovement(false, null); return;
             }
-            NavigationGoalRequest goal = BuildGoal(target, body, out Vector2 anchor);
+            NavigationGoalRequest goal = BuildGoal(target, body);
             executionTime += Time.fixedDeltaTime;
             bool firstGoalSample = !intentGoal.HasValue;
             bool planningInvalidated = false;
@@ -160,7 +157,7 @@ namespace Aethiumian.AI.Nodes
             {
                 if (!goal.IsRetreat)
                 {
-                    bool destinationAllowed = IsNavigationDestinationAllowed(anchor, goal.Anchor);
+                    bool destinationAllowed = IsNavigationDestinationAllowed(body, goal);
                     if (!destinationAllowed)
                     {
                         EndMovement(false, goal);
@@ -174,22 +171,22 @@ namespace Aethiumian.AI.Nodes
                 if (goal.IsRetreat)
                 {
                     retreat ??= new RetreatMovementExecution(targetObject, MaxApproachDistance, path == PathMode.Smart ? 0f : MaximumIdleDuration);
-                    if (!retreat.BeginTick(NavigationWorld, targetObject, goal, body.Center))
+                    if (!retreat.BeginTick(NavigationWorld, targetObject, goal, body))
                     { EndMovement(false, goal); return; }
                 }
                 bool swept = !planningInvalidated
-                    && previousCenter.HasValue
+                    && previousBody.HasValue
                     && progressGoal.HasValue
                     && progressGoal.Value.IsReusableFor(goal)
-                    && NavigationWorld.IsGoalCompleteAlong(goal, previousCenter.Value, body.Center, body.Size);
-                RefreshProgressBaseline(goal, anchor, planningInvalidated);
-                bool fallbackReceiptConsumed = TryAcquireAction(goal, anchor, body);
+                    && NavigationWorld.IsGoalCompleteAlong(goal, previousBody.Value, body);
+                RefreshProgressBaseline(goal, body, planningInvalidated);
+                bool fallbackReceiptConsumed = TryAcquireAction(goal, body);
                 if (IsComplete) return;
                 if (ActiveSegment == null)
                 {
                     if (IsGoalSatisfied(goal, body, swept)) { EndMovement(true, goal); return; }
-                    RefreshPendingPlanningRequest(goal);
-                    MaintainPlanning(goal, anchor, body,
+                    RefreshPendingPlanningRequest(goal, body);
+                    MaintainPlanning(goal, body,
                         skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
                     return;
                 }
@@ -209,7 +206,7 @@ namespace Aethiumian.AI.Nodes
                     }
                     else
                     {
-                        MaintainPlanning(goal, anchor, body, skipCountingThisTick: true);
+                        MaintainPlanning(goal, body, skipCountingThisTick: true);
                     }
                     return;
                 }
@@ -221,15 +218,15 @@ namespace Aethiumian.AI.Nodes
                 if (result.Status == ExecutionStatus.Completed)
                 {
                     CompleteCurrentAction();
-                    fallbackReceiptConsumed |= TryAcquireAction(goal, anchor, body);
+                    fallbackReceiptConsumed |= TryAcquireAction(goal, body);
                     if (IsComplete) return;
                     if (ActiveSegment == null)
                         RigidBody.linearVelocity = Vector2.zero;
                 }
                 // Planning can overlap execution, but a second physical action never ticks here.
-                RefreshPendingPlanningRequest(goal);
+                RefreshPendingPlanningRequest(goal, body);
                 if (!IsComplete)
-                    MaintainPlanning(goal, anchor, body, skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
+                    MaintainPlanning(goal, body, skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
             }
             catch
             {
@@ -241,13 +238,13 @@ namespace Aethiumian.AI.Nodes
             {
                 if (!IsComplete && !faulted)
                 {
-                    previousCenter = body.Center;
+                    previousBody = body;
                     if (retreat != null)
                     {
-                        if (!retreat.FinalizeTick(body.Center, body.Size, Time.fixedDeltaTime))
+                        if (!retreat.FinalizeTick(body, Time.fixedDeltaTime))
                             EndMovement(false, goal);
                         else if (!physicalFailure && (ActiveSegment == null || ActiveSegment.IsReversible)
-                            && retreat.HasReachedGoal(body.Center, body.Size))
+                            && retreat.HasReachedGoal(body))
                             EndMovement(true, goal);
                     }
                 }
@@ -256,7 +253,7 @@ namespace Aethiumian.AI.Nodes
 
         protected sealed override void ResetActionProgress()
         {
-            previousCenter = null;
+            previousBody = null;
             executor?.ResetProgressBaseline();
             retreat?.InvalidateSample();
         }
@@ -264,14 +261,15 @@ namespace Aethiumian.AI.Nodes
         public sealed override void LateUpdate() { }
 
         /// <summary>
-        /// Creates this ability's geometric goal and planning anchor from the tick sample.
+        /// Creates this ability's geometric goal from the tick sample. The body AABB carries the whole
+        /// pose; a planner derives its own mode-specific start anchor from the same body it receives.
         /// </summary>
-        protected abstract NavigationGoalRequest BuildGoal(AABB target, AABB body, out Vector2 anchor);
+        protected abstract NavigationGoalRequest BuildGoal(AABB target, AABB body);
 
         /// <summary>
         /// False means temporary physical prerequisites are missing; true supplies the requested planning horizon.
         /// </summary>
-        protected abstract bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
+        protected abstract bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
 
         /// <summary>
         /// Returns a route reconnected to actual physics; performs no executor or lease mutation.
@@ -304,7 +302,7 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         private void EndMovement(bool success, NavigationGoalRequest? goal)
         {
-            if (success && retreat != null && !retreat.FinalizeTick(NavigationCenterAnchor, NavigationBodySize, Time.fixedDeltaTime))
+            if (success && retreat != null && !retreat.FinalizeTick(NavigationBodyAabb, Time.fixedDeltaTime))
                 success = false;
             if (success && goal.HasValue) Finish(true, goal);
             CompleteAction(success);
@@ -334,8 +332,8 @@ namespace Aethiumian.AI.Nodes
                     route = null;
                     routeIndex = 0;
                     fallbackBackoffLevel = 0;
-                    previousCenter = null;
-                    retryAnchor = null;
+                    previousBody = null;
+                    retryPlannerBody = null;
                     intentGoal = null;
                     progressGoal = null;
                     simpleWaitTicks = 0;

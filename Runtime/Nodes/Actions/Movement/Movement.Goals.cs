@@ -7,7 +7,13 @@ namespace Aethiumian.AI.Nodes
     {
         [System.NonSerialized] private Vector2? wanderDestination;
 
-        private bool TryReadTarget(out AABB target, out GameObject targetObject)
+        /// <summary>
+        /// Gets the destination sampled for the current run, in this capability's planning frame.
+        /// It is null until a Wander goal has been sampled.
+        /// </summary>
+        protected Vector2? WanderDestination => wanderDestination;
+
+        private bool TryReadTarget(AABB body, out AABB target, out GameObject targetObject)
         {
             Vector2 point;
             target = default;
@@ -16,32 +22,42 @@ namespace Aethiumian.AI.Nodes
             {
                 case Behaviour.Trace:
                 case Behaviour.Retreat:
-                    if (tracing == null || !tracing.HasValue) return false;
-                    targetObject = tracing.GameObjectValue;
-                    if (!targetObject) return false;
-                    Collider2D[] colliders = NavigationBodyGeometry.GetTargetColliders(targetObject);
-                    Vector2 fallback = targetObject.transform.position;
-                    target = colliders.Length > 0 ? NavigationBodyGeometry.GetMergedAabb(colliders)
-                        : AABB.Point(fallback);
-                    return true;
+                    {
+                        if (tracing == null || !tracing.HasValue) return false;
+                        targetObject = tracing.GameObjectValue;
+                        if (!targetObject) return false;
+                        Collider2D[] colliders = NavigationBodyGeometry.GetTargetColliders(targetObject);
+                        Vector2 fallback = targetObject.transform.position;
+                        target = colliders.Length > 0 ? NavigationBodyGeometry.GetMergedAabb(colliders) : AABB.Point(fallback);
+                        return true;
+                    }
                 case Behaviour.Wander:
-                    wanderDestination ??= GetWanderLocation(GetWanderCenter());
-                    point = wanderDestination.Value;
-                    break;
-                case Behaviour.FixedDestination: point = destination.Vector2Value; break;
-                default: point = NavigationGroundAnchor; break;
+                    {
+                        var center = wanderMode switch
+                        {
+                            WanderMode.SelfCentered => body.LowerCenter,
+                            WanderMode.AbsoluteCentered when centerSpace == Space.World => centerOfWander.Vector2Value,
+                            WanderMode.AbsoluteCentered when centerSpace == Space.Self => centerOfWander.Vector2Value + body.LowerCenter,
+                            _ => Vector2.zero,
+                        };
+                        wanderDestination ??= GetWanderLocation(center, body);
+                        point = wanderDestination.Value;
+                        break;
+                    }
+                case Behaviour.FixedDestination:
+                    {
+                        point = destination.Vector2Value;
+                        break;
+                    }
+                default:
+                    {
+                        point = body.LowerCenter;
+                        break;
+                    }
             }
             target = AABB.Point(point);
             return true;
         }
-
-        private Vector2 GetWanderCenter() => wanderMode switch
-        {
-            WanderMode.SelfCentered => NavigationGroundAnchor,
-            WanderMode.AbsoluteCentered when centerSpace == Space.World => centerOfWander.Vector2Value,
-            WanderMode.AbsoluteCentered when centerSpace == Space.Self => centerOfWander.Vector2Value + NavigationGroundAnchor,
-            _ => Vector2.zero,
-        };
 
         protected NavigationGoalRequest CreateGoal(AABB target, NavigationGoalGeometry defaultGeometry)
         {
@@ -57,23 +73,24 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Chooses a destination once per run, using the ability's valid landing geometry.
         /// </summary>
-        protected abstract Vector2 GetWanderLocation(Vector2 center);
+        protected abstract Vector2 GetWanderLocation(Vector2 center, AABB body);
 
-        protected bool IsValidNavigationWanderLocation(Vector2 target, bool requireSupport)
+        /// <summary>
+        /// Validates one candidate body pose as a Wander destination. Region membership uses the sampled
+        /// body's center, the same canonical origin every other destination check uses; the candidate
+        /// itself stays a lower-center ground anchor because that is the physical placement it describes.
+        /// </summary>
+        protected bool IsValidNavigationWanderLocation(Vector2 groundAnchor, AABB body, bool requireSupport)
         {
             INavigationWorld world = NavigationWorld;
-            Vector2 targetFeet = target;
-            if (!IsNavigationDestinationAllowed(NavigationGroundAnchor, targetFeet)) return false;
+            if (!IsNavigationDestinationAllowed(body.Center, groundAnchor)) return false;
 
-            Vector2 bodySize = NavigationBodySize;
-            AABB candidateBody = AABB.FromMinAndSize(
-                new Vector2(targetFeet.x - bodySize.x * 0.5f, targetFeet.y), bodySize);
+            AABB candidateBody = AABB.FromLowerCenter(groundAnchor, body.Size);
             if (!world.IsBodyClear(candidateBody, 0f)) return false;
             if (!requireSupport) return true;
 
             return world.TryResolveSupport(
-                targetFeet,
-                bodySize,
+                candidateBody,
                 NavigationWorldQueries.SupportSnapDistance,
                 out _);
         }

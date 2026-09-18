@@ -1,4 +1,4 @@
-using Aethiumian.AI.Navigation;
+﻿using Aethiumian.AI.Navigation;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using Aethiumian.AI.Navigation.Diagnostics;
 #endif
@@ -65,7 +65,7 @@ namespace Aethiumian.AI.Nodes
                     // irreversible predecessor must never be re-labelled with the newest target.
                     NavigationGoalRequest historicalGoal = route != null ? route.Goal : goal;
                     INavigationWorld historicalWorld = route != null ? route.World : NavigationWorld;
-                    route = NavigationRoute.Partial(active.Start, historicalGoal, historicalWorld, active.End, new[] { active });
+                    route = NavigationRoute.Partial(historicalGoal, historicalWorld, new[] { active });
                     routeIndex = 0;
                 }
                 else { route = null; routeIndex = 0; }
@@ -81,13 +81,13 @@ namespace Aethiumian.AI.Nodes
         /// Replaces only a still-pending positional request after its refresh interval. Completed
         /// receipts have already passed through the candidate arbiter at this point.
         /// </summary>
-        private void RefreshPendingPlanningRequest(NavigationGoalRequest goal)
+        private void RefreshPendingPlanningRequest(NavigationGoalRequest goal, AABB body)
         {
             NavigationPlanningRequest pending = request;
             if (pending == null || pending.Operation.IsCompleted)
                 return;
 
-            bool stale = !pending.Goal.IsReusableFor(goal) && !RouteCoversGoal(route, routeIndex, NavigationBodyAabb, goal);
+            bool stale = !pending.Goal.IsReusableFor(goal) && !RouteCoversGoal(route, routeIndex, body, goal);
             if (!pending.AdvanceStaleness(stale)) return;
 
             // Refresh only the primary Smart request; an in-flight Simple request belongs to
@@ -104,47 +104,44 @@ namespace Aethiumian.AI.Nodes
         {
             if (candidate == null || first >= candidate.Count) return false;
             INavigationWorld world = candidate.World;
-            Vector2 half = Vector2.up * (body.Size.y * 0.5f);
             for (int i = first; i < candidate.Count; i++)
             {
                 NavigationRouteSegment segment = candidate.Segments[i];
+                // The route owns the conversion from its own coordinate frame to a body AABB, so a
+                // ground-anchored segment and an aerial one are measured with their real body pose.
+                AABB startBody = candidate.ResolveBodyAt(segment.Start, body);
+                AABB endBody = candidate.ResolveBodyAt(segment.End, body);
                 if (segment is GroundRouteSegment)
                 {
-                    Vector2 start = segment.Start + half;
-                    Vector2 end = segment.End + half;
-                    if (world.IsGoalCompleteAlong(goal, start, end, body.Size)) return true;
+                    if (world.IsGoalCompleteAlong(goal, startBody, endBody)) return true;
                 }
-                else if (segment is FlyRouteSegment)
-                {
-                    // Aerial movement is accepted at a waypoint; the goal predicate performs
-                    // the geometry and line-of-sight checks for the body center.
-                    if (world.IsGoalComplete(goal, segment.End, body.Size)) return true;
-                }
-                else if (world.IsGoalComplete(goal, segment.End, body.Size)) return true;
+                // Aerial movement is accepted at a waypoint; the goal predicate performs
+                // the geometry and line-of-sight checks for the body.
+                else if (world.IsGoalComplete(goal, endBody)) return true;
             }
             return false;
         }
 
         /// <summary>Arbitrates completed candidates in one fixed-step owner entry point.</summary>
-        private bool TryAcquireAction(NavigationGoalRequest goal, Vector2 anchor, AABB body)
+        private bool TryAcquireAction(NavigationGoalRequest goal, AABB body)
         {
-            TryHandlePrimaryResult(goal, anchor, body);
+            TryHandlePrimaryResult(goal, body);
             if (IsComplete) return false;
 
-            TryHandleExistingRoute(goal, anchor, body);
+            TryHandleExistingRoute(goal, body);
             if (IsComplete) return false;
 
             // A completed Smart receipt that was stale, cancelled, or not physically
             // adoptable must not prevent an independent Simple receipt from supplying a
             // reversible action in the same fixed step.  Current Smart results still win
             // naturally because adoption updates the route before this demand check.
-            if (CanReplaceActiveAction && NeedsSimpleAcquisition(goal, body) && TryHandleFallbackResult(goal, anchor, body))
+            if (CanReplaceActiveAction && NeedsSimpleAcquisition(goal, body) && TryHandleFallbackResult(goal, body))
                 return true;
 
             return false;
         }
 
-        private bool TryHandlePrimaryResult(NavigationGoalRequest goal, Vector2 anchor, AABB body)
+        private bool TryHandlePrimaryResult(NavigationGoalRequest goal, AABB body)
         {
             NavigationPlanningRequest primary = request;
             if (primary == null || !primary.Operation.IsCompleted) return false;
@@ -209,18 +206,18 @@ namespace Aethiumian.AI.Nodes
                 return true;
             }
 
-            ActionPreparation preparation = TryAdoptRoute(candidate, CandidateSource.PrimaryRequest, goal, anchor, body);
+            ActionPreparation preparation = TryAdoptRoute(candidate, CandidateSource.PrimaryRequest, goal, body);
             if (preparation == ActionPreparation.Unavailable) RejectPrimaryCandidate(goal);
             // Ready and Waiting both consume this selection boundary. Waiting retains the
             // completed Smart candidate instead of letting a lower-priority local candidate win.
             return true;
         }
 
-        private bool TryHandleExistingRoute(NavigationGoalRequest goal, Vector2 anchor, AABB body)
+        private bool TryHandleExistingRoute(NavigationGoalRequest goal, AABB body)
         {
             if (ActiveSegment != null || route == null || routeIndex >= route.Count) return false;
-            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(route.Segments[routeIndex].Start, route.Goal, route.World, route.Endpoint, route.GetRouteSegments(routeIndex), route.ReachesGoal);
-            ActionPreparation preparation = TryAdoptRoute(remaining, CandidateSource.ExistingRoute, goal, anchor, body);
+            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(route.Goal, route.World, route.GetRouteSegments(routeIndex), route.ReachesGoal);
+            ActionPreparation preparation = TryAdoptRoute(remaining, CandidateSource.ExistingRoute, goal, body);
             if (preparation != ActionPreparation.Unavailable) return true;
 
             route = null;
@@ -230,7 +227,7 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        private bool TryHandleFallbackResult(NavigationGoalRequest goal, Vector2 anchor, AABB body)
+        private bool TryHandleFallbackResult(NavigationGoalRequest goal, AABB body)
         {
             NavigationPlanningRequest local = fallbackRequest;
             if (local == null || !local.Operation.IsCompleted) return false;
@@ -246,7 +243,7 @@ namespace Aethiumian.AI.Nodes
                 return true;
             }
 
-            ActionPreparation preparation = TryAdoptRoute(candidate, CandidateSource.LocalFallback, goal, anchor, body);
+            ActionPreparation preparation = TryAdoptRoute(candidate, CandidateSource.LocalFallback, goal, body);
             if (preparation == ActionPreparation.Unavailable) CancelFallbackRequest();
             // Waiting retains this local candidate. A later Smart receipt still wins at the
             // next selection boundary because primary processing happens first.
@@ -254,7 +251,7 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>Reconnects, validates, prepares, and only then commits a route candidate.</summary>
-        private ActionPreparation TryAdoptRoute(NavigationRoute candidate, CandidateSource source, NavigationGoalRequest goal, Vector2 anchor, AABB body)
+        private ActionPreparation TryAdoptRoute(NavigationRoute candidate, CandidateSource source, NavigationGoalRequest goal, AABB body)
         {
             if (!CanReplaceActiveAction)
                 return source == CandidateSource.PrimaryRequest
@@ -272,7 +269,7 @@ namespace Aethiumian.AI.Nodes
             {
                 return ActionPreparation.Unavailable;
             }
-            if (!RouteAllowed(goal, anchor, connected))
+            if (!RouteAllowed(goal, connected))
             {
                 return ActionPreparation.Unavailable;
             }
@@ -307,7 +304,7 @@ namespace Aethiumian.AI.Nodes
                 && request.Goal.HasCompatibleSemantics(goal)
                 && candidate != null
                 && candidate.Goal.HasCompatibleSemantics(goal)
-                && RouteAllowed(request.Goal, request.Start, candidate);
+                && RouteAllowed(request.Goal, candidate);
         }
 
         private void OnRouteAdopted(CandidateSource source, bool servesCurrentIntent)
@@ -343,11 +340,11 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>Maintains request ownership only; route adoption is exclusive to <see cref="TryAcquireAction"/>.</summary>
-        private void MaintainPlanning(NavigationGoalRequest goal, Vector2 anchor, AABB body, bool skipCountingThisTick)
+        private void MaintainPlanning(NavigationGoalRequest goal, AABB body, bool skipCountingThisTick)
         {
             if (IsComplete) return;
-            EnsurePrimaryRequest(goal, anchor, body);
-            MaintainSimpleAcquisition(goal, anchor, NeedsSimpleAcquisition(goal, body),
+            EnsurePrimaryRequest(goal, body);
+            MaintainSimpleAcquisition(goal, body, NeedsSimpleAcquisition(goal, body),
                 skipCountingThisTick);
         }
 
@@ -364,7 +361,7 @@ namespace Aethiumian.AI.Nodes
             return !RouteCoversGoal(route, routeIndex, body, goal);
         }
 
-        private void MaintainSimpleAcquisition(NavigationGoalRequest goal, Vector2 anchor, bool needsAction, bool skipCountingThisTick)
+        private void MaintainSimpleAcquisition(NavigationGoalRequest goal, AABB body, bool needsAction, bool skipCountingThisTick)
         {
             if (path != PathMode.Smart || !needsAction)
             {
@@ -380,12 +377,12 @@ namespace Aethiumian.AI.Nodes
                 return;
 
             simpleWaitTicks = 0;
-            SubmitFallbackRequest(goal, anchor);
+            SubmitFallbackRequest(goal, body);
         }
 
         private int CurrentSmartWaitThreshold => fallbackBackoffLevel == 0 ? 4 : fallbackBackoffLevel == 1 ? 8 : 16;
 
-        private bool EnsurePrimaryRequest(NavigationGoalRequest goal, Vector2 anchor, AABB body)
+        private bool EnsurePrimaryRequest(NavigationGoalRequest goal, AABB body)
         {
             if (request != null) return false;
             NavigationRouteSegment action = ActiveSegment;
@@ -395,8 +392,8 @@ namespace Aethiumian.AI.Nodes
 
             if (action != null && !changed && route != null && routeIndex < route.Count)
             {
-                Vector2 endpointCenter = route.Endpoint + body.Center - anchor;
-                if (route.ReachesGoal && route.World.IsGoalComplete(goal, endpointCenter, body.Size)) return false;
+                AABB endpointBody = route.ResolveEndpointBody(body);
+                if (route.ReachesGoal && route.World.IsGoalComplete(goal, endpointBody)) return false;
             }
 
             NavigationRouteSegment predecessor = null;
@@ -412,9 +409,11 @@ namespace Aethiumian.AI.Nodes
                 predecessor = route.Segments[route.Count - 1];
             }
 
-            Vector2 start = predecessor != null ? predecessor.End : anchor;
+            // A continuation starts where its predecessor's own route frame ends, which is the
+            // route's conversion to apply; an initial request starts from the sampled body.
+            AABB startBody = predecessor != null ? route.ResolveBodyAt(predecessor.End, body) : body;
             NavigationPlanningPurpose purpose = predecessor != null ? NavigationPlanningPurpose.EndpointContinuation : NavigationPlanningPurpose.InitialRoute;
-            if (!TryCreatePlanningRequest(start, goal, PlanningExtent, purpose, predecessor, out NavigationPlanningRequest created))
+            if (!TryCreatePlanningRequest(startBody, goal, PlanningExtent, purpose, predecessor, out NavigationPlanningRequest created))
                 return false;
             request = created;
             // A successfully submitted primary request is the next accepted planning intent,
@@ -426,27 +425,27 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        private void SubmitFallbackRequest(NavigationGoalRequest goal, Vector2 anchor)
+        private void SubmitFallbackRequest(NavigationGoalRequest goal, AABB body)
         {
             if (fallbackRequest != null) return;
-            if (TryCreatePlanningRequest(anchor, goal, NavigationPlanningExtent.NextAction,
+            if (TryCreatePlanningRequest(body, goal, NavigationPlanningExtent.NextAction,
                 NavigationPlanningPurpose.InitialRoute, null, out NavigationPlanningRequest created))
                 fallbackRequest = created;
         }
 
-        private bool TryCreatePlanningRequest(Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, NavigationRouteSegment predecessor, out NavigationPlanningRequest created)
+        private bool TryCreatePlanningRequest(AABB startBody, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, NavigationRouteSegment predecessor, out NavigationPlanningRequest created)
         {
             created = null;
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(ExecutionCancellation);
             try
             {
-                if (!TryRequestRoute(start, goal, extent, purpose, cancellation.Token, out NavigationPlanningOperation operation))
+                if (!TryRequestRoute(startBody, goal, extent, purpose, cancellation.Token, out NavigationPlanningOperation operation))
                 {
                     cancellation.Dispose();
                     return false;
                 }
                 if (operation == null) throw new InvalidOperationException("Route request returned no operation.");
-                created = new NavigationPlanningRequest(operation, start, goal, purpose, predecessor, cancellation);
+                created = new NavigationPlanningRequest(operation, startBody, goal, purpose, predecessor, cancellation);
                 return true;
             }
             catch
@@ -468,24 +467,30 @@ namespace Aethiumian.AI.Nodes
             if (ActiveSegment == null && fallbackRequest == null && !AllowRetry()) EndMovement(false, goal);
         }
 
-        private bool RouteAllowed(NavigationGoalRequest goal, Vector2 anchor, NavigationRoute candidate)
-            => retreat == null || retreat.AllowsRoute(goal, anchor, candidate.Segments);
+        /// <summary>
+        /// Checks a candidate route against the movement's optional retreat approach budget. The
+        /// measurement runs in route space from the route's own origin, so no capability has to
+        /// describe its body pose as a route position before the route can be evaluated.
+        /// </summary>
+        private bool RouteAllowed(NavigationGoalRequest goal, NavigationRoute candidate)
+            => retreat == null || retreat.AllowsRoute(goal, candidate.Start, candidate.Segments);
 
         protected static bool IsWithinContinuationTolerance(Vector2 first, Vector2 second)
             => Vector2.Distance(first, second) <= NavigationWorldQueries.SupportSnapDistance + NavigationWorldQueries.GeometryEpsilon;
 
-        private void RefreshProgressBaseline(NavigationGoalRequest goal, Vector2 anchor, bool force)
+        private void RefreshProgressBaseline(NavigationGoalRequest goal, AABB body, bool force)
         {
             bool changed = force || !progressGoal.HasValue || !progressGoal.Value.IsReusableFor(goal);
-            if (changed || !retryAnchor.HasValue || !IsWithinContinuationTolerance(retryAnchor.Value, anchor))
+            if (changed || !retryPlannerBody.HasValue
+                || !IsWithinContinuationTolerance(retryPlannerBody.Value.Center, body.Center))
             {
                 progressGoal = goal;
-                retryAnchor = anchor;
+                retryPlannerBody = body;
                 retries = 0;
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             MovementReplanDiagnostics.RecordGoalCheck(changed);
-            if (previousCenter.HasValue && Vector2.Distance(previousCenter.Value, NavigationCenterAnchor) > NavigationWorldQueries.GeometryEpsilon)
+            if (previousBody.HasValue && Vector2.Distance(previousBody.Value.Center, body.Center) > NavigationWorldQueries.GeometryEpsilon)
                 MovementReplanDiagnostics.RecordAnchorMove();
 #endif
         }

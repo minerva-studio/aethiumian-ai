@@ -3,10 +3,12 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
 {
-    /// <summary>Represents a horizontal ledge exit followed by a downward fall.</summary>
+    /// <summary>Represents a horizontal ledge exit followed by a downward fall between two ground anchors.</summary>
     public sealed class FallRouteSegment : NavigationRouteSegment
     {
         public override bool IsReversible => false;
+
+        public override NavigationRouteCoordinateFrame CoordinateFrame => NavigationRouteCoordinateFrame.GroundAnchor;
 
         /// <summary>Gets the validated world-space waypoint where downward falling begins.</summary>
         public Vector2 LedgeExit { get; }

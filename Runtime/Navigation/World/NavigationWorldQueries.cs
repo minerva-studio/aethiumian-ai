@@ -4,7 +4,11 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
 {
-    /// <summary>Small coordinate and compatibility helpers around the world-space contract.</summary>
+    /// <summary>
+    /// Small coordinate and Unity-side helpers around the world-space contract. Every helper here takes
+    /// a body AABB, so the conversion from a body pose to the lower-center anchor and size the world
+    /// stores has exactly one owner instead of being repeated by each caller.
+    /// </summary>
     public static class NavigationWorldQueries
     {
         public const float GeometryEpsilon = NavigationConstant.Epsilon;
@@ -29,48 +33,35 @@ namespace Aethiumian.AI.Navigation
             return nearestDistance < float.PositiveInfinity;
         }
 
-        public static bool IsLowerCenterBodyClearAt(this INavigationWorld world, Vector2 lowerCenterPosition, Vector2 bodySize)
-            => world.IsBodyClear(AABB.FromMinAndSize(
-                new Vector2(lowerCenterPosition.x - bodySize.x * 0.5f, lowerCenterPosition.y), bodySize), 0f);
+        /// <summary>Returns whether the body may stand where it is, using the standard support snap distance.</summary>
+        public static bool CanStandAt(this INavigationWorld world, AABB body, out bool supportIsOneWay)
+            => world.CanStandAt(body, SupportSnapDistance, out supportIsOneWay);
 
-        public static bool IsCenteredBodyClearAt(this INavigationWorld world, Vector2 centerPosition, Vector2 bodySize)
-            => world.IsBodyClear(AABB.FromCenterAndSize(centerPosition, bodySize), 0f);
-
-        public static bool CanStandAt(this INavigationWorld world, Vector2 lowerCenterPosition, Vector2 bodySize, out bool supportIsOneWay)
-            => world.CanStandAt(lowerCenterPosition, bodySize, SupportSnapDistance, out supportIsOneWay);
-
-        public static bool CanStandAt(this INavigationWorld world, Vector2 lowerCenterPosition, Vector2 bodySize, float supportSnapDistance, out bool supportIsOneWay)
+        /// <summary>Returns whether the body may stand where it is with an explicit support snap distance.</summary>
+        public static bool CanStandAt(this INavigationWorld world, AABB body, float supportSnapDistance, out bool supportIsOneWay)
         {
-            bool resolved = world.TryResolveSupport(lowerCenterPosition, bodySize, supportSnapDistance, out NavigationSupport support);
+            bool resolved = world.TryResolveSupport(body, supportSnapDistance, out NavigationSupport support);
             supportIsOneWay = resolved && support.Kind == NavigationSurfaceKind.OneWay;
             return resolved;
         }
 
-        public static bool TryResolveGroundSupport(this INavigationWorld world, Vector2 observedLowerCenter, Vector2 bodySize, out Vector2 snappedLowerCenter, out NavigationSupport support)
-            => TryResolveGroundSupport(world, observedLowerCenter, bodySize, SupportSnapDistance, out snappedLowerCenter, out support);
+        /// <summary>Resolves the support under a body, using the standard support snap distance.</summary>
+        public static bool TryResolveGroundSupport(this INavigationWorld world, AABB body, out Vector2 snappedLowerCenter, out NavigationSupport support)
+            => TryResolveGroundSupport(world, body, SupportSnapDistance, out snappedLowerCenter, out support);
 
-        public static bool TryResolveGroundSupport(this INavigationWorld world, Vector2 observedLowerCenter, Vector2 bodySize, float supportSnapDistance, out Vector2 snappedLowerCenter, out NavigationSupport support)
+        /// <summary>Resolves the support under a body with an explicit support snap distance.</summary>
+        public static bool TryResolveGroundSupport(this INavigationWorld world, AABB body, float supportSnapDistance, out Vector2 snappedLowerCenter, out NavigationSupport support)
         {
-            bool resolved = world.TryResolveSupport(observedLowerCenter, bodySize, supportSnapDistance, out support);
+            bool resolved = world.TryResolveSupport(body, supportSnapDistance, out support);
             snappedLowerCenter = resolved ? support.Position : default;
             return resolved;
         }
 
-        public static bool IsLowerCenterSegmentClear(this INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize)
-            => world.IsBodyPathClear(AABB.FromMinAndSize(
-                new Vector2(start.x - bodySize.x * 0.5f, start.y), bodySize), end - start, 0f);
-
-        public static bool IsLowerCenterSegmentClear(this INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize, float surfaceContactTolerance)
-            => world.IsBodyPathClear(AABB.FromMinAndSize(
-                new Vector2(start.x - bodySize.x * 0.5f, start.y), bodySize), end - start, surfaceContactTolerance);
-
-        public static bool IsCenteredBodySegmentClear(this INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize)
-            => world.IsBodyPathClear(AABB.FromCenterAndSize(start, bodySize), end - start, 0f);
-
-        public static bool CrossesOneWayDown(this INavigationWorld world, Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, float ignoredSurfaceY = float.NaN)
+        /// <summary>Returns whether one swept body crosses an allowed one-way surface downward.</summary>
+        public static bool CrossesOneWayDown(this INavigationWorld world, AABB previousBody, Vector2 displacement, float ignoredSurfaceY = float.NaN)
         {
             List<NavigationSurfaceCrossing> crossings = new();
-            world.CollectOneWayCrossings(previousFeet, currentFeet, bodyWidth, crossings);
+            world.CollectOneWayCrossings(previousBody, displacement, crossings);
             if (float.IsNaN(ignoredSurfaceY)) return crossings.Count > 0;
             for (int index = 0; index < crossings.Count; index++)
                 if (Mathf.Abs(crossings[index].Position.y - ignoredSurfaceY) > GeometryEpsilon) return true;

@@ -30,15 +30,12 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private int unexpectedLandingRecoveryCount;
         private float NewFixedSpeed => speed * speedModifier;
 
-        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body, out Vector2 anchor)
-        {
-            anchor = new Vector2(body.CenterX, body.MinY);
-            return CreateGoal(target, NavigationGoalGeometry.GroundRange);
-        }
+        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body)
+            => CreateGoal(target, NavigationGoalGeometry.GroundRange);
 
-        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
-            operation = NavigationRuntime.PlanWalkAsync(start, goal, CreateNavigationParameters(), extent, cancellation, purpose);
+            operation = NavigationRuntime.PlanWalkAsync(body, goal, CreateNavigationParameters(body.Size), extent, cancellation, purpose);
             return true;
         }
 
@@ -47,12 +44,12 @@ namespace Aethiumian.AI.Nodes
             connected = null;
             if (candidate.Count == 0) return false;
             if (candidate.Segments[0] is GroundRouteSegment)
-                return TryReconnectNavigationRoute(candidate, NavigationGroundAnchor, out connected);
+                return TryReconnectNavigationRoute(candidate, body, out connected);
             if (candidate.Segments[0] is JumpRouteSegment)
             {
                 // A plan speaks in support space, while the body anchor rests one contact gap above
                 // the surface it stands on; resolve the anchor before comparing the two positions.
-                if (!NavigationRuntime.TryResolvePlanningGroundSupport(NavigationGroundAnchor, NavigationBodySize, out _, out NavigationSupport currentSupport))
+                if (!NavigationRuntime.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport currentSupport))
                     return false;
                 Vector2 offset = candidate.Start - currentSupport.Position;
                 float horizontalTolerance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(
@@ -61,7 +58,7 @@ namespace Aethiumian.AI.Nodes
                     || Mathf.Abs(offset.y) > GroundTraversalEndpointPolicy.VerticalSupportTolerance)
                     return false;
             }
-            else if (!IsWithinContinuationTolerance(candidate.Start, NavigationGroundAnchor))
+            else if (!IsWithinContinuationTolerance(candidate.Start, body.LowerCenter))
             {
                 return false;
             }
@@ -69,7 +66,7 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept) => NavigationWorld.IsGoalComplete(goal, body.Center, body.Size) || swept;
+        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept) => NavigationWorld.IsGoalComplete(goal, body) || swept;
 
         protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body)
         {
@@ -80,7 +77,7 @@ namespace Aethiumian.AI.Nodes
                 case ExecutionFailureReason.UnexpectedSupport when unexpectedLandingRecoveryCount < 2:
                     {
                         if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out Vector2 support)
-                        || !NavigationRuntime.TryResolvePlanningGroundSupport(support, body.Size, out _, out _)) return false;
+                        || !NavigationRuntime.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(support, body.Size), out _, out _)) return false;
                         unexpectedLandingRecoveryCount++;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                         MovementReplanDiagnostics.RecordUnexpectedLandingReplan();
@@ -95,9 +92,13 @@ namespace Aethiumian.AI.Nodes
         protected override void Finish(bool success, NavigationGoalRequest? goal)
         {
             StopHorizontalVelocity();
-            if (success && setFinalPosition && type == Behaviour.Wander)
+            if (success && setFinalPosition && type == Behaviour.Wander && WanderDestination.HasValue)
             {
-                RigidBody.position += goal.Value.Anchor - NavigationGroundAnchor;
+                // Walk routes speak in the ground-anchor frame, so the sampled destination is the
+                // final body's lower center and no anchor compensation is needed.
+                AABB body = NavigationBodyAabb;
+                AABB destinationBody = AABB.FromLowerCenter(WanderDestination.Value, body.Size);
+                RigidBody.position += destinationBody.LowerCenter - body.LowerCenter;
                 RigidBody.linearVelocity = Vector2.zero;
             }
         }
@@ -116,18 +117,17 @@ namespace Aethiumian.AI.Nodes
             switch (segment)
             {
                 case GroundRouteSegment ground:
-                    GetExecutor().SetGroundMove(NavigationGroundAnchor, ground.End);
-                    UpdateSpriteFacing(segment.End);
+                    GetExecutor().SetGroundMove(body.LowerCenter, ground.End);
+                    UpdateSpriteFacing(segment.End, body.LowerCenter);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case JumpRouteSegment jump:
                     MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
                     INavigationWorld navigationWorld = NavigationWorld;
-                    if (!navigation.TryResolvePlanningGroundSupport(
-                        NavigationGroundAnchor, NavigationBodySize, out _, out NavigationSupport currentSupport))
+                    if (!navigation.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport currentSupport))
                         return ActionPreparation.Waiting;
                     if (!navigation.TryResolvePlanningGroundSupport(
-                        jump.LaunchSupport, NavigationBodySize, out _, out NavigationSupport launchSupport))
+                        AABB.FromLowerCenter(jump.Start, body.Size), out _, out NavigationSupport launchSupport))
                         return ActionPreparation.Unavailable;
                     if (currentSupport.Surface != launchSupport.Surface)
                         return ActionPreparation.Unavailable;
@@ -138,7 +138,7 @@ namespace Aethiumian.AI.Nodes
                         return ActionPreparation.Waiting;
 
                     GroundJumpParameters parameters = new(
-                        NavigationBodySize,
+                        body.Size,
                         Physics2D.gravity,
                         RigidBody.gravityScale,
                         RigidBody.linearDamping,
@@ -148,8 +148,8 @@ namespace Aethiumian.AI.Nodes
                         NavigationWorldQueries.SupportSnapDistance,
                         GroundTraversalEndpointPolicy.VerticalSupportTolerance);
                     if (!solver.TrySolve(
-                        NavigationGroundAnchor,
-                        jump.PlannedLanding,
+                        body.LowerCenter,
+                        jump.End,
                         parameters,
                         out JumpTrajectorySolution trajectory))
                         return ActionPreparation.Unavailable;
@@ -157,24 +157,24 @@ namespace Aethiumian.AI.Nodes
                     JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(
                         navigationWorld,
                         trajectory,
-                        NavigationBodySize,
+                        body.Size,
                         parameters.SupportSnapDistance);
                     if (!OneWayPlatformCollisionLease.TryCreateForSegment(
                         Collider, resolvedSegment, navigation, out OneWayPlatformCollisionLease lease))
                         return ActionPreparation.Unavailable;
                     try { GetExecutor().BeginJump(trajectory, lease); }
                     catch { lease?.Dispose(); throw; }
-                    UpdateSpriteFacing(segment.End);
+                    UpdateSpriteFacing(segment.End, body.LowerCenter);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case FallRouteSegment fall:
                     GetExecutor().BeginFall(fall.Start, fall.LedgeExit, fall.End);
-                    UpdateSpriteFacing(segment.End);
+                    UpdateSpriteFacing(segment.End, body.LowerCenter);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case DropThroughRouteSegment dropThrough:
                     GetExecutor().BeginDropThrough(dropThrough.Start, dropThrough.End);
-                    UpdateSpriteFacing(segment.End);
+                    UpdateSpriteFacing(segment.End, body.LowerCenter);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 default:
@@ -182,7 +182,7 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        private bool TryReconnectNavigationRoute(NavigationRoute route, Vector2 currentAnchor, out NavigationRoute reconnectedRoute)
+        private bool TryReconnectNavigationRoute(NavigationRoute route, AABB body, out NavigationRoute reconnectedRoute)
         {
             reconnectedRoute = null;
             if (route == null || route.Count == 0 || route.Segments[0] is not GroundRouteSegment)
@@ -191,16 +191,16 @@ namespace Aethiumian.AI.Nodes
             MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
             INavigationWorld snapshot = NavigationWorld;
             return WalkNavigationPlanner.TryReconnectGroundRoute(
-                snapshot, route, currentAnchor, NavigationBodySize,
+                snapshot, route, body,
                 NavigationWorldQueries.SupportSnapDistance, GroundTraversalEndpointPolicy.VerticalSupportTolerance,
                 GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(
                     NewFixedSpeed, Time.fixedDeltaTime),
                 out reconnectedRoute);
         }
 
-        private WalkNavigationParameters CreateNavigationParameters()
+        private WalkNavigationParameters CreateNavigationParameters(Vector2 bodySize)
             => new(
-                NavigationBodySize,
+                bodySize,
                 NewFixedSpeed,
                 Physics2D.gravity,
                 RigidBody.gravityScale,
@@ -209,7 +209,7 @@ namespace Aethiumian.AI.Nodes
                 jumpLength,
                 Time.fixedDeltaTime);
 
-        protected override Vector2 GetWanderLocation(Vector2 center)
+        protected override Vector2 GetWanderLocation(Vector2 center, AABB body)
         {
             const int MAX_WANDER_LOCATION_TRIAL = 20;
 
@@ -224,7 +224,7 @@ namespace Aethiumian.AI.Nodes
                 var random = behaviourTree.RandomSources.Resolve(this);
                 var x = random.NextFloat(-1f, 1f) * random.NextFloat(wanderDistance * 0.5f, wanderDistance * 1.5f);
                 var candidate = new Vector2(center.x + x, center.y);
-                if (IsValidNavigationWanderLocation(candidate, true))
+                if (IsValidNavigationWanderLocation(candidate, body, true))
                     return candidate;
             }
             Debug.LogWarning("Cannot find valid wander location around. is the entity outside the room?");
@@ -237,10 +237,10 @@ namespace Aethiumian.AI.Nodes
             RigidBody.linearVelocity = new Vector2(0f, velocity.y);
         }
 
-        private void UpdateSpriteFacing(Vector2 target)
+        private void UpdateSpriteFacing(Vector2 target, Vector2 bodyPosition)
         {
             if (!spriteFlip || !transform.TryGetComponent(out SpriteRenderer spriteRenderer)) return;
-            spriteRenderer.flipX = target.x < NavigationGroundAnchor.x;
+            spriteRenderer.flipX = target.x < bodyPosition.x;
         }
 
         private void DoWalkCallback()

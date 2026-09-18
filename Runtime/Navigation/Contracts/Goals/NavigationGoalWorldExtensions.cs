@@ -28,38 +28,38 @@ namespace Aethiumian.AI.Navigation
 
 
         /// <summary>
-        /// Gets the completion distance for a center-anchored body, including the optional
-        /// line-of-sight constraint.
+        /// Gets the completion distance for a body, including the optional line-of-sight constraint.
         /// </summary>
-        public static float GetGoalCompletionDistance(this INavigationWorld world, in NavigationGoalRequest goal, Vector2 center, Vector2 bodySize)
+        public static float GetGoalCompletionDistance(this INavigationWorld world, in NavigationGoalRequest goal, AABB body)
         {
-            NonNegativeVector(bodySize, nameof(bodySize));
-            if (goal.RequiresLineOfSight && !world.IsLineOfSightClear(center, goal.TargetBounds.Center)) return float.PositiveInfinity;
-            return goal.GeometryCompletionDistance(center, bodySize);
+            Aabb(body, nameof(body));
+            if (goal.RequiresLineOfSight && !world.IsLineOfSightClear(body.Center, goal.TargetBounds.Center)) return float.PositiveInfinity;
+            return goal.GeometryCompletionDistance(body);
         }
 
         /// <summary>
-        /// Returns whether a center-anchored body has completed this goal.
+        /// Returns whether a body has completed this goal.
         /// </summary>
-        public static bool IsGoalComplete(this INavigationWorld world, in NavigationGoalRequest goal, Vector2 center, Vector2 bodySize)
-            => world.GetGoalCompletionDistance(goal, center, bodySize) <= goal.CompletionTolerance;
+        public static bool IsGoalComplete(this INavigationWorld world, in NavigationGoalRequest goal, AABB body)
+            => world.GetGoalCompletionDistance(goal, body) <= goal.CompletionTolerance;
 
         /// <summary>
-        /// Returns whether one swept center segment enters this goal's finite completion contract.
-        /// Without a line-of-sight requirement this is the swept geometry alone, so a fast body that
-        /// crosses the goal between two ticks is still recognised without any extra world query.
+        /// Returns whether one swept body enters this goal's finite completion contract. Without a
+        /// line-of-sight requirement this is the swept geometry alone, so a fast body that crosses the
+        /// goal between two ticks is still recognised without any extra world query.
         /// </summary>
-        public static bool IsGoalCompleteAlong(this INavigationWorld world, in NavigationGoalRequest goal, Vector2 startCenter, Vector2 endCenter, Vector2 bodySize)
+        public static bool IsGoalCompleteAlong(this INavigationWorld world, in NavigationGoalRequest goal, AABB startBody, AABB endBody)
         {
             if (!goal.RequiresLineOfSight)
-                return goal.GeometrySweptCompletionDistance(startCenter, endCenter, bodySize) <= goal.CompletionTolerance;
+                return goal.GeometrySweptCompletionDistance(startBody, endBody) <= goal.CompletionTolerance;
 
-            Finite(startCenter, nameof(startCenter));
-            Finite(endCenter, nameof(endCenter));
-            NonNegativeVector(bodySize, nameof(bodySize));
-            if (!goal.TryGetGeometryCompletionInterval(startCenter, endCenter, bodySize, out float entry, out float exit))
+            Aabb(startBody, nameof(startBody));
+            Aabb(endBody, nameof(endBody));
+            if (!goal.TryGetGeometryCompletionInterval(startBody, endBody, out float entry, out float exit))
                 return false;
 
+            Vector2 startCenter = startBody.Center;
+            Vector2 endCenter = endBody.Center;
             float spacing = Mathf.Max(NavigationWorldQueries.GeometryEpsilon, NavigationConstant.LineOfSightSweepSpacing);
             double deltaX = (double)endCenter.x - startCenter.x;
             double deltaY = (double)endCenter.y - startCenter.y;

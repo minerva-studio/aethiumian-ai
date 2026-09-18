@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -437,8 +437,11 @@ namespace Aethiumian.AI.Navigation
             }
 
             reversed.Reverse();
-            return NavigationRoute.Complete(request.Start, request.Goal, request.World,
-                terminalTransition.DestinationPosition, reversed);
+            // The route derives its own Start from the chain; this search owns the invariant that
+            // the chain begins at the origin it was asked to plan from.
+            if (!reversed[0].Start.Equals(request.Start))
+                throw new InvalidOperationException("A navigation search route must begin at the request origin.");
+            return NavigationRoute.Complete(request.Goal, request.World, reversed);
         }
 
         private static void ValidateTransitionResult(NavigationTransition transition)

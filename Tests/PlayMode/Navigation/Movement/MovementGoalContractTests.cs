@@ -131,6 +131,41 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(harness.Source.WalkCount, Is.Zero, DescribeHarness(harness));
         }
 
+        /// <summary>Verifies Fly Wander final placement uses the destination its route resolved.</summary>
+        [UnityTest]
+        public IEnumerator FlyWanderSetFinalPositionUsesRouteResolvedEndpoint()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            Vector2 destination = new(33f, 1.9f);
+            MovementHarness harness = CreateHarness(MovementStart, CreateDirectFlyWander(destination));
+            harness.Body.gravityScale = 0f;
+            yield return WaitForTreeCreated(harness);
+
+            var movement = (Fly)harness.AI.BehaviourTree.Head;
+            NavigationRoute route = null;
+            for (int tick = 0; tick < RuntimeContractTickLimit && harness.AI.BehaviourTree.IsRunning; tick++)
+            {
+                yield return new WaitForFixedUpdate();
+                if (movement.Route != null) route = movement.Route;
+            }
+
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
+            Assert.That(route, Is.Not.Null, DescribeHarness(harness));
+            Assert.That(route.CoordinateFrame, Is.EqualTo(NavigationRouteCoordinateFrame.BodyCenter));
+
+            const float placementTolerance = 0.02f;
+            Vector2 bodySize = NavigationBodyGeometry.GetWorldAabbSize(harness.Collider);
+            AABB resolvedEndpoint = route.ResolveEndpointBody(AABB.FromLowerCenter(Vector2.zero, bodySize));
+            Vector2 finalCenter = NavigationBodyGeometry.GetBodyCenter(harness.Collider);
+            Assert.That(Vector2.Distance(finalCenter, destination), Is.LessThanOrEqualTo(placementTolerance),
+                "Fly final placement must snap the body center onto the sampled Wander destination. " + DescribeHarness(harness));
+            Assert.That(Vector2.Distance(finalCenter, resolvedEndpoint.Center), Is.LessThanOrEqualTo(placementTolerance),
+                "An executed aerial route must leave the body at the body its resolved route endpoint describes. "
+                + DescribeHarness(harness));
+        }
+
         [UnityTest]
         public IEnumerator RegionPolicyGatesPlannerAtCanonicalDestination()
         {
@@ -266,6 +301,22 @@ namespace Aethiumian.AI.Navigation.Tests
                 setFinalPosition = (VariableField<bool>)false,
             };
 
+        private static Fly CreateDirectFlyWander(Vector2 center)
+            => new()
+            {
+                uuid = UUID.NewUUID(),
+                path = Movement.PathMode.Smart,
+                type = Movement.Behaviour.Wander,
+                wanderMode = Movement.WanderMode.AbsoluteCentered,
+                centerSpace = Space.World,
+                centerOfWander = new VariableField(center),
+                wanderDistance = (VariableField<float>)0f,
+                reachDistance = (VariableField<float>)ArrivalErrorBound,
+                speed = (VariableField<float>)10f,
+                speedModifier = (VariableField<float>)1f,
+                setFinalPosition = (VariableField<bool>)true,
+            };
+
         private static Fly CreateSimpleRetreat(GameObject target, float reachDistance)
             => new()
             {
@@ -295,7 +346,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             public int RequestCount { get; private set; }
 
-            protected override bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal,
+            protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal,
                 NavigationPlanningExtent extent, NavigationPlanningPurpose purpose,
                 CancellationToken cancellation, out NavigationPlanningOperation operation)
             {

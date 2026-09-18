@@ -18,12 +18,12 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = BindGoal(new Vector2(5.5f, 1f));
 
             NavigationPlanResult result = new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world))
-                .Plan(new Vector2(0.5f, 1f), goal, WalkParameters(bodySize));
+                .Plan(AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize), goal, WalkParameters(bodySize));
 
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(result.Route, Is.Not.Null);
             Assert.That(result.Route.Segments, Is.Not.Empty);
-            Assert.That(world.IsGoalComplete(goal, result.Route.Endpoint + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
+            Assert.That(world.IsGoalComplete(goal, result.Route.ResolveEndpointBody(AABB.FromLowerCenter(Vector2.zero, bodySize))), Is.True);
         }
 
         [Test]
@@ -33,7 +33,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = BindGoal(new Vector2(10.5f, 0.5f));
 
             NavigationPlanResult result = new FlyNavigationPlanner(world, 16)
-                .Plan(new Vector2(0.5f, 0.5f), goal, new FlyNavigationParameters(new Vector2(0.8f, 0.8f)));
+                .Plan(AABB.FromCenterAndSize(new Vector2(0.5f, 0.5f), new Vector2(0.8f, 0.8f)), goal, new FlyNavigationParameters(new Vector2(0.8f, 0.8f)));
 
             // An unreachable goal can be rejected before the search frontier is built;
             // both the no-result termination and a null route are the public no-path contract.
@@ -46,7 +46,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             TestNavigationWorld world = NavigationTestWorlds.Ground(0, 2);
             Assert.That(() => new WalkNavigationPlanner(world, 16, new GroundJumpSolver(world)).Plan(
-                new Vector2(float.NaN, 1f), BindGoal(new Vector2(1.5f, 1f)), WalkParameters(new Vector2(0.8f, 1.5f))),
+                AABB.FromLowerCenter(new Vector2(float.NaN, 1f), new Vector2(0.8f, 1.5f)), BindGoal(new Vector2(1.5f, 1f)), WalkParameters(new Vector2(0.8f, 1.5f))),
                 Throws.ArgumentException);
         }
 
@@ -67,7 +67,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 [floor[0]] = 5.38f, [floor[1]] = 5.38f, [floor[2]] = 5.38f,
             };
             TestNavigationWorld world = new(new AABBInt(0, 0, 3, 8), floor, Array.Empty<Vector2Int>(), heights);
-            Assert.That(world.TryResolveSupport(new Vector2(1.5f, 5.38f), new Vector2(0.8f, 1.5f),
+            Assert.That(world.TryResolveSupport(AABB.FromLowerCenter(new Vector2(1.5f, 5.38f), new Vector2(0.8f, 1.5f)),
                 NavigationWorldQueries.SupportSnapDistance, out NavigationSupport support), Is.True);
             Assert.That(support.Kind, Is.EqualTo(NavigationSurfaceKind.Solid));
             Assert.That(support.Position.y, Is.EqualTo(5.38f).Within(0.0001f));
@@ -77,7 +77,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void GroundFixtureProvidesWorldSpaceGeometricSupport()
         {
             TestNavigationWorld world = NavigationTestWorlds.Ground(0, 1);
-            Assert.That(world.TryResolveSupport(new Vector2(0.5f, 1f), new Vector2(0.8f, 1.5f),
+            Assert.That(world.TryResolveSupport(AABB.FromLowerCenter(new Vector2(0.5f, 1f), new Vector2(0.8f, 1.5f)),
                 NavigationWorldQueries.SupportSnapDistance, out NavigationSupport support), Is.True);
             Assert.That(support.Kind, Is.EqualTo(NavigationSurfaceKind.Solid));
             Assert.That(support.Position.y, Is.EqualTo(1f));

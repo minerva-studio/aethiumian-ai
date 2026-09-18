@@ -1,4 +1,4 @@
-using Aethiumian.AI.Attributes;
+﻿using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Randomization;
 using Aethiumian.AI.Variables;
@@ -28,9 +28,8 @@ namespace Aethiumian.AI.Nodes
 
         private float FinalSpeed => speed * speedModifier;
 
-        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body, out Vector2 anchor)
+        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body)
         {
-            anchor = body.Center;
             _ = Flexibility;
             if (type == Behaviour.Trace && neverAboveMaxHeight)
             {
@@ -42,10 +41,11 @@ namespace Aethiumian.AI.Nodes
             return CreateGoal(target, NavigationGoalGeometry.Proximity);
         }
 
-        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        /// <summary>A Fly destination is a body-center position.</summary>
+        protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
-            operation = NavigationRuntime.PlanFlyAsync(start, goal,
-                new FlyNavigationParameters(NavigationBodySize, RetreatExecution?.RemainingApproachDistance ?? 0f,
+            operation = NavigationRuntime.PlanFlyAsync(body, goal,
+                new FlyNavigationParameters(body.Size, RetreatExecution?.RemainingApproachDistance ?? 0f,
                     RetreatExecution?.HasApproachLimit ?? false), extent, cancellation, purpose);
             return true;
         }
@@ -57,7 +57,7 @@ namespace Aethiumian.AI.Nodes
             for (int i = 0; i < candidate.Count; i++)
             {
                 if (candidate.Segments[i] is not FlyRouteSegment step) return false;
-                if (!NavigationRuntime.IsBodyClearFlySegment(body.Center, step.End, body.Size)) break;
+                if (!NavigationRuntime.IsBodyClearFlySegment(body, step.End - body.Center)) break;
                 if (RetreatExecution != null && !RetreatExecution.AllowsSegment(candidate.Goal, body.Center, step.End)) continue;
                 furthest = i;
             }
@@ -65,7 +65,7 @@ namespace Aethiumian.AI.Nodes
             var segments = new System.Collections.Generic.List<NavigationRouteSegment>
             { new FlyRouteSegment(body.Center, candidate.Segments[furthest].End) };
             for (int i = furthest + 1; i < candidate.Count; i++) segments.Add(candidate.Segments[i]);
-            connected = NavigationRoute.Create(body.Center, candidate.Goal, candidate.World, candidate.Endpoint, segments, candidate.ReachesGoal);
+            connected = NavigationRoute.Create(candidate.Goal, candidate.World, segments, candidate.ReachesGoal);
             return true;
         }
 
@@ -80,7 +80,7 @@ namespace Aethiumian.AI.Nodes
         }
 
         protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept)
-            => NavigationWorld.IsGoalComplete(goal, body.Center, body.Size) || swept;
+            => NavigationWorld.IsGoalComplete(goal, body) || swept;
 
         protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body)
             => reason == ExecutionFailureReason.Obstructed;
@@ -89,9 +89,13 @@ namespace Aethiumian.AI.Nodes
         {
             if (success && type == Behaviour.Wander)
             {
-                if (setFinalPosition)
+                if (setFinalPosition && WanderDestination.HasValue)
                 {
-                    RigidBody.position += goal.Value.Anchor - NavigationCenterAnchor;
+                    // Fly routes speak in the body-center frame, so the sampled destination is the
+                    // final body's center and no anchor compensation is needed.
+                    AABB body = NavigationBodyAabb;
+                    AABB destinationBody = AABB.FromCenterAndSize(WanderDestination.Value, body.Size);
+                    RigidBody.position += destinationBody.Center - body.Center;
                     RigidBody.linearVelocity = Vector2.zero;
                 }
                 return;
@@ -144,7 +148,7 @@ namespace Aethiumian.AI.Nodes
                 NavigationColliders, MaximumIdleDuration);
         }
 
-        protected override Vector2 GetWanderLocation(Vector2 center)
+        protected override Vector2 GetWanderLocation(Vector2 center, AABB body)
         {
             INavigationWorld world = NavigationWorld;
             for (int index = 0; index < MaximumWanderLocationTrials; index++)
@@ -153,9 +157,9 @@ namespace Aethiumian.AI.Nodes
                 Vector2 candidate = LimitTargetHeight(center + point);
                 // Fly destinations are body centers. Lowering an authored sample may put the
                 // body inside geometry, so validate the final point rather than the sample.
-                if (!IsNavigationDestinationAllowed(NavigationCenterAnchor, candidate)) continue;
+                if (!IsNavigationDestinationAllowed(body.Center, candidate)) continue;
 
-                AABB candidateBody = AABB.FromCenterAndSize(candidate, NavigationBodySize);
+                AABB candidateBody = AABB.FromCenterAndSize(candidate, body.Size);
                 if (!world.IsBodyClear(candidateBody, 0f)) continue;
 
                 return candidate;

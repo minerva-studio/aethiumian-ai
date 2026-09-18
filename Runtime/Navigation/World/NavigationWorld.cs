@@ -37,13 +37,13 @@ namespace Aethiumian.AI.Navigation
         public abstract bool IsLineOfSightClear(Vector2 start, Vector2 end);
 
         /// <inheritdoc />
-        public abstract bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support);
+        public abstract bool TryResolveSupport(AABB body, float snapDistance, out NavigationSupport support);
 
         /// <inheritdoc />
         public abstract bool TryGetSupportBelow(Vector2 position, out NavigationSupport support);
 
         /// <inheritdoc />
-        public abstract void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, List<NavigationSurfaceCrossing> results);
+        public abstract void CollectOneWayCrossings(AABB previousBody, Vector2 displacement, List<NavigationSurfaceCrossing> results);
 
         /// <inheritdoc />
         public abstract bool AreInSameRegion(Vector2 first, Vector2 second);

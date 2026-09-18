@@ -20,24 +20,24 @@ namespace Aethiumian.AI.Navigation
         public static AABB GetMergedAabb(IReadOnlyList<Collider2D> colliders)
             => AABB.FromBounds(ColliderGeometryQuery.GetMergedBounds(colliders));
 
-        /// <summary>Gets the lower-center anchor of a merged world-space box.</summary>
+        /// <summary>Gets the lower-center ground anchor of a merged world-space box.</summary>
         public static Vector2 GetGroundAnchor(IReadOnlyList<Collider2D> colliders)
             => GetMergedAabb(colliders).LowerCenter;
 
-        /// <summary>Gets the center anchor of a merged world-space box.</summary>
-        public static Vector2 GetCenterAnchor(IReadOnlyList<Collider2D> colliders)
+        /// <summary>Gets the body center of a merged world-space box.</summary>
+        public static Vector2 GetBodyCenter(IReadOnlyList<Collider2D> colliders)
             => GetMergedAabb(colliders).Center;
 
         /// <summary>Gets the size of a merged world-space box.</summary>
         public static Vector2 GetWorldAabbSize(IReadOnlyList<Collider2D> colliders)
             => GetMergedAabb(colliders).Size;
 
-        /// <summary>Gets the lower-center anchor of one collider's current world box.</summary>
+        /// <summary>Gets the lower-center ground anchor of one collider's current world box.</summary>
         public static Vector2 GetGroundAnchor(Collider2D collider)
             => GetAabb(collider).LowerCenter;
 
-        /// <summary>Gets the center anchor of one collider's current world box.</summary>
-        public static Vector2 GetCenterAnchor(Collider2D collider)
+        /// <summary>Gets the body center of one collider's current world box.</summary>
+        public static Vector2 GetBodyCenter(Collider2D collider)
             => GetAabb(collider).Center;
 
         /// <summary>Gets the size of one collider's current world box.</summary>

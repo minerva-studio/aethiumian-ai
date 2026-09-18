@@ -79,7 +79,7 @@ namespace Aethiumian.AI.Navigation.Tests
             AABB targetBounds = new(PhysicsOrigin + new Vector2(4.5f, 1f), PhysicsOrigin + new Vector2(4.5f, 1f));
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(targetBounds, DistanceMetric.Euclidean, 0.1f);
 
-            NavigationRoute route = planner.Plan(observedStart, goal, parameters, CancellationToken.None, diagnostics).Route;
+            NavigationRoute route = planner.Plan(AABB.FromLowerCenter(observedStart, parameters.BodySize), goal, parameters, CancellationToken.None, diagnostics).Route;
             Assert.That(route, Is.Not.Null,
                 $"Walk planning failed from observed contact anchor {observedStart}; "
                 + $"expansions={diagnostics.ExpansionCount}, terminals={diagnostics.TerminalCandidateCount}, "
@@ -100,7 +100,7 @@ namespace Aethiumian.AI.Navigation.Tests
                         break;
                     case JumpRouteSegment jump:
                         Assert.That(JumpTrajectory.TrySolve(new JumpTrajectoryInput(
-                            NavigationBodyGeometry.GetGroundAnchor(collider), jump.PlannedLanding,
+                            NavigationBodyGeometry.GetGroundAnchor(collider), jump.End,
                             parameters.Gravity, parameters.GravityScale, parameters.LinearDamping,
                             parameters.JumpHeight, parameters.SimulationTimeStep), 512,
                             jump.MinimumApexHeight,
@@ -277,15 +277,15 @@ namespace Aethiumian.AI.Navigation.Tests
             public bool IsLineOfSightClear(Vector2 start, Vector2 end) => snapshot.IsLineOfSightClear(start, end);
             public bool TryGetSupportBelow(Vector2 position, out NavigationSupport support)
                 => snapshot.TryGetSupportBelow(position, out support);
-            public bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
-                => snapshot.TryResolveSupport(feet, bodySize, snapDistance, out support);
+            public bool TryResolveSupport(AABB body, float snapDistance, out NavigationSupport support)
+                => snapshot.TryResolveSupport(body, snapDistance, out support);
             public IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(AABB anchorBounds, Vector2 bodySize)
                 => snapshot.GetSupportCandidates(anchorBounds, bodySize);
             public void CollectSupportCandidates(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
                 => snapshot.CollectSupportCandidates(anchorBounds, bodySize, results);
-            public void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth,
+            public void CollectOneWayCrossings(AABB previousBody, Vector2 displacement,
                 List<NavigationSurfaceCrossing> results)
-                => snapshot.CollectOneWayCrossings(previousFeet, currentFeet, bodyWidth, results);
+                => snapshot.CollectOneWayCrossings(previousBody, displacement, results);
             public bool AreInSameRegion(Vector2 first, Vector2 second) => snapshot.AreInSameRegion(first, second);
         }
     }

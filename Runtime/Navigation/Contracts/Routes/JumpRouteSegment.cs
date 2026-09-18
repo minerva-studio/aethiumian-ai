@@ -40,16 +40,12 @@ namespace Aethiumian.AI.Navigation
 
     }
 
-    /// <summary>Represents a jump launch and planned landing without an executable trajectory.</summary>
+    /// <summary>Represents a jump launch and planned landing between two ground-anchor world positions.</summary>
     public sealed class JumpRouteSegment : NavigationRouteSegment
     {
-        /// <summary>Gets the planned support point from which the jump launches.</summary>
-        public Vector2 LaunchSupport => Start;
-
-        /// <summary>Gets the planned supported landing point.</summary>
-        public Vector2 PlannedLanding => End;
-
         public override bool IsReversible => false;
+
+        public override NavigationRouteCoordinateFrame CoordinateFrame => NavigationRouteCoordinateFrame.GroundAnchor;
 
         /// <summary>Gets the minimum apex displacement selected by collision-aware planning.</summary>
         public float MinimumApexHeight { get; }

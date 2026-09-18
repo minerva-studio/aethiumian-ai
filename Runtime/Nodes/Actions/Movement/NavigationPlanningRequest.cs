@@ -11,12 +11,12 @@ namespace Aethiumian.AI.Nodes
         private int staleTicks;
         private const int StaleRefreshTicks = 8;
 
-        internal NavigationPlanningRequest(NavigationPlanningOperation operation, Vector2 start,
+        internal NavigationPlanningRequest(NavigationPlanningOperation operation, AABB startBody,
             NavigationGoalRequest goal, NavigationPlanningPurpose purpose,
             NavigationRouteSegment committedSegment, CancellationTokenSource cancellation)
         {
             Operation = operation;
-            Start = start;
+            StartBody = startBody;
             Goal = goal;
             Purpose = purpose;
             CommittedSegment = committedSegment;
@@ -25,8 +25,8 @@ namespace Aethiumian.AI.Nodes
 
         /// <summary>The asynchronous result owned by this request.</summary>
         public NavigationPlanningOperation Operation { get; }
-        /// <summary>The execution anchor captured when planning began.</summary>
-        public Vector2 Start { get; }
+        /// <summary>The sampled body pose this planning request started from.</summary>
+        public AABB StartBody { get; }
         /// <summary>The immutable goal captured for this request.</summary>
         public NavigationGoalRequest Goal { get; }
         /// <summary>Whether this request starts movement or supplies its continuation.</summary>

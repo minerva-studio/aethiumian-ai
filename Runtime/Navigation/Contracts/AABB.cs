@@ -159,6 +159,18 @@ namespace Aethiumian.AI.Navigation
         public static AABB FromMinAndSize(float minX, float minY, float sizeX, float sizeY) => new AABB(minX, minY, minX + sizeX, minY + sizeY);
 
         /// <summary>
+        /// Creates a body box from a lower-center ground anchor and a body size. The horizontal extent is
+        /// centered on the anchor and the box rests on the anchor's height, which is the body pose that
+        /// ground-anchored capabilities plan and execute with.
+        /// </summary>
+        /// <param name="lowerCenter"></param>
+        /// <param name="bodySize"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static AABB FromLowerCenter(Vector2 lowerCenter, Vector2 bodySize)
+            => FromMinAndSize(new Vector2(lowerCenter.x - bodySize.x * 0.5f, lowerCenter.y), bodySize);
+
+        /// <summary>
         /// Creates degenerate goal geometry for one continuous world-space point.
         /// </summary>
         /// <param name="point"></param>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
@@ -113,40 +113,40 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Queues ground planning with an explicit local-action or route horizon.</summary>
-        public NavigationPlanningOperation PlanWalkAsync(Vector2 start, NavigationGoalRequest goalRequest,
+        public NavigationPlanningOperation PlanWalkAsync(AABB body, NavigationGoalRequest goalRequest,
             WalkNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
             CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
         {
             ReleaseCompletedOperations();
             parameters = parameters.WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
                 .WithGroundContactTolerance(GroundTraversalEndpointPolicy.VerticalSupportTolerance);
-            return QueueWork(new WalkRequestDescriptor(start, goalRequest, parameters,
+            return QueueWork(new WalkRequestDescriptor(body, goalRequest, parameters,
                 extent == NavigationPlanningExtent.NextAction, purpose), cancellationToken);
         }
         /// <summary>Queues jump planning without requiring a complete path for NextAction.</summary>
-        public NavigationPlanningOperation PlanJumpAsync(Vector2 start, NavigationGoalRequest goalRequest,
+        public NavigationPlanningOperation PlanJumpAsync(AABB body, NavigationGoalRequest goalRequest,
             JumpNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
             CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
         {
             ReleaseCompletedOperations();
             parameters = parameters.WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
                 .WithGroundContactTolerance(GroundTraversalEndpointPolicy.VerticalSupportTolerance);
-            return QueueWork(new JumpRequestDescriptor(start, goalRequest, parameters, extent, purpose), cancellationToken);
+            return QueueWork(new JumpRequestDescriptor(body, goalRequest, parameters, extent, purpose), cancellationToken);
         }
         /// <summary>Queues aerial planning with the same horizon contract as ground movement.</summary>
-        public NavigationPlanningOperation PlanFlyAsync(Vector2 start, NavigationGoalRequest goalRequest,
+        public NavigationPlanningOperation PlanFlyAsync(AABB body, NavigationGoalRequest goalRequest,
             FlyNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
             CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
         {
             ReleaseCompletedOperations();
-            return QueueWork(new FlyRequestDescriptor(start, goalRequest, parameters, extent, purpose), cancellationToken);
+            return QueueWork(new FlyRequestDescriptor(body, goalRequest, parameters, extent, purpose), cancellationToken);
         }
 
-        /// <summary>Checks a body-clear aerial segment against the published immutable world.</summary>
-        public bool IsBodyClearFlySegment(Vector2 start, Vector2 end, Vector2 bodySize)
+        /// <summary>Checks a body-clear aerial sweep against the published immutable world.</summary>
+        public bool IsBodyClearFlySegment(AABB startBody, Vector2 displacement)
         {
             ThrowIfDisposed();
-            return world != null && world.IsCenteredBodySegmentClear(start, end, bodySize);
+            return world != null && world.IsBodyPathClear(startBody, displacement, 0f);
         }
 
         /// <summary>Cancels pending requests and releases the published world at the Map cleanup boundary.</summary>
@@ -225,7 +225,7 @@ namespace Aethiumian.AI.Navigation
                     return;
                 }
 
-                if (!TryCreateFailureKey(request.Descriptor.Start, goal, profileKey,
+                if (!TryCreateFailureKey(request.Descriptor.StartBody, goal, profileKey,
                     request.Descriptor.Purpose, out NavigationFailureKey failureKey))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.NoResult);
@@ -331,7 +331,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Stores pure request data until a published world can create detached planner work.</summary>
         private abstract class PlanningRequestDescriptor
         {
-            public abstract Vector2 Start { get; }
+            public abstract AABB StartBody { get; }
             public abstract Vector2 BodySize { get; }
             public abstract NavigationProfileKey ProfileKey { get; }
             public abstract NavigationPlanningPurpose Purpose { get; }
@@ -342,23 +342,23 @@ namespace Aethiumian.AI.Navigation
 
         private sealed class WalkRequestDescriptor : PlanningRequestDescriptor
         {
-            private readonly Vector2 start;
+            private readonly AABB body;
             private readonly NavigationGoalRequest goalRequest;
             private readonly WalkNavigationParameters parameters;
             private readonly bool simple;
             private readonly NavigationPlanningPurpose purpose;
 
-            public WalkRequestDescriptor(Vector2 start, NavigationGoalRequest goalRequest,
+            public WalkRequestDescriptor(AABB body, NavigationGoalRequest goalRequest,
                 WalkNavigationParameters parameters, bool simple, NavigationPlanningPurpose purpose)
             {
-                this.start = start;
+                this.body = body;
                 this.goalRequest = goalRequest;
                 this.parameters = parameters;
                 this.simple = simple;
                 this.purpose = purpose;
             }
 
-            public override Vector2 Start => start;
+            public override AABB StartBody => body;
             public override Vector2 BodySize => parameters.BodySize;
             public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, simple ? 4 : 1);
             public override NavigationPlanningPurpose Purpose => purpose;
@@ -369,30 +369,30 @@ namespace Aethiumian.AI.Navigation
                 WalkNavigationPlanner planner = runtime.walkPlanner
                     ?? throw new InvalidOperationException("Walk planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => simple
-                    ? planner.PlanSingleStep(start, goalRequest, parameters, cancellationToken)
-                    : planner.Plan(start, goalRequest, parameters, cancellationToken));
+                    ? planner.PlanSingleStep(body, goalRequest, parameters, cancellationToken)
+                    : planner.Plan(body, goalRequest, parameters, cancellationToken));
             }
         }
 
         private sealed class JumpRequestDescriptor : PlanningRequestDescriptor
         {
-            private readonly Vector2 start;
+            private readonly AABB body;
             private readonly NavigationGoalRequest goalRequest;
             private readonly JumpNavigationParameters parameters;
             private readonly NavigationPlanningPurpose purpose;
             private readonly NavigationPlanningExtent extent;
 
-            public JumpRequestDescriptor(Vector2 start, NavigationGoalRequest goalRequest,
+            public JumpRequestDescriptor(AABB body, NavigationGoalRequest goalRequest,
                 JumpNavigationParameters parameters, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose)
             {
-                this.start = start;
+                this.body = body;
                 this.goalRequest = goalRequest;
                 this.parameters = parameters;
                 this.extent = extent;
                 this.purpose = purpose;
             }
 
-            public override Vector2 Start => start;
+            public override AABB StartBody => body;
             public override Vector2 BodySize => parameters.BodySize;
             public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, extent == NavigationPlanningExtent.NextAction ? 5 : 2);
             public override NavigationPlanningPurpose Purpose => purpose;
@@ -403,30 +403,30 @@ namespace Aethiumian.AI.Navigation
                 JumpNavigationPlanner planner = runtime.jumpPlanner
                     ?? throw new InvalidOperationException("Jump planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
-                    ? planner.PlanSingleStep(start, goalRequest, parameters, cancellationToken)
-                    : planner.Plan(start, goalRequest, parameters, cancellationToken));
+                    ? planner.PlanSingleStep(body, goalRequest, parameters, cancellationToken)
+                    : planner.Plan(body, goalRequest, parameters, cancellationToken));
             }
         }
 
         private sealed class FlyRequestDescriptor : PlanningRequestDescriptor
         {
-            private readonly Vector2 start;
+            private readonly AABB body;
             private readonly NavigationGoalRequest goalRequest;
             private readonly FlyNavigationParameters parameters;
             private readonly NavigationPlanningPurpose purpose;
             private readonly NavigationPlanningExtent extent;
 
-            public FlyRequestDescriptor(Vector2 start, NavigationGoalRequest goalRequest,
+            public FlyRequestDescriptor(AABB body, NavigationGoalRequest goalRequest,
                 FlyNavigationParameters parameters, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose)
             {
-                this.start = start;
+                this.body = body;
                 this.goalRequest = goalRequest;
                 this.parameters = parameters;
                 this.extent = extent;
                 this.purpose = purpose;
             }
 
-            public override Vector2 Start => start;
+            public override AABB StartBody => body;
             public override Vector2 BodySize => parameters.BodySize;
             public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, extent == NavigationPlanningExtent.NextAction ? 6 : 3);
             public override NavigationPlanningPurpose Purpose => purpose;
@@ -437,30 +437,31 @@ namespace Aethiumian.AI.Navigation
                 FlyNavigationPlanner planner = runtime.flyPlanner
                     ?? throw new InvalidOperationException("Fly planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
-                    ? planner.PlanSingleStep(start, goalRequest, parameters, cancellationToken)
-                    : planner.Plan(start, goalRequest, parameters, cancellationToken));
+                    ? planner.PlanSingleStep(body, goalRequest, parameters, cancellationToken)
+                    : planner.Plan(body, goalRequest, parameters, cancellationToken));
             }
         }
 
         /// <summary>Resolves one planning launch support against the current published NavWorld.</summary>
-        public bool TryResolvePlanningGroundSupport(Vector2 observedLowerCenter, Vector2 bodySize, out Vector2 snappedLowerCenter, out NavigationSupport support)
+        public bool TryResolvePlanningGroundSupport(AABB body, out Vector2 snappedLowerCenter, out NavigationSupport support)
         {
             snappedLowerCenter = default;
             support = default;
             if (isDisposed || world == null) return false;
-            return world.TryResolveGroundSupport(observedLowerCenter, bodySize,
+            return world.TryResolveGroundSupport(body,
                 NavigationWorldQueries.SupportSnapDistance, out snappedLowerCenter, out support);
         }
 
-        private bool TryCreateFailureKey(Vector2 start, NavigationGoalRequest goal,
+        private bool TryCreateFailureKey(AABB body, NavigationGoalRequest goal,
             NavigationProfileKey profileKey, NavigationPlanningPurpose purpose, out NavigationFailureKey key)
         {
             key = default;
             if (world == null) return false;
             Vector2 snappedStart = default;
             NavigationSupport support = default;
-            bool hasSupport = profileKey.IsGround && world.TryResolveGroundSupport(start, profileKey.BodySize, out snappedStart, out support);
-            key = new NavigationFailureKey(hasSupport, support.Surface, hasSupport ? snappedStart : start,
+            bool hasSupport = profileKey.IsGround && world.TryResolveGroundSupport(body, out snappedStart, out support);
+            key = new NavigationFailureKey(hasSupport, support.Surface,
+                hasSupport ? AABB.FromLowerCenter(snappedStart, body.Size) : body,
                 goal, profileKey, purpose);
             return true;
         }
@@ -495,34 +496,41 @@ namespace Aethiumian.AI.Navigation
         {
             private readonly bool hasSupport;
             private readonly NavigationSurfaceId supportSurface;
-            private readonly int startX;
-            private readonly int startY;
+            private readonly int minX;
+            private readonly int minY;
+            private readonly int maxX;
+            private readonly int maxY;
             private readonly NavigationGoalRequest goal;
             private readonly NavigationProfileKey profileKey;
             private readonly NavigationPlanningPurpose purpose;
 
             public NavigationProfileKey ProfileKey => profileKey;
-            public NavigationFailureKey(bool hasSupport, NavigationSurfaceId supportSurface, Vector2 start,
+            public NavigationFailureKey(bool hasSupport, NavigationSurfaceId supportSurface, AABB body,
                 NavigationGoalRequest goal, NavigationProfileKey profileKey, NavigationPlanningPurpose purpose)
             {
                 this.hasSupport = hasSupport;
                 this.supportSurface = supportSurface;
-                startX = BitConverter.SingleToInt32Bits(start.x);
-                startY = BitConverter.SingleToInt32Bits(start.y);
+                minX = BitConverter.SingleToInt32Bits(body.MinX);
+                minY = BitConverter.SingleToInt32Bits(body.MinY);
+                maxX = BitConverter.SingleToInt32Bits(body.MaxX);
+                maxY = BitConverter.SingleToInt32Bits(body.MaxY);
                 this.goal = goal;
                 this.profileKey = profileKey;
                 this.purpose = purpose;
             }
             public bool Equals(NavigationFailureKey other) => hasSupport == other.hasSupport
                 && supportSurface == other.supportSurface
-                && startX == other.startX
-                && startY == other.startY
+                && minX == other.minX
+                && minY == other.minY
+                && maxX == other.maxX
+                && maxY == other.maxY
                 && goal.Equals(other.goal)
                 && profileKey.Equals(other.profileKey)
                 && purpose == other.purpose;
             public override bool Equals(object obj) => obj is NavigationFailureKey other && Equals(other);
-            public override int GetHashCode() => HashCode.Combine(hasSupport, supportSurface, startX, startY,
-                goal, profileKey, purpose);
+            public override int GetHashCode() => HashCode.Combine(
+                HashCode.Combine(hasSupport, supportSurface, minX, minY),
+                HashCode.Combine(maxX, maxY, goal, profileKey, purpose));
         }
 
         /// <summary>Stores exact profile value bits used to generate a navigation search.</summary>

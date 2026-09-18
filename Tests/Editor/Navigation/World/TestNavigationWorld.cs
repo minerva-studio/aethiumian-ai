@@ -109,8 +109,10 @@ namespace Aethiumian.AI.Navigation.Tests
 
         public override bool TryGetSupportBelow(Vector2 position, out NavigationSupport support) => snapshot.TryGetSupportBelow(position, out support);
 
-        public override bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
+        public override bool TryResolveSupport(AABB body, float snapDistance, out NavigationSupport support)
         {
+            Vector2 feet = body.LowerCenter;
+            Vector2 bodySize = body.Size;
             support = default;
             bool found = false;
             float bestDistance = float.PositiveInfinity;
@@ -153,8 +155,8 @@ namespace Aethiumian.AI.Navigation.Tests
             }
         }
 
-        public override void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, List<NavigationSurfaceCrossing> results)
-            => snapshot.CollectOneWayCrossings(previousFeet, currentFeet, bodyWidth, results);
+        public override void CollectOneWayCrossings(AABB previousBody, Vector2 displacement, List<NavigationSurfaceCrossing> results)
+            => snapshot.CollectOneWayCrossings(previousBody, displacement, results);
 
         public override bool AreInSameRegion(Vector2 first, Vector2 second) => snapshot.AreInSameRegion(first, second);
 

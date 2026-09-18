@@ -46,7 +46,7 @@ namespace Aethiumian.AI.Navigation.Tests
             ContactFilter2D filter = new NavigationPhysicsLayers(1, 0).CreateTerrainFilter();
             filter.SetLayerMask(filter.layerMask.value & ~body.excludeLayers.value & ~collider.excludeLayers.value);
             var executor = new FlyTraversalExecutor(body, collider, 4f, 1f, filter);
-            executor.SetWaypoint(NavigationBodyGeometry.GetCenterAnchor(collider), origin + Vector2.right * 2f,
+            executor.SetWaypoint(NavigationBodyGeometry.GetBodyCenter(collider), origin + Vector2.right * 2f,
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
 
             ExecutionResult result = executor.Tick(0.02f);
@@ -70,7 +70,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.AreEqual(Vector2.zero, body.linearVelocity, "Construction must not write physics state.");
 
-            executor.SetWaypoint(NavigationBodyGeometry.GetCenterAnchor(bodyCollider), steeringTarget,
+            executor.SetWaypoint(NavigationBodyGeometry.GetBodyCenter(bodyCollider), steeringTarget,
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
             ExecutionResult result = executor.Tick(0.02f);
 
@@ -97,9 +97,9 @@ namespace Aethiumian.AI.Navigation.Tests
                 4f,
                 0.1f,
                 ContactFilter2D.noFilter);
-            Vector2 center = NavigationBodyGeometry.GetCenterAnchor(bodyCollider);
+            Vector2 bodyCenter = NavigationBodyGeometry.GetBodyCenter(bodyCollider);
 
-            executor.SetWaypoint(center, center + Vector2.right * 0.005f,
+            executor.SetWaypoint(bodyCenter, bodyCenter + Vector2.right * 0.005f,
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
             ExecutionResult result = executor.Tick(0.02f);
 
@@ -119,12 +119,12 @@ namespace Aethiumian.AI.Navigation.Tests
                 0.5f,
                 ContactFilter2D.noFilter);
 
-            executor.SetWaypoint(NavigationBodyGeometry.GetCenterAnchor(bodyCollider), new Vector2(2f, 0f),
+            executor.SetWaypoint(NavigationBodyGeometry.GetBodyCenter(bodyCollider), new Vector2(2f, 0f),
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
             Assert.AreEqual(ExecutionStatus.Running, executor.Tick(0.02f).Status);
             Assert.AreEqual(2f, body.linearVelocity.x, 0.0001f);
 
-            executor.SetWaypoint(NavigationBodyGeometry.GetCenterAnchor(bodyCollider), new Vector2(0f, 2f),
+            executor.SetWaypoint(NavigationBodyGeometry.GetBodyCenter(bodyCollider), new Vector2(0f, 2f),
                 Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
             Assert.AreEqual(ExecutionStatus.Running, executor.Tick(0.02f).Status);
             Assert.That(body.linearVelocity.x, Is.GreaterThan(0f));

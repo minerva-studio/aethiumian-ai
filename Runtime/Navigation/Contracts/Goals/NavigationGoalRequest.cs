@@ -46,10 +46,12 @@ namespace Aethiumian.AI.Navigation
         public bool IsRetreat => Geometry == NavigationGoalGeometry.Retreat;
 
         /// <summary>
-        /// Gets the center used as a deterministic planning heuristic. Ground Range reasons about
-        /// the continuous lower edge of its target, without integer rounding.
+        /// Gets the target position this request's route-reuse comparisons measure. Ground Range
+        /// reasons about the continuous lower edge of its target without integer rounding; centered
+        /// geometries use the target center. It stays private because it is comparison geometry,
+        /// not a second public target point.
         /// </summary>
-        public Vector2 Anchor => IsGroundWalk ? TargetBounds.LowerCenter : TargetBounds.Center;
+        private Vector2 ReuseComparisonPoint => IsGroundWalk ? TargetBounds.LowerCenter : TargetBounds.Center;
 
         public NavigationGoalRequest(AABB targetBounds, NavigationGoalGeometry geometry, DistanceMetric distanceMetric, bool requiresLineOfSight, float arrivalTolerance, float retreatDistance)
         {
@@ -87,40 +89,50 @@ namespace Aethiumian.AI.Navigation
 
 
 
-        /// <summary>Returns the pure-geometry completion distance without evaluating the optional LOS constraint.</summary>
-        public float GeometryCompletionDistance(Vector2 center, Vector2 bodySize)
+        /// <summary>
+        /// Returns the pure-geometry completion distance for a body without evaluating the optional LOS constraint.
+        /// The body pose owns every conversion its geometry needs, so callers never repeat a center or
+        /// lower-center derivation.
+        /// </summary>
+        public float GeometryCompletionDistance(AABB body)
         {
+            Aabb(body, nameof(body));
             switch (Geometry)
             {
                 case NavigationGoalGeometry.Retreat:
-                    return Mathf.Max(0f, RetreatDistance - DistanceToCenteredBody(center, bodySize));
+                    return Mathf.Max(0f, RetreatDistance - DistanceToCenteredBody(body));
                 case NavigationGoalGeometry.GroundRange:
-                    return DistanceToLowerCenterGoal(center - Vector2.up * (bodySize.y * 0.5f), bodySize.x);
+                    return DistanceToLowerCenterGoal(body.LowerCenter, body.SizeX);
                 default:
-                    return DistanceToCenteredBody(center, bodySize);
+                    return DistanceToCenteredBody(body);
             }
         }
 
         /// <summary>
-        /// Returns the pure-geometry completion distance over one swept center segment. Ground Range
-        /// and centered geometries measure the swept lower-center body box; Retreat reports the best
-        /// of its two endpoints, matching its increase-only completion rule.
+        /// Returns the pure-geometry completion distance over one swept body. Ground Range and centered
+        /// geometries measure the swept lower-center body box; Retreat reports the best of its two
+        /// endpoints, matching its increase-only completion rule.
         /// </summary>
-        public float GeometrySweptCompletionDistance(Vector2 startCenter, Vector2 endCenter, Vector2 bodySize)
+        public float GeometrySweptCompletionDistance(AABB startBody, AABB endBody)
         {
-            NonNegativeVector(bodySize, nameof(bodySize));
+            Aabb(startBody, nameof(startBody));
+            Aabb(endBody, nameof(endBody));
             if (IsRetreat)
-                return Mathf.Min(GeometryCompletionDistance(startCenter, bodySize), GeometryCompletionDistance(endCenter, bodySize));
+                return Mathf.Min(GeometryCompletionDistance(startBody), GeometryCompletionDistance(endBody));
 
-            Vector2 offset = Vector2.up * (bodySize.y * 0.5f);
-            return DistanceToLowerCenterBodySegment(startCenter - offset, endCenter - offset, bodySize);
+            return DistanceToLowerCenterBodySegment(startBody.LowerCenter, endBody.LowerCenter, startBody.Size);
         }
 
-        /// <summary>Clips a finite center sweep to the convex interval that satisfies goal geometry.</summary>
-        public bool TryGetGeometryCompletionInterval(Vector2 startCenter, Vector2 endCenter, Vector2 bodySize, out float entry, out float exit)
+        /// <summary>Clips a finite body sweep to the convex interval that satisfies goal geometry.</summary>
+        public bool TryGetGeometryCompletionInterval(AABB startBody, AABB endBody, out float entry, out float exit)
         {
             const int searchIterations = 48;
-            float startDistance = GeometryCompletionDistance(startCenter, bodySize);
+            Aabb(startBody, nameof(startBody));
+            Aabb(endBody, nameof(endBody));
+            Vector2 startCenter = startBody.Center;
+            Vector2 endCenter = endBody.Center;
+            Vector2 size = startBody.Size;
+            float startDistance = GeometryCompletionDistance(startBody);
             if (startCenter == endCenter)
             {
                 entry = 0f;
@@ -134,8 +146,10 @@ namespace Aethiumian.AI.Navigation
             {
                 float first = (left * 2f + right) / 3f;
                 float second = (left + right * 2f) / 3f;
-                float firstDistance = GeometryCompletionDistance(Vector2.Lerp(startCenter, endCenter, first), bodySize);
-                float secondDistance = GeometryCompletionDistance(Vector2.Lerp(startCenter, endCenter, second), bodySize);
+                float firstDistance = GeometryCompletionDistance(
+                    AABB.FromCenterAndSize(Vector2.Lerp(startCenter, endCenter, first), size));
+                float secondDistance = GeometryCompletionDistance(
+                    AABB.FromCenterAndSize(Vector2.Lerp(startCenter, endCenter, second), size));
                 if (firstDistance < secondDistance) right = second;
                 else if (secondDistance < firstDistance) left = first;
                 else
@@ -146,7 +160,7 @@ namespace Aethiumian.AI.Navigation
             }
 
             float minimum = (left + right) * 0.5f;
-            if (GeometryCompletionDistance(Vector2.Lerp(startCenter, endCenter, minimum), bodySize)
+            if (GeometryCompletionDistance(AABB.FromCenterAndSize(Vector2.Lerp(startCenter, endCenter, minimum), size))
                 > CompletionTolerance)
             {
                 entry = default;
@@ -156,10 +170,10 @@ namespace Aethiumian.AI.Navigation
 
             entry = startDistance <= CompletionTolerance
                 ? 0f
-                : FindCompletionBoundary(startCenter, endCenter, bodySize, 0f, minimum, true);
-            exit = GeometryCompletionDistance(endCenter, bodySize) <= CompletionTolerance
+                : FindCompletionBoundary(startCenter, endCenter, size, 0f, minimum, true);
+            exit = GeometryCompletionDistance(AABB.FromCenterAndSize(endCenter, size)) <= CompletionTolerance
                 ? 1f
-                : FindCompletionBoundary(startCenter, endCenter, bodySize, minimum, 1f, false);
+                : FindCompletionBoundary(startCenter, endCenter, size, minimum, 1f, false);
             return true;
         }
 
@@ -170,7 +184,8 @@ namespace Aethiumian.AI.Navigation
             for (int iteration = 0; iteration < searchIterations; iteration++)
             {
                 float middle = (lower + upper) * 0.5f;
-                bool complete = GeometryCompletionDistance(Vector2.Lerp(startCenter, endCenter, middle), bodySize) <= CompletionTolerance;
+                bool complete = GeometryCompletionDistance(
+                    AABB.FromCenterAndSize(Vector2.Lerp(startCenter, endCenter, middle), bodySize)) <= CompletionTolerance;
                 if (complete == entering) upper = middle;
                 else lower = middle;
             }
@@ -201,18 +216,17 @@ namespace Aethiumian.AI.Navigation
             return DistanceToSegmentBounds(start, end, acceptanceBounds);
         }
 
-        /// <summary>Returns the distance from a lower-center body AABB to this target.</summary>
-        public float DistanceToLowerCenterBody(Vector2 lowerCenter, Vector2 bodySize)
+        /// <summary>Returns the distance from a lower-center body to this target.</summary>
+        public float DistanceToLowerCenterBody(AABB body)
         {
-            Finite(lowerCenter, nameof(lowerCenter));
-            NonNegativeVector(bodySize, nameof(bodySize));
+            Aabb(body, nameof(body));
             return IsGroundWalk
-                ? DistanceToLowerCenterGoal(lowerCenter, bodySize.x)
-                : DistanceMetric.DistanceToBody(AABB.FromCenterAndSize(lowerCenter + Vector2.up * (bodySize.y * 0.5f), bodySize), TargetBounds);
+                ? DistanceToLowerCenterGoal(body.LowerCenter, body.SizeX)
+                : DistanceMetric.DistanceToBody(body, TargetBounds);
         }
 
         /// <summary>Returns the minimum distance from a lower-center body swept along a segment to this target.</summary>
-        public float DistanceToLowerCenterBodySegment(Vector2 start, Vector2 end, Vector2 bodySize)
+        private float DistanceToLowerCenterBodySegment(Vector2 start, Vector2 end, Vector2 bodySize)
         {
             Finite(start, nameof(start));
             Finite(end, nameof(end));
@@ -228,24 +242,22 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Returns the distance from a center-anchored body AABB to this target.
+        /// Returns the distance from a body to this target, measuring the body box rather than a point.
         /// </summary>
-        public float DistanceToCenteredBody(Vector2 center, Vector2 bodySize)
+        public float DistanceToCenteredBody(AABB body)
         {
-            Finite(center, nameof(center));
-            NonNegativeVector(bodySize, nameof(bodySize));
-            return DistanceMetric.DistanceToBody(AABB.FromCenterAndSize(center, bodySize), TargetBounds);
+            Aabb(body, nameof(body));
+            return DistanceMetric.DistanceToBody(body, TargetBounds);
         }
 
         /// <summary>
-        /// Gets the best-effort distance from a mover center to the raw target center.
+        /// Gets the best-effort distance from a mover body to the raw target center.
         /// </summary>
-        public float GuidanceDistance(Vector2 center, Vector2 bodySize)
+        public float GuidanceDistance(AABB body)
         {
-            Finite(center, nameof(center));
-            NonNegativeVector(bodySize, nameof(bodySize));
-            if (IsRetreat) return -DistanceToCenteredBody(center, bodySize);
-            Vector2 delta = center - TargetBounds.Center;
+            Aabb(body, nameof(body));
+            if (IsRetreat) return -DistanceToCenteredBody(body);
+            Vector2 delta = body.Center - TargetBounds.Center;
             return IsGroundWalk ? delta.magnitude : DistanceMetric.MetricLength(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
         }
 
@@ -256,8 +268,9 @@ namespace Aethiumian.AI.Navigation
 
 
         /// <summary>
-        /// Returns whether this request is compatible with the previous one for route reuse. 
-        /// The caller's position thresholds are applied to the target center, and the geometry and distance metric must match exactly.
+        /// Returns whether this request is compatible with the previous one for route reuse.
+        /// The position thresholds are applied to this geometry's target position, and the geometry,
+        /// distance metric, and target extent must match exactly.
         /// 
         /// This is the route-reuse relation and is deliberately looser than <see cref="Equals(NavigationGoalRequest)"/>, which stays exact for cache identity.
         /// </summary>
@@ -266,7 +279,7 @@ namespace Aethiumian.AI.Navigation
         public bool IsSamePlanningTarget(NavigationGoalRequest latest)
         {
             if (!HasCompatibleSemantics(latest)) return false;
-            return (Anchor - latest.Anchor).sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
+            return (ReuseComparisonPoint - latest.ReuseComparisonPoint).sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
         }
 
         /// <summary>
@@ -305,7 +318,7 @@ namespace Aethiumian.AI.Navigation
             // Target extents have already passed the sampling-noise check above; only the
             // target position is compared against the re-planning tolerance here.
             if (!IsGroundWalk)
-                return Vector2.Distance(Anchor, latest.Anchor) <= horizontalThreshold;
+                return Vector2.Distance(ReuseComparisonPoint, latest.ReuseComparisonPoint) <= horizontalThreshold;
 
             bool horizontalChanged = Mathf.Max(Mathf.Abs(TargetBounds.MinX - latest.TargetBounds.MinX), Mathf.Abs(TargetBounds.MaxX - latest.TargetBounds.MaxX)) > horizontalThreshold;
             bool levelChanged = Mathf.Abs(TargetBounds.MinY - latest.TargetBounds.MinY) > verticalThreshold;
