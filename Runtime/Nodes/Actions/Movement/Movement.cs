@@ -184,6 +184,7 @@ namespace Aethiumian.AI.Nodes
                 if (IsComplete) return;
                 if (ActiveSegment == null)
                 {
+                    ReportMovementState(MovementState.Idle);
                     if (IsGoalSatisfied(goal, body, swept)) { EndMovement(true, goal); return; }
                     RefreshPendingPlanningRequest(goal, body);
                     MaintainPlanning(goal, body,
@@ -193,6 +194,7 @@ namespace Aethiumian.AI.Nodes
 
                 NavigationRouteSegment action = ActiveSegment;
                 ExecutionResult result = executor.Tick(Time.fixedDeltaTime);
+                ReportMovementStateAfterExecution(action, result);
                 RecordStallFailure(result);
                 if (result.Status == ExecutionStatus.Failed)
                 {
@@ -206,6 +208,7 @@ namespace Aethiumian.AI.Nodes
                     }
                     else
                     {
+                        ReportMovementState(MovementState.Idle);
                         MaintainPlanning(goal, body, skipCountingThisTick: true);
                     }
                     return;
@@ -221,7 +224,10 @@ namespace Aethiumian.AI.Nodes
                     fallbackReceiptConsumed |= TryAcquireAction(goal, body);
                     if (IsComplete) return;
                     if (ActiveSegment == null)
+                    {
+                        ReportMovementState(MovementState.Idle);
                         RigidBody.linearVelocity = Vector2.zero;
+                    }
                 }
                 // Planning can overlap execution, but a second physical action never ticks here.
                 RefreshPendingPlanningRequest(goal, body);
@@ -306,6 +312,31 @@ namespace Aethiumian.AI.Nodes
                 success = false;
             if (success && goal.HasValue) Finish(true, goal);
             CompleteAction(success);
+        }
+
+        private static MovementState GetMovementState(NavigationRouteSegment segment)
+            => segment switch
+            {
+                GroundRouteSegment => MovementState.Walking,
+                JumpRouteSegment => MovementState.Jumping,
+                FallRouteSegment => MovementState.Falling,
+                DropThroughRouteSegment => MovementState.DroppingThrough,
+                FlyRouteSegment => MovementState.Flying,
+                _ => throw new InvalidOperationException(
+                    $"Movement navigation produced an unsupported state for {segment?.GetType().Name ?? "null"}.")
+            };
+
+        private void ReportMovementStateAfterExecution(NavigationRouteSegment action, ExecutionResult result)
+        {
+            if (action is JumpRouteSegment)
+            {
+                if (executor is GroundTraversalExecutor ground && ground.HasJumpLaunched)
+                    ReportMovementState(MovementState.Jumping);
+                return;
+            }
+
+            if (result.Status != ExecutionStatus.Failed)
+                ReportMovementState(GetMovementState(action));
         }
 
         protected sealed override void OnActionCompleting(bool success)

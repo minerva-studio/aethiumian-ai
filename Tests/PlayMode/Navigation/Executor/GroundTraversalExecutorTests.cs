@@ -60,8 +60,7 @@ namespace Aethiumian.AI.Navigation.Tests
             CreateFloor(new Vector2(0f, -0.56f), new Vector2(4f, 0.1f), NavigationPhysicsTestLayers.GeometryLayer);
             Physics2D.SyncTransforms();
             body.linearVelocity = new Vector2(0f, 3f);
-            int walkCallbacks = 0;
-            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f, () => walkCallbacks++);
+            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 0.5f);
             executor.SetGroundMove(new Vector2(0f, -0.5f), new Vector2(2f, -0.5f));
 
             Assert.AreEqual(new Vector2(0f, 3f), body.linearVelocity);
@@ -69,7 +68,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
             Assert.AreEqual(2f, body.linearVelocityX, 0.0001f);
             Assert.AreEqual(3f, body.linearVelocityY, 0.0001f);
-            Assert.AreEqual(1, walkCallbacks);
         }
 
         /// <summary>Verifies ground movement consumes the supplied terrain filter instead of project layer defaults.</summary>
@@ -151,14 +149,11 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.IsTrue(JumpTrajectory.TrySolve(
                 new JumpTrajectoryInput(new Vector2(0f, -0.5f), new Vector2(1f, -0.5f), Physics2D.gravity, 1f, 0f, 1f, Time.fixedDeltaTime),
                 out JumpTrajectorySolution solution));
-            int jumpCallbacks = 0;
-            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 1f, onJump: () => jumpCallbacks++);
+            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 1f);
             executor.BeginJump(solution);
 
             Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
-            Assert.AreEqual(1, jumpCallbacks);
             Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
-            Assert.AreEqual(1, jumpCallbacks);
         }
 
         /// <summary>Verifies a damped jump leaves the floor, lands once, and completes against the observed contact gap.</summary>
@@ -187,13 +182,11 @@ namespace Aethiumian.AI.Navigation.Tests
                 1f,
                 out JumpTrajectorySolution solution), Is.True);
 
-            int jumpCallbacks = 0;
-            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 1f, onJump: () => jumpCallbacks++);
+            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), 4f, 1f);
             executor.BeginJump(solution);
 
             float settledAnchorY = NavigationBodyGeometry.GetGroundAnchor(collider).y;
             Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
-            Assert.That(jumpCallbacks, Is.EqualTo(1));
 
             int flightTicks = Mathf.RoundToInt(solution.FlightDuration / Time.fixedDeltaTime);
             bool leftGround = false;
@@ -217,7 +210,6 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             Vector2 finalAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
-            Assert.That(jumpCallbacks, Is.EqualTo(1));
             Assert.That(leftGround, Is.True);
             Assert.That(maximumAnchorY, Is.GreaterThan(settledAnchorY + 0.5f));
             Assert.That(landed, Is.True, "The body did not return to the LevelGeometry floor.");

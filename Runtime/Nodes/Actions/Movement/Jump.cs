@@ -15,8 +15,6 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Library-of-Meialia-AI")]
     public class Jump : Aethiumian.AI.Nodes.Movement
     {
-        private const string JumpCallbackMethodName = "OnJump";
-
         [Header("Jump Property")]
         /// <summary>Maximum apex displacement above the launch support; the solver selects a lower arc when possible.</summary>
         public VariableField<float> jumpHeight = 3f;
@@ -114,7 +112,7 @@ namespace Aethiumian.AI.Nodes
             try
             {
                 action = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, NavigationRuntime.CreateTerrainFilter(), trajectory, lease, MaximumIdleDuration);
-                InvokeJumpCallback();
+                ReportMovementState(MovementState.Jumping);
                 nextJumpTime = ExecutionTime + EffectiveJumpInterval;
                 return action;
             }
@@ -133,16 +131,6 @@ namespace Aethiumian.AI.Nodes
                 throw new ArgumentOutOfRangeException(nameof(speedModifier), modifier,
                     "Jump speedModifier must be finite and positive.");
             return modifier;
-        }
-
-        private void InvokeJumpCallback()
-        {
-            foreach (MonoBehaviour component in gameObject.GetComponents<MonoBehaviour>())
-            {
-                MonoBehaviour callbackTarget = component;
-                try { CallbackTable.Call(ref callbackTarget, JumpCallbackMethodName); }
-                catch { }
-            }
         }
 
         protected override Vector2 GetWanderLocation(Vector2 center, AABB body)

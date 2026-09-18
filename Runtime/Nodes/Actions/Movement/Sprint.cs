@@ -26,15 +26,16 @@ namespace Aethiumian.AI.Nodes
         {
             activeForceApplication = forceApplication;
             current = 0f;
+            movementSource = Script as IMovementSource
+                ?? throw new InvalidOperationException($"{nameof(Sprint)} requires its ControlTarget to implement {nameof(IMovementSource)}.");
             if (activeForceApplication == ForceApplication.Legacy)
             {
                 var legacyBody = gameObject.GetComponent<Rigidbody2D>();
                 legacyBody.AddForce(force);
+                ReportMovementState(MovementState.Sprinting);
                 return;
             }
 
-            movementSource = Script as IMovementSource
-                ?? throw new InvalidOperationException($"{nameof(Sprint)} requires its ControlTarget to implement {nameof(IMovementSource)}.");
             var body = gameObject.GetComponent<Rigidbody2D>();
             if (!body)
             {
@@ -55,11 +56,20 @@ namespace Aethiumian.AI.Nodes
 
             if (!movementSource.CanMove)
             {
+                ReportMovementState(MovementState.Idle);
                 Fail();
                 return;
             }
 
-            if (executor.Tick(Time.fixedDeltaTime).Status == ExecutionStatus.Completed)
+            ExecutionResult result = executor.Tick(Time.fixedDeltaTime);
+            if (result.Status == ExecutionStatus.Running)
+            {
+                ReportMovementState(MovementState.Sprinting);
+                return;
+            }
+
+            ReportMovementState(MovementState.Idle);
+            if (result.Status == ExecutionStatus.Completed)
             {
                 Success();
             }
@@ -68,6 +78,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Releases runtime-only references owned by the current execution.</summary>
         public override void OnDestroy()
         {
+            ReportMovementState(MovementState.Idle);
             movementSource = null;
             executor?.Dispose();
             executor = null;
@@ -78,11 +89,26 @@ namespace Aethiumian.AI.Nodes
         {
             var body = gameObject.GetComponent<Rigidbody2D>();
             body.AddForce(force);
+            ReportMovementState(MovementState.Sprinting);
 
             current += Time.fixedDeltaTime;
             if (current > duration)
             {
+                ReportMovementState(MovementState.Idle);
                 End(true);
+            }
+        }
+
+        private void ReportMovementState(MovementState state)
+        {
+            if (state == MovementState.Unspecified || movementSource == null) return;
+            try
+            {
+                movementSource.SetMovementState(new MovementStateInfo(state));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, gameObject);
             }
         }
     }

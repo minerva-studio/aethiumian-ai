@@ -13,8 +13,6 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Aethiumian.AI.Nodes", "Library-of-Meialia-AI")]
     public class FixedJump : NavigationAction
     {
-        private const string JumpCallbackMethodName = "OnJump";
-
         public enum JumpTargetMode
         {
             Direct = 0,
@@ -394,7 +392,7 @@ namespace Aethiumian.AI.Nodes
         private void BeginExecutor(JumpTrajectorySolution solved, OneWayPlatformCollisionLease lease)
         {
             executor = new BallisticJumpExecutor(rb, bodyCollider, navigationColliders, navigation.CreateTerrainFilter(), solved, lease);
-            InvokeJumpCallback();
+            ReportMovementState(MovementState.Jumping);
         }
 
         protected override void ReleaseActionResources()
@@ -411,17 +409,6 @@ namespace Aethiumian.AI.Nodes
 
         private float GetArrivalTolerance()
             => reachDistance == null || !reachDistance.HasValue ? 0f : reachDistance.NumericValue;
-
-        /// <summary>Invokes the standard jump callback after a trajectory executor is ready.</summary>
-        private void InvokeJumpCallback()
-        {
-            foreach (MonoBehaviour component in gameObject.GetComponents<MonoBehaviour>())
-            {
-                MonoBehaviour callbackTarget = component;
-                try { CallbackTable.Call(ref callbackTarget, JumpCallbackMethodName); }
-                catch { }
-            }
-        }
 
     }
 }

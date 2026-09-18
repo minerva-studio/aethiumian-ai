@@ -13,9 +13,6 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Library-of-Meialia-AI")]
     public class Walk : Aethiumian.AI.Nodes.Movement
     {
-        private const string JUMP_CALLBACK_METHOD_NAME = "OnJump";
-        private const string WALK_CALLBACK_METHOD_NAME = "OnWalk";
-
         [Header("Walk Properties")]
         public VariableField<bool> setFinalPosition;
         public VariableField<float> accelerateRate = 0.5f;
@@ -112,7 +109,7 @@ namespace Aethiumian.AI.Nodes
                 if (groundExecutor != null) return groundExecutor;
                 unexpectedLandingRecoveryCount = 0;
                 return groundExecutor = new GroundTraversalExecutor(RigidBody, Collider, NavigationRuntime.CreateTerrainFilter(),
-                    NewFixedSpeed, accelerateRate, DoWalkCallback, DoJumpCallback, NavigationColliders, MaximumIdleDuration);
+                    NewFixedSpeed, accelerateRate, NavigationColliders, MaximumIdleDuration);
             }
             switch (segment)
             {
@@ -241,26 +238,6 @@ namespace Aethiumian.AI.Nodes
         {
             if (!spriteFlip || !transform.TryGetComponent(out SpriteRenderer spriteRenderer)) return;
             spriteRenderer.flipX = target.x < bodyPosition.x;
-        }
-
-        private void DoWalkCallback()
-        {
-            foreach (var item in gameObject.GetComponents<MonoBehaviour>())
-            {
-                var behaviour = item;
-                try { CallbackTable.Call(ref behaviour, WALK_CALLBACK_METHOD_NAME); }
-                catch { }
-            }
-        }
-
-        private void DoJumpCallback()
-        {
-            foreach (var item in gameObject.GetComponents<MonoBehaviour>())
-            {
-                var behaviour = item;
-                try { CallbackTable.Call(ref behaviour, JUMP_CALLBACK_METHOD_NAME); }
-                catch { }
-            }
         }
     }
 }

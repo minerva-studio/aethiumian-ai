@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
 using NUnit.Framework;
 using UnityEngine;
@@ -185,10 +186,15 @@ namespace Aethiumian.AI.Navigation.Tests
 
             public int WalkCount { get; private set; }
             public int JumpCount { get; private set; }
+            public MovementState CurrentMovementState { get; private set; } = MovementState.Unspecified;
 
-            public void OnWalk() => WalkCount++;
-
-            public void OnJump() => JumpCount++;
+            public void SetMovementState(MovementStateInfo stateInfo)
+            {
+                if (stateInfo.State == MovementState.Unspecified) return;
+                CurrentMovementState = stateInfo.State;
+                if (stateInfo.State == MovementState.Walking) WalkCount++;
+                if (stateInfo.State == MovementState.Jumping) JumpCount++;
+            }
         }
     }
 }

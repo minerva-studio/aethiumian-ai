@@ -22,8 +22,6 @@ namespace Aethiumian.AI.Navigation
         private readonly IReadOnlyList<Collider2D> navigationColliders;
         private readonly float speed;
         private readonly float accelerationRate;
-        private readonly Action onWalk;
-        private readonly Action onJump;
         private readonly RaycastHit2D[] hits = new RaycastHit2D[HitCapacity];
         private readonly ContactFilter2D terrainFilter;
 
@@ -81,6 +79,8 @@ namespace Aethiumian.AI.Navigation
         /// Gets the number of collision pairs owned by the current action.
         /// </summary>
         public int PlatformCollisionLeaseCount => oneWayPlatformLease?.EntryCount ?? 0;
+        /// <summary>Gets whether the current jump has applied its launch impulse.</summary>
+        internal bool HasJumpLaunched => jumpLaunched;
 
         /// <summary>
         /// Captures borrowed physics inputs and the per-execution stall timeout (zero disables it).
@@ -92,8 +92,6 @@ namespace Aethiumian.AI.Navigation
             ContactFilter2D terrainFilter,
             float speed,
             float accelerationRate,
-            Action onWalk = null,
-            Action onJump = null,
             IReadOnlyList<Collider2D> navigationColliders = null,
             float maximumIdleDuration = 0f) : base(maximumIdleDuration)
         {
@@ -103,8 +101,6 @@ namespace Aethiumian.AI.Navigation
             Validate.NonNegativeFinite(accelerationRate, nameof(accelerationRate));
             this.speed = speed;
             this.accelerationRate = accelerationRate;
-            this.onWalk = onWalk;
-            this.onJump = onJump;
             this.navigationColliders = navigationColliders ?? new[] { bodyCollider };
             this.terrainFilter = terrainFilter;
         }
@@ -261,7 +257,6 @@ namespace Aethiumian.AI.Navigation
             if (Mathf.Abs(horizontalVelocity) <= NavigationConstant.MinimumMotion) return ExecutionResult.Running;
 
             body.linearVelocity = new Vector2(horizontalVelocity, body.linearVelocityY);
-            onWalk?.Invoke();
             return ExecutionResult.Running;
         }
 
@@ -277,7 +272,6 @@ namespace Aethiumian.AI.Navigation
                 jumpLaunched = true;
                 elapsedSeconds = 0f;
                 ResetProgressBaseline();
-                onJump?.Invoke();
                 return ExecutionResult.Running;
             }
 
@@ -351,7 +345,6 @@ namespace Aethiumian.AI.Navigation
                     if (Mathf.Abs(horizontalVelocity) > NavigationConstant.MinimumMotion)
                     {
                         body.linearVelocity = new Vector2(horizontalVelocity, body.linearVelocityY);
-                        onWalk?.Invoke();
                     }
                     return ExecutionResult.Running;
                 }

@@ -119,11 +119,13 @@ namespace Aethiumian.AI.Nodes
                 }
                 if (!movementSource.CanMove)
                 {
+                    ReportMovementState(MovementState.Idle);
                     ResetActionProgress();
                     return;
                 }
                 if (phase == Phase.WaitingForWorld)
                 {
+                    ReportMovementState(MovementState.Idle);
                     if (!navigationRuntime.TryGetWorld(out world)) return;
                     phase = Phase.Executing;
                     InitializeAction();
@@ -152,6 +154,25 @@ namespace Aethiumian.AI.Nodes
         protected virtual void OnMissingRuntime() => throw new InvalidOperationException(
             $"{GetType().Name} requires a live NavigationRuntimeContext.Current.");
 
+        /// <summary>
+        /// Reports one valid locomotion state without allowing an observer failure to break
+        /// navigation cleanup or execution ownership.
+        /// </summary>
+        protected void ReportMovementState(MovementState state)
+        {
+            if (state == MovementState.Unspecified)
+                throw new ArgumentOutOfRangeException(nameof(state), state, "Unspecified is not a reportable movement state.");
+
+            try
+            {
+                movementSource?.SetMovementState(new MovementStateInfo(state));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, gameObject);
+            }
+        }
+
         /// <summary>Completes and releases this run before publishing its result to the behaviour tree.</summary>
         protected void CompleteAction(bool success)
         {
@@ -174,6 +195,7 @@ namespace Aethiumian.AI.Nodes
         private void ReleaseExecution()
         {
             if (phase == Phase.Ended) return;
+            ReportMovementState(MovementState.Idle);
             phase = Phase.Ended;
             try { executionCancellation?.Cancel(); }
             finally

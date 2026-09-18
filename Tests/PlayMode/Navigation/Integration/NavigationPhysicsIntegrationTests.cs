@@ -86,10 +86,9 @@ namespace Aethiumian.AI.Navigation.Tests
                 + $"generatedJumps={diagnostics.JumpCandidateGeneratedCount}, validatedJumps={diagnostics.JumpCandidateValidatedCount}.");
             Assert.That(ContainsSegment<JumpRouteSegment>(route), Is.True, "The physical obstacle must require a planned JumpRouteSegment.");
 
-            int jumpCallbacks = 0;
             bool leftGround = false;
             float settledAnchorY = observedStart.y;
-            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), parameters.Speed, 1f, onJump: () => jumpCallbacks++);
+            using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), parameters.Speed, 1f);
             for (int stepIndex = 0; stepIndex < route.Count; stepIndex++)
             {
                 NavigationRouteSegment segment = route.Segments[stepIndex];
@@ -138,7 +137,6 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             Vector2 finalAnchor = NavigationBodyGeometry.GetGroundAnchor(collider);
-            Assert.That(jumpCallbacks, Is.GreaterThanOrEqualTo(1));
             Assert.That(leftGround, Is.True);
             Assert.That(Mathf.Abs(finalAnchor.x - route.Endpoint.x),
                 Is.LessThanOrEqualTo(Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon));
