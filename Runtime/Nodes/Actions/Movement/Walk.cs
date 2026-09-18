@@ -22,7 +22,6 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Maximum apex displacement above the launch support; the solver selects a lower arc when possible.</summary>
         public VariableField<float> jumpHeight = 2f;
         public VariableField<float> jumpLength = 3f;
-        public bool spriteFlip;
 
         [NonSerialized] private int unexpectedLandingRecoveryCount;
         private float NewFixedSpeed => speed * speedModifier;
@@ -115,7 +114,6 @@ namespace Aethiumian.AI.Nodes
             {
                 case GroundRouteSegment ground:
                     GetExecutor().SetGroundMove(body.LowerCenter, ground.End);
-                    UpdateSpriteFacing(segment.End, body.LowerCenter);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case JumpRouteSegment jump:
@@ -161,17 +159,14 @@ namespace Aethiumian.AI.Nodes
                         return ActionPreparation.Unavailable;
                     try { GetExecutor().BeginJump(trajectory, lease); }
                     catch { lease?.Dispose(); throw; }
-                    UpdateSpriteFacing(segment.End, body.LowerCenter);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case FallRouteSegment fall:
                     GetExecutor().BeginFall(fall.Start, fall.LedgeExit, fall.End);
-                    UpdateSpriteFacing(segment.End, body.LowerCenter);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 case DropThroughRouteSegment dropThrough:
                     GetExecutor().BeginDropThrough(dropThrough.Start, dropThrough.End);
-                    UpdateSpriteFacing(segment.End, body.LowerCenter);
                     prepared = groundExecutor;
                     return ActionPreparation.Ready;
                 default:
@@ -232,12 +227,6 @@ namespace Aethiumian.AI.Nodes
         {
             Vector2 velocity = RigidBody.linearVelocity;
             RigidBody.linearVelocity = new Vector2(0f, velocity.y);
-        }
-
-        private void UpdateSpriteFacing(Vector2 target, Vector2 bodyPosition)
-        {
-            if (!spriteFlip || !transform.TryGetComponent(out SpriteRenderer spriteRenderer)) return;
-            spriteRenderer.flipX = target.x < bodyPosition.x;
         }
     }
 }
