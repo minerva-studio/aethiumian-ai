@@ -101,7 +101,7 @@ Simple and Smart both obtain actions from `NavigationRoute`:
   live; the cooldown is owned by Movement's action-supply loop, not by a particular
   Smart request. Each committed fallback advances the cooldown to eight, then
   sixteen physics ticks; a local miss does not make Smart fail.
-- `TryConnectRoute` reconnects a candidate to the current body and rejects unsafe or disconnected geometry.
+- `TryConnectRoute` reconnects a candidate to the current body and rejects unsafe or disconnected geometry. It does not receive the current goal or apply route policy.
 - `PrepareExecutor` returns `Waiting`, `Ready`, or `Unavailable` for one segment.
 
 Movement holds one Smart `NavigationPlanningRequest` plus at most one local fallback
@@ -124,7 +124,7 @@ still be adopted as executable progress; it does not complete the latest goal an
 endpoint can seed a continuation request. A negative result for an old target cannot
 terminate the current goal.
 
-`PrepareExecutor` receives a segment and body, not a goal. `Waiting` and `Unavailable` leave the previous executor untouched. Same-direction Ground updates and Fly waypoint updates preserve velocity and idle timing. Ground reconnection combines contiguous straight, same-level segments without crossing other action kinds.
+`PrepareExecutor` receives a segment and body, not a goal. After capability-specific reconnect, `Movement` applies `RouteAllowed` with the current tick's goal; a candidate route's historical `Goal` must not replace it for current Retreat policy checks. `Waiting` and `Unavailable` leave the previous executor untouched. Same-direction Ground updates and Fly waypoint updates preserve velocity and idle timing. Ground reconnection combines contiguous straight, same-level segments without crossing other action kinds.
 
 ## Executor progression
 
@@ -157,17 +157,17 @@ Jump preparation returns `Waiting` without real contact or before the launch int
 
 ## Recovery and terminal states
 
-`NavigationAction.Executing` includes permission pauses, physical prerequisites, active execution, and pending planning. `ExecutionStatus.Running` is narrower: the current executor tick has not produced a terminal result. A permission pause resets executor/watchdog/Retreat observations without advancing time or writing movement.
+`NavigationAction.Executing` includes permission pauses, physical prerequisites, active execution, and pending planning. `ExecutionStatus.Running` is narrower: the current executor tick has not produced a terminal result. A permission pause resets the executor progress baseline without advancing time or writing movement; because no active tick is sampled, it does not add approach distance or refund cumulative approach budget. `MovementExecutor` remains the only idle-watchdog owner.
 
 Recovery remains at the Movement owner:
 
 - exact `NoResult`, `SearchExhausted`, and `BudgetReached` planner outcomes retain their distinction;
 - stale or cancelled requests are released before fresh planning;
-- physical failure is handled before Retreat finalization, so cleanup cannot turn a failure into success;
+- physical failure completes as failure without a second Retreat completion check; Movement records approach distance only at its active-tick accounting boundaries;
 - reversible updates preserve the executing action when possible; only a Ready preparation publishes replacement route state;
 - no-progress route continuation is capped at three attempts.
 
-`IsGoalSatisfied` is the overall completion predicate. `Finish` applies capability-specific final effects, then `CompleteAction` cancels the execution token and releases the action, request, route, lease, and executor resources.
+`IsGoalSatisfied` is the only overall completion predicate. `RetreatExecution` records target identity and approach accounting but does not decide goal completion. `Finish` applies capability-specific final effects, then `CompleteAction` cancels the execution token and releases the action, request, route, lease, and executor resources.
 
 ## Ownership map
 
@@ -178,8 +178,11 @@ Recovery remains at the Movement owner:
 | Route and request coordination | `Movement.Navigation.cs` |
 | Request data and cancellation receipt | Private `NavigationPlanningRequest` |
 | Route reconnection | Capability `TryConnectRoute` |
+| Current-goal route admission | `Movement.RouteAllowed` and `RetreatExecution.AllowsRoute` |
 | Action preparation | Capability `PrepareExecutor` |
 | Physical progression and action-local resources | `MovementExecutor` implementations |
+| Idle watchdog | `MovementExecutor` | `stallTimer` and `ExecutionFailureReason.Stalled` |
+| Retreat identity and approach accounting | `RetreatExecution` | target identity and cumulative approach budget; Movement supplies scalar approach distance |
 | Overall recovery and completion | `TryRecover`, `IsGoalSatisfied`, `Finish` |
 
 `Movement` exposes its executor only for the existing live inspection/debug contract. Route/request coordinator state is not a public session API and does not become a test façade.

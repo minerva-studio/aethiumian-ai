@@ -1,17 +1,15 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
+
 namespace Aethiumian.AI.Navigation
 {
-    /// <summary>Owns one Movement execution's Retreat identity, progress sample and approach budget.</summary>
+    /// <summary>Owns one Movement execution's Retreat identity and approach budget.</summary>
     public sealed class RetreatExecution
     {
         private readonly GameObject target;
-        private readonly float maximumApproachDistance;
-        private readonly bool hasApproachLimit;
+        private readonly float? maximumApproachDistance;
         private float approachDistanceUsed;
-        private Vector2 previousBodyCenter;
-        private float bestCompletionDistance = float.PositiveInfinity;
-        private bool hasPreviousSample;
 
         /// <summary>A null target opts out of identity tracking; a destroyed target is invalid.</summary>
         public RetreatExecution(GameObject target, float maximumApproachDistance)
@@ -21,79 +19,40 @@ namespace Aethiumian.AI.Navigation
             Validate.NonNegativeFinite(maximumApproachDistance, nameof(maximumApproachDistance));
 
             this.target = target;
-            this.maximumApproachDistance = maximumApproachDistance;
-            hasApproachLimit = maximumApproachDistance > 0f;
+            this.maximumApproachDistance = maximumApproachDistance > 0f ? maximumApproachDistance : null;
         }
 
-        public float RemainingApproachDistance => hasApproachLimit ? Mathf.Max(0f, maximumApproachDistance - approachDistanceUsed) : 0f;
-        public bool HasApproachLimit => hasApproachLimit;
+        /// <summary>Gets the unused approach budget, or zero when the execution is unlimited.</summary>
+        public float RemainingApproachDistance => maximumApproachDistance is float limit ? Mathf.Max(0f, limit - approachDistanceUsed) : 0f;
 
-        public bool IsCurrentTarget(GameObject currentTarget)
-            => ReferenceEquals(target, null) || target && currentTarget && target == currentTarget;
+        /// <summary>Gets whether this execution has a finite cumulative approach budget.</summary>
+        public bool HasApproachLimit => maximumApproachDistance.HasValue;
 
-        /// <summary>Charges one physical displacement against the captured target sample and reports progress.</summary>
-        public bool TryObserve(Vector2 bodyStart, Vector2 bodyEnd, Vector2 targetCenter,
-            float startCompletionDistance, float endCompletionDistance, out bool madeNewBestProgress)
+        /// <summary>Checks whether the sampled target is still the target captured for this execution.</summary>
+        public bool IsCurrentTarget(GameObject currentTarget) => ReferenceEquals(target, null) || target && currentTarget && target == currentTarget;
+
+        /// <summary>Records physical approach distance and reports whether the cumulative budget remains available.</summary>
+        public bool RecordApproachDistance(float additionalApproachDistance)
         {
-            Validate.Finite(bodyStart, nameof(bodyStart));
-            Validate.Finite(bodyEnd, nameof(bodyEnd));
-            Validate.Finite(targetCenter, nameof(targetCenter));
-            Validate.NonNegativeFinite(startCompletionDistance, nameof(startCompletionDistance));
-            Validate.NonNegativeFinite(endCompletionDistance, nameof(endCompletionDistance));
+            Validate.NonNegativeFinite(additionalApproachDistance, nameof(additionalApproachDistance));
 
-            madeNewBestProgress = false;
-            if (!hasPreviousSample)
-            {
-                approachDistanceUsed += RetreatNavigationGeometry.SegmentApproachDistance(
-                    bodyStart, bodyEnd, targetCenter);
-                previousBodyCenter = bodyEnd;
-                bestCompletionDistance = startCompletionDistance;
-                hasPreviousSample = true;
-                if (hasApproachLimit
-                    && approachDistanceUsed > maximumApproachDistance + NavigationWorldQueries.GeometryEpsilon)
-                    return false;
-
-                if (endCompletionDistance < bestCompletionDistance - NavigationWorldQueries.GeometryEpsilon)
-                {
-                    bestCompletionDistance = endCompletionDistance;
-                    madeNewBestProgress = true;
-                }
-
-                return true;
-            }
-
-            // Use the target center captured at the beginning of this physical step so
-            // target motion never consumes the mover's approach budget.
-            approachDistanceUsed += RetreatNavigationGeometry.SegmentApproachDistance(
-                previousBodyCenter, bodyEnd, targetCenter);
-            previousBodyCenter = bodyEnd;
-            if (hasApproachLimit
-                && approachDistanceUsed > maximumApproachDistance + NavigationWorldQueries.GeometryEpsilon)
-                return false;
-
-            if (endCompletionDistance < bestCompletionDistance - NavigationWorldQueries.GeometryEpsilon)
-            {
-                bestCompletionDistance = endCompletionDistance;
-                madeNewBestProgress = true;
-            }
-
-            return true;
+            approachDistanceUsed += additionalApproachDistance;
+            return !maximumApproachDistance.HasValue || approachDistanceUsed <= maximumApproachDistance.Value + NavigationWorldQueries.GeometryEpsilon;
         }
 
         /// <summary>Checks an explicit route suffix against the remaining approach budget.</summary>
         public bool IsWithinRemainingApproachDistance(float additionalApproachDistance)
         {
             Validate.NonNegativeFinite(additionalApproachDistance, nameof(additionalApproachDistance));
-            return !hasApproachLimit
-                || additionalApproachDistance <= RemainingApproachDistance
-                    + NavigationWorldQueries.GeometryEpsilon;
+            return !maximumApproachDistance.HasValue || additionalApproachDistance <= RemainingApproachDistance + NavigationWorldQueries.GeometryEpsilon;
         }
 
-        /// <summary>Invalidates the previous physical sample at a pause or execution boundary.</summary>
-        public void InvalidateSample()
+        /// <summary>Checks a caller-selected route suffix against the remaining approach budget.</summary>
+        internal bool AllowsRoute(NavigationGoalRequest goal, Vector2 routeStart, IReadOnlyList<NavigationRouteSegment> suffix)
         {
-            hasPreviousSample = false;
-            bestCompletionDistance = float.PositiveInfinity;
+            if (!goal.IsRetreat || !HasApproachLimit) return true;
+
+            return IsWithinRemainingApproachDistance(RetreatNavigationGeometry.RouteApproachDistance(routeStart, goal.TargetBounds.Center, suffix));
         }
 
     }

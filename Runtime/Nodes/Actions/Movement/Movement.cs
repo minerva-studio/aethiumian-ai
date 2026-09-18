@@ -85,7 +85,7 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private int simpleWaitTicks;
         [NonSerialized] private int retries;
         [NonSerialized] private float executionTime;
-        [NonSerialized] private RetreatMovementExecution retreat;
+        [NonSerialized] private RetreatExecution retreat;
 
 
 
@@ -106,7 +106,7 @@ namespace Aethiumian.AI.Nodes
         public int RouteIndex => routeIndex;
         protected float MaximumIdleDuration => ValidateMaximumIdleDuration();
         protected float ExecutionTime => executionTime;
-        protected RetreatMovementExecution RetreatExecution => retreat;
+        protected RetreatExecution RetreatExecution => retreat;
         protected NavigationPlanningExtent PlanningExtent => path == PathMode.Smart ? NavigationPlanningExtent.Route : NavigationPlanningExtent.NextAction;
         public NavigationRouteSegment ActiveSegment => executor != null && executor.IsExecuting && route != null && routeIndex < route.Count ? route.Segments[routeIndex] : null;
         private float MaxApproachDistance
@@ -151,7 +151,6 @@ namespace Aethiumian.AI.Nodes
             executionTime += Time.fixedDeltaTime;
             bool firstGoalSample = !intentGoal.HasValue;
             bool planningInvalidated = false;
-            bool physicalFailure = false;
             bool faulted = false;
             try
             {
@@ -170,9 +169,11 @@ namespace Aethiumian.AI.Nodes
                 planningInvalidated = RefreshPlanningIntent(goal);
                 if (goal.IsRetreat)
                 {
-                    retreat ??= new RetreatMovementExecution(targetObject, MaxApproachDistance, path == PathMode.Smart ? 0f : MaximumIdleDuration);
-                    if (!retreat.BeginTick(NavigationWorld, targetObject, goal, body))
-                    { EndMovement(false, goal); return; }
+                    retreat ??= new RetreatExecution(targetObject, MaxApproachDistance);
+                    if (!retreat.IsCurrentTarget(targetObject))
+                    {
+                        EndMovement(false, goal); return;
+                    }
                 }
                 bool swept = !planningInvalidated
                     && previousBody.HasValue
@@ -185,7 +186,11 @@ namespace Aethiumian.AI.Nodes
                 if (ActiveSegment == null)
                 {
                     ReportMovementState(MovementState.Idle);
-                    if (IsGoalSatisfied(goal, body, swept)) { EndMovement(true, goal); return; }
+                    if (IsGoalSatisfied(goal, body, swept))
+                    {
+                        EndMovement(RecordRetreatApproach(goal, body), goal);
+                        return;
+                    }
                     RefreshPendingPlanningRequest(goal, body);
                     MaintainPlanning(goal, body,
                         skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
@@ -198,7 +203,6 @@ namespace Aethiumian.AI.Nodes
                 RecordStallFailure(result);
                 if (result.Status == ExecutionStatus.Failed)
                 {
-                    physicalFailure = true;
                     CancelPlanningRequests();
                     route = null;
                     routeIndex = 0;
@@ -215,12 +219,12 @@ namespace Aethiumian.AI.Nodes
                 }
                 if ((result.Status == ExecutionStatus.Completed || action.IsReversible) && IsGoalSatisfied(goal, body, swept))
                 {
-                    EndMovement(true, goal);
+                    EndMovement(RecordRetreatApproach(goal, body), goal);
                     return;
                 }
                 if (result.Status == ExecutionStatus.Completed)
                 {
-                    CompleteCurrentAction();
+                    routeIndex++;
                     fallbackReceiptConsumed |= TryAcquireAction(goal, body);
                     if (IsComplete) return;
                     if (ActiveSegment == null)
@@ -237,7 +241,6 @@ namespace Aethiumian.AI.Nodes
             catch
             {
                 faulted = true;
-                retreat?.DiscardPendingTick();
                 throw;
             }
             finally
@@ -245,13 +248,9 @@ namespace Aethiumian.AI.Nodes
                 if (!IsComplete && !faulted)
                 {
                     previousBody = body;
-                    if (retreat != null)
+                    if (!RecordRetreatApproach(goal, body))
                     {
-                        if (!retreat.FinalizeTick(body, Time.fixedDeltaTime))
-                            EndMovement(false, goal);
-                        else if (!physicalFailure && (ActiveSegment == null || ActiveSegment.IsReversible)
-                            && retreat.HasReachedGoal(body))
-                            EndMovement(true, goal);
+                        EndMovement(false, goal);
                     }
                 }
             }
@@ -261,7 +260,6 @@ namespace Aethiumian.AI.Nodes
         {
             previousBody = null;
             executor?.ResetProgressBaseline();
-            retreat?.InvalidateSample();
         }
         public sealed override void Update() { }
         public sealed override void LateUpdate() { }
@@ -278,7 +276,7 @@ namespace Aethiumian.AI.Nodes
         protected abstract bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
 
         /// <summary>
-        /// Returns a route reconnected to actual physics; performs no executor or lease mutation.
+        /// Returns a route reconnected to actual physics; performs no goal-policy, executor, or lease mutation.
         /// </summary>
         protected abstract bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected);
 
@@ -302,14 +300,24 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         protected abstract void Finish(bool success, NavigationGoalRequest? goal);
 
+        private bool RecordRetreatApproach(NavigationGoalRequest goal, AABB tickStartBody)
+        {
+            if (retreat == null || !goal.IsRetreat) return true;
+
+            AABB tickEndBody = NavigationBodyAabb;
+            float additionalApproachDistance = RetreatNavigationGeometry.SegmentApproachDistance(
+                tickStartBody.Center,
+                tickEndBody.Center,
+                goal.TargetBounds.Center);
+            return retreat.RecordApproachDistance(additionalApproachDistance);
+        }
+
         /// <summary>
         /// Settles one terminal movement outcome. A failed run may have no sampled goal at all,
         /// for example when the target disappeared before the first permitted tick.
         /// </summary>
         private void EndMovement(bool success, NavigationGoalRequest? goal)
         {
-            if (success && retreat != null && !retreat.FinalizeTick(NavigationBodyAabb, Time.fixedDeltaTime))
-                success = false;
             if (success && goal.HasValue) Finish(true, goal);
             CompleteAction(success);
         }
@@ -343,7 +351,6 @@ namespace Aethiumian.AI.Nodes
         {
             if (!success)
             {
-                retreat?.DiscardPendingTick();
                 if (RigidBody) Finish(false, null);
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -375,9 +382,12 @@ namespace Aethiumian.AI.Nodes
         }
 
         protected MapNavigationRuntime RequireNavigationRuntime(string caller)
-            => NavigationRuntime != null && !NavigationRuntime.IsDisposed
-                ? NavigationRuntime
-                : throw new InvalidOperationException($"{caller} requires this execution's live runtime.");
+        {
+            var runtime = NavigationRuntime;
+            if (runtime == null || runtime.IsDisposed)
+                throw new InvalidOperationException($"{caller} requires this execution's live runtime.");
+            return runtime;
+        }
 
         protected static void RecordStallFailure(ExecutionResult result)
         {

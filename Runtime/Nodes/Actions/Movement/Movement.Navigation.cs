@@ -194,7 +194,11 @@ namespace Aethiumian.AI.Nodes
 
                 simpleWaitTicks = 0;
                 if (fallbackRequest != null) return true;
-                if (IsGoalSatisfied(goal, body, false)) { EndMovement(true, goal); return true; }
+                if (IsGoalSatisfied(goal, body, false))
+                {
+                    EndMovement(RecordRetreatApproach(goal, body), goal);
+                    return true;
+                }
                 if (route != null && routeIndex < route.Count) return false;
                 if (result.Termination == NavigationPlanTermination.BudgetReached)
                 {
@@ -452,11 +456,6 @@ namespace Aethiumian.AI.Nodes
                 cancellation.Dispose();
                 throw;
             }
-        }
-
-        private void CompleteCurrentAction()
-        {
-            routeIndex++;
         }
 
         private void RejectPrimaryCandidate(NavigationGoalRequest goal)

@@ -58,7 +58,6 @@ namespace Aethiumian.AI.Nodes
             {
                 if (candidate.Segments[i] is not FlyRouteSegment step) return false;
                 if (!NavigationRuntime.IsBodyClearFlySegment(body, step.End - body.Center)) break;
-                if (RetreatExecution != null && !RetreatExecution.AllowsSegment(candidate.Goal, body.Center, step.End)) continue;
                 furthest = i;
             }
             if (furthest < 0) return false;

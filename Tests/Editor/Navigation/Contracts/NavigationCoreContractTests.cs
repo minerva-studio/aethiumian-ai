@@ -254,9 +254,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             RetreatExecution execution = new(null, 0f);
             Assert.That(execution.IsCurrentTarget(null), Is.True);
-            Assert.That(execution.TryObserve(Vector2.zero, Vector2.right, Vector2.left,
-                2f, 1f, out bool progressed), Is.True);
-            Assert.That(progressed, Is.True);
+            Assert.That(execution.RecordApproachDistance(1f), Is.True);
             Assert.That(execution.HasApproachLimit, Is.False);
         }
 
@@ -279,6 +277,39 @@ namespace Aethiumian.AI.Navigation.Tests
                 if (target) UnityEngine.Object.DestroyImmediate(target);
                 UnityEngine.Object.DestroyImmediate(replacement);
             }
+        }
+
+        /// <summary>Verifies Movement can record cumulative approach distance without a second idle state.</summary>
+        [Test]
+        public void RetreatExecution_AccumulatesApproachDistanceAndRejectsOverflow()
+        {
+            RetreatExecution execution = new(null, 2f);
+
+            Assert.That(execution.RemainingApproachDistance, Is.EqualTo(2f));
+            Assert.That(execution.RecordApproachDistance(1f), Is.True);
+            Assert.That(execution.RemainingApproachDistance, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(execution.RecordApproachDistance(1f), Is.True);
+            Assert.That(execution.RemainingApproachDistance, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(execution.RecordApproachDistance(0.01f), Is.False);
+            Assert.That(execution.RemainingApproachDistance, Is.EqualTo(0f).Within(0.0001f));
+        }
+
+        /// <summary>Verifies route budget checks use the caller's current goal, not route metadata.</summary>
+        [Test]
+        public void RetreatExecution_UsesCurrentGoalForRouteBudget()
+        {
+            NavigationGoalRequest staleGoal = NavigationGoalRequest.Retreat(
+                AABB.Point(new Vector2(-10f, 0f)), DistanceMetric.Euclidean, 10f);
+            NavigationGoalRequest currentGoal = NavigationGoalRequest.Retreat(
+                AABB.Point(new Vector2(10f, 0f)), DistanceMetric.Euclidean, 10f);
+            NavigationRoute staleRoute = NavigationRoute.Create(staleGoal,
+                new[] { new FlyRouteSegment(Vector2.zero, Vector2.right) }, false);
+            RetreatExecution execution = new(null, 0.5f);
+
+            Assert.That(execution.AllowsRoute(currentGoal, staleRoute.Start, staleRoute.Segments), Is.False,
+                "Route admission must use the current tick goal even when route metadata is stale.");
+            Assert.That(execution.AllowsRoute(staleGoal, staleRoute.Start, staleRoute.Segments), Is.True,
+                "Route admission must not substitute the current goal with route metadata.");
         }
 
         /// <summary>Verifies jump route segments expose geometry without an executable trajectory.</summary>
