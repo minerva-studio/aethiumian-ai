@@ -58,6 +58,22 @@ namespace Aethiumian.AI.Navigation.Tests
                 "The finite approach budget must prevent the route from spending its budget toward the target.");
         }
 
+        /// <summary>Verifies an exhausted approach budget still permits escape that does not approach the target.</summary>
+        [Test]
+        public void FlyPlannerRetreatWithZeroApproachBudgetOnlyEscapesAway()
+        {
+            TestNavigationWorld world = new(new AABBInt(0, 0, 10, 5), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            Vector2 bodySize = new(0.8f, 0.8f);
+            Vector2 start = new(4.5f, 2.5f);
+            NavigationGoalRequest goal = NavigationGoalRequest.Retreat(AABB.Point(6.5f, 2.5f), DistanceMetric.Euclidean, 4f);
+
+            Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(AABB.FromCenterAndSize(start, bodySize), goal,
+                new FlyNavigationParameters(0f), out NavigationRoute route), Is.True);
+            Assert.That(RetreatNavigationGeometry.RouteApproachDistance(start, goal.TargetBounds.Center, route.Segments),
+                Is.EqualTo(0f).Within(NavigationConstant.Epsilon));
+            Assert.That(route.Endpoint.x, Is.LessThan(start.x));
+        }
+
         /// <summary>Verifies a fully exhausted retreat search returns no path.</summary>
         [Test]
         public void FlyPlannerRetreatExhaustionReturnsNoPath()

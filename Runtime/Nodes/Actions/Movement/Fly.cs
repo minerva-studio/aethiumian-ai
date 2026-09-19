@@ -43,8 +43,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>A Fly destination is a body-center position.</summary>
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
-            operation = NavigationRuntime.PlanFlyAsync(body, goal,
-                new FlyNavigationParameters(RetreatExecution?.RemainingApproachDistance ?? 0f, RetreatExecution?.HasApproachLimit ?? false), extent, cancellation);
+            operation = NavigationRuntime.PlanFlyAsync(body, goal, new FlyNavigationParameters(RetreatExecution?.RemainingApproachDistance), extent, cancellation);
             return true;
         }
 

@@ -9,33 +9,21 @@ namespace Aethiumian.AI.Navigation
     public readonly struct FlyNavigationParameters
     {
         /// <summary>
-        /// Gets the remaining center-distance approach budget; zero means unlimited.
+        /// Gets the remaining center-distance approach budget, or null when there is no finite limit.
+        /// A finite zero means the budget is exhausted.
         /// </summary>
-        public float RemainingApproachDistance { get; }
+        public float? RemainingApproachDistance { get; }
 
         /// <summary>
-        /// Gets whether the remaining approach distance is an enforced finite budget.
+        /// Creates and validates immutable aerial navigation parameters. Null means unlimited;
+        /// a finite zero means the approach budget is exhausted.
         /// </summary>
-        public bool HasApproachLimit { get; }
-
-        /// <summary>
-        /// Creates and validates immutable aerial navigation parameters.
-        /// </summary>
-        public FlyNavigationParameters(float remainingApproachDistance = 0f)
-            : this(remainingApproachDistance, remainingApproachDistance > 0f)
+        public FlyNavigationParameters(float? remainingApproachDistance = null)
         {
-        }
-
-        /// <summary>Creates aerial parameters with an explicit budget state, including an exhausted budget.</summary>
-        public FlyNavigationParameters(float remainingApproachDistance, bool hasApproachLimit)
-        {
-            if (!NavigationNumeric.IsFinite(remainingApproachDistance) || remainingApproachDistance < 0f || (!hasApproachLimit && remainingApproachDistance != 0f))
-            {
-                throw new ArgumentOutOfRangeException(nameof(remainingApproachDistance), remainingApproachDistance, "Remaining retreat approach distance must be finite and non-negative.");
-            }
+            if (remainingApproachDistance.HasValue)
+                Validate.NonNegativeFinite(remainingApproachDistance.Value, nameof(remainingApproachDistance));
 
             RemainingApproachDistance = remainingApproachDistance;
-            HasApproachLimit = hasApproachLimit;
         }
     }
 }

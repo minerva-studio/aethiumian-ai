@@ -253,7 +253,7 @@ namespace Aethiumian.AI.Navigation.Tests
             RetreatExecution execution = new(null, 0f);
             Assert.That(execution.IsCurrentTarget(null), Is.True);
             Assert.That(execution.RecordApproachDistance(1f), Is.True);
-            Assert.That(execution.HasApproachLimit, Is.False);
+            Assert.That(execution.RemainingApproachDistance, Is.Null);
         }
 
         [Test]
@@ -288,6 +288,8 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(execution.RemainingApproachDistance, Is.EqualTo(1f).Within(0.0001f));
             Assert.That(execution.RecordApproachDistance(1f), Is.True);
             Assert.That(execution.RemainingApproachDistance, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(execution.IsWithinRemainingApproachDistance(0f), Is.True);
+            Assert.That(execution.IsWithinRemainingApproachDistance(0.01f), Is.False);
             Assert.That(execution.RecordApproachDistance(0.01f), Is.False);
             Assert.That(execution.RemainingApproachDistance, Is.EqualTo(0f).Within(0.0001f));
         }
@@ -1236,10 +1238,11 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.DoesNotThrow(() => new JumpNavigationParameters(new Vector2(0, -9.81f), 1, 0, 2, 3, 0.02f));
             Assert.That(() => new JumpNavigationParameters(new Vector2(float.NaN, -1), 1, 0, 2, 3, 0.02f), Throws.InstanceOf<ArgumentException>());
             Assert.DoesNotThrow(() => new FlyNavigationParameters());
+            Assert.That(new FlyNavigationParameters().RemainingApproachDistance, Is.Null);
+            Assert.That(new FlyNavigationParameters(0f).RemainingApproachDistance, Is.EqualTo(0f));
             Assert.That(() => new FlyNavigationParameters(float.NaN), Throws.InstanceOf<ArgumentException>());
-            Assert.DoesNotThrow(() => new FlyNavigationParameters(0f, true));
             Assert.That(() => new FlyNavigationParameters(-1f), Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => new FlyNavigationParameters(1f, false), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => new FlyNavigationParameters(float.PositiveInfinity), Throws.InstanceOf<ArgumentException>());
         }
 
         /// <summary>Verifies approach budget geometry observes the closest point inside a segment.</summary>
