@@ -61,10 +61,10 @@ namespace Aethiumian.AI.Nodes
         [FormerlySerializedAs("arrivalErrorBound")]
         [Readable] public VariableField<float> reachDistance;
 
-        /// <summary>Maximum continuous time allowed without a new best traversal progress value; zero disables this timeout.</summary>
+        /// <summary>Maximum continuous time allowed without a new best traversal progress value; zero disables this timeout. The project must provide a finite non-negative value.</summary>
         [Readable] public VariableField<float> maxIdleDuration = 3f;
 
-        /// <summary>Maximum cumulative approach distance allowed while retreating; zero means unlimited.</summary>
+        /// <summary>Maximum cumulative approach distance allowed while retreating; zero means unlimited. The project must provide a finite non-negative value.</summary>
         [DisplayIf(nameof(type), Behaviour.Retreat)]
         [Readable] public VariableField<float> maxApproachDistance = 1f;
 
@@ -106,20 +106,10 @@ namespace Aethiumian.AI.Nodes
         /// Gets the index of the next segment to execute, which may be equal to Route.Count if the last segment was completed?
         /// /// </summary>
         public int RouteIndex => routeIndex;
-        protected float MaximumIdleDuration => ValidateMaximumIdleDuration();
         protected float ExecutionTime => executionTime;
         protected RetreatExecution RetreatExecution => retreat;
         protected NavigationPlanningExtent PlanningExtent => path == PathMode.Smart ? NavigationPlanningExtent.Route : NavigationPlanningExtent.NextAction;
         public NavigationRouteSegment ActiveSegment => executor != null && executor.IsExecuting && route != null && routeIndex < route.Count ? route.Segments[routeIndex] : null;
-        private float MaxApproachDistance
-        {
-            get
-            {
-                float value = maxApproachDistance;
-                Validate.NonNegativeFinite(value, nameof(maxApproachDistance));
-                return value;
-            }
-        }
 
         protected sealed override void InitializeAction()
         {
@@ -174,7 +164,7 @@ namespace Aethiumian.AI.Nodes
                 planningInvalidated = RefreshPlanningIntent(goal);
                 if (goal.IsRetreat)
                 {
-                    retreat ??= new RetreatExecution(targetObject, MaxApproachDistance);
+                    retreat ??= new RetreatExecution(targetObject, maxApproachDistance);
                     if (!retreat.IsCurrentTarget(targetObject))
                     {
                         EndMovement(false, goal); return;
@@ -422,7 +412,7 @@ namespace Aethiumian.AI.Nodes
             if (type != Behaviour.Retreat) return true;
             try
             {
-                _ = MaxApproachDistance;
+                Validate.NonNegativeFinite(maxApproachDistance, nameof(maxApproachDistance));
                 return true;
             }
             catch (Exception exception)
@@ -431,15 +421,6 @@ namespace Aethiumian.AI.Nodes
                 return false;
             }
         }
-
-        private float ValidateMaximumIdleDuration()
-        {
-            float value = maxIdleDuration;
-            if (!NavigationNumeric.IsFinite(value) || value < 0f)
-                throw new ArgumentOutOfRangeException(nameof(maxIdleDuration), value, "Movement maxIdleDuration must be finite and non-negative.");
-            return value;
-        }
-
 
 
         /// <summary>

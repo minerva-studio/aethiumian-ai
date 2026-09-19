@@ -19,7 +19,7 @@ namespace Aethiumian.AI.Nodes
         public VariableField<bool> setFinalPosition;
         public VariableField<float> speed;
         public VariableField<float> speedModifier = 1f;
-        /// <summary>Fixed-tick velocity response coefficient in the inclusive range [0, 1].</summary>
+        /// <summary>Fixed-tick velocity response coefficient in the inclusive range [0, 1]. The project must provide a finite value in this range.</summary>
         public VariableField<float> flexibility = 0.1f;
         /// <summary>Maximum target-center distance above the nearest support below, including one-way platforms.</summary>
         public VariableField<float> maxHeight = 16f;
@@ -30,7 +30,6 @@ namespace Aethiumian.AI.Nodes
 
         protected override NavigationGoalRequest BuildGoal(AABB target, AABB body)
         {
-            _ = Flexibility;
             if (type == Behaviour.Trace && neverAboveMaxHeight)
             {
                 Vector2 center = target.Center;
@@ -102,18 +101,6 @@ namespace Aethiumian.AI.Nodes
             RigidBody.linearVelocity = Vector2.zero;
         }
 
-        private float Flexibility
-        {
-            get
-            {
-                float value = flexibility;
-                if (!NavigationNumeric.IsFinite(value) || value < 0f || value > 1f)
-                    throw new ArgumentOutOfRangeException(nameof(flexibility), value,
-                        "Fly flexibility must be finite and within [0, 1].");
-                return value;
-            }
-        }
-
         private float MaximumSupportHeight
         {
             get
@@ -143,8 +130,8 @@ namespace Aethiumian.AI.Nodes
             filter.SetLayerMask(filter.layerMask.value
                 & ~RigidBody.excludeLayers.value
                 & ~Collider.excludeLayers.value);
-            return new FlyTraversalExecutor(RigidBody, Collider, FinalSpeed, Flexibility, filter,
-                NavigationColliders, MaximumIdleDuration);
+            return new FlyTraversalExecutor(RigidBody, Collider, FinalSpeed, flexibility, filter,
+                NavigationColliders, maxIdleDuration);
         }
 
         protected override Vector2 GetWanderLocation(Vector2 center, AABB body)

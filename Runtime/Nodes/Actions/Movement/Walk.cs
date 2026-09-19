@@ -106,7 +106,7 @@ namespace Aethiumian.AI.Nodes
                 if (groundExecutor != null) return groundExecutor;
                 unexpectedLandingRecoveryCount = 0;
                 return groundExecutor = new GroundTraversalExecutor(RigidBody, Collider, NavigationRuntime.CreateTerrainFilter(),
-                    NewFixedSpeed, accelerateRate, NavigationColliders, MaximumIdleDuration);
+                    NewFixedSpeed, accelerateRate, NavigationColliders, maxIdleDuration);
             }
             switch (segment)
             {

@@ -20,11 +20,11 @@ namespace Aethiumian.AI.Nodes
         public VariableField<float> jumpHeight = 3f;
         public VariableField<float> jumpLength = 3f;
         public VariableField<float> jumpInterval = 1.5f;
-        /// <summary>Scales only the interval between launches; it does not change jump physics.</summary>
+        /// <summary>Scales only the interval between launches; the project must provide a finite positive value.</summary>
         public VariableField<float> speedModifier = 1f;
 
         [NonSerialized] private float nextJumpTime;
-        private float EffectiveJumpInterval => jumpInterval / ValidateJumpCadence();
+        private float EffectiveJumpInterval => jumpInterval / speedModifier;
         protected override NavigationGoalRequest BuildGoal(AABB target, AABB body)
             => CreateGoal(target, NavigationGoalGeometry.Proximity);
 
@@ -108,7 +108,7 @@ namespace Aethiumian.AI.Nodes
             BallisticJumpExecutor action = null;
             try
             {
-                action = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, NavigationRuntime.CreateTerrainFilter(), trajectory, lease, MaximumIdleDuration);
+                action = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, NavigationRuntime.CreateTerrainFilter(), trajectory, lease, maxIdleDuration);
                 ReportMovementState(MovementState.Jumping);
                 nextJumpTime = ExecutionTime + EffectiveJumpInterval;
                 return action;
@@ -119,14 +119,6 @@ namespace Aethiumian.AI.Nodes
                 else lease?.Dispose();
                 throw;
             }
-        }
-
-        private float ValidateJumpCadence()
-        {
-            float modifier = speedModifier;
-            if (!NavigationNumeric.IsFinite(modifier) || modifier <= 0f)
-                throw new ArgumentOutOfRangeException(nameof(speedModifier), modifier, "Jump speedModifier must be finite and positive.");
-            return modifier;
         }
 
         protected override Vector2 GetWanderLocation(Vector2 center, AABB body)
