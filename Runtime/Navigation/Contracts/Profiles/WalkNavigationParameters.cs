@@ -4,13 +4,10 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>
-    /// Immutable physical inputs used to plan composite walking traversal.
+    /// Immutable physical inputs used to plan composite walking traversal. The request body AABB supplies position and size.
     /// </summary>
     public readonly struct WalkNavigationParameters
     {
-        /// <summary>Gets the agent body size in world units.</summary>
-        public Vector2 BodySize { get; }
-
         /// <summary>Gets the resolved final horizontal movement speed.</summary>
         public float Speed { get; }
 
@@ -33,9 +30,8 @@ namespace Aethiumian.AI.Navigation
         public float SimulationTimeStep { get; }
 
         /// <summary>Creates and validates immutable walking navigation parameters.</summary>
-        public WalkNavigationParameters(Vector2 bodySize, float speed, Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float jumpLength, float simulationTimeStep)
+        public WalkNavigationParameters(float speed, Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float jumpLength, float simulationTimeStep)
         {
-            Validate.PositiveVector(bodySize, nameof(bodySize));
             Validate.NonNegativeFinite(speed, nameof(speed));
             Validate.Finite(gravity, nameof(gravity));
             Validate.NonNegativeFinite(gravityScale, nameof(gravityScale));
@@ -43,7 +39,6 @@ namespace Aethiumian.AI.Navigation
             Validate.NonNegativeFinite(jumpHeight, nameof(jumpHeight));
             Validate.NonNegativeFinite(jumpLength, nameof(jumpLength));
             Validate.PositiveFinite(simulationTimeStep, nameof(simulationTimeStep));
-            BodySize = bodySize;
             Speed = speed;
             Gravity = gravity;
             GravityScale = gravityScale;
@@ -54,11 +49,12 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Creates a <see cref="GroundJumpParameters"/> from this profile.
+        /// Creates <see cref="GroundJumpParameters"/> using the request body's size and this profile's physical inputs.
         /// </summary>
-        public GroundJumpParameters GetJumpParameters()
+        /// <param name="bodySize">The size derived from the request's body AABB.</param>
+        public GroundJumpParameters GetJumpParameters(Vector2 bodySize)
         {
-            return new(BodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep);
+            return new(bodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep);
         }
 
     }

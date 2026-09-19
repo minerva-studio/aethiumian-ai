@@ -73,13 +73,13 @@ namespace Aethiumian.AI.Navigation.Tests
             body.linearVelocity = Vector2.zero;
             body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             Vector2 observedStart = NavigationBodyGeometry.GetGroundAnchor(collider);
-            WalkNavigationParameters parameters = new(collider.bounds.size, 5f, Physics2D.gravity, GravityScale, LinearDamping, 2.5f, 5f, Time.fixedDeltaTime);
+            WalkNavigationParameters parameters = new(5f, Physics2D.gravity, GravityScale, LinearDamping, 2.5f, 5f, Time.fixedDeltaTime);
             var planner = new WalkNavigationPlanner(world, 256, new GroundJumpSolver(world));
             var diagnostics = new NavigationPlanningDiagnostics();
             AABB targetBounds = new(PhysicsOrigin + new Vector2(4.5f, 1f), PhysicsOrigin + new Vector2(4.5f, 1f));
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(targetBounds, DistanceMetric.Euclidean, 0.1f);
 
-            NavigationRoute route = planner.Plan(AABB.FromLowerCenter(observedStart, parameters.BodySize), goal, parameters, CancellationToken.None, diagnostics).Route;
+            NavigationRoute route = planner.Plan(AABB.FromLowerCenter(observedStart, collider.bounds.size), goal, parameters, CancellationToken.None, diagnostics).Route;
             Assert.That(route, Is.Not.Null,
                 $"Walk planning failed from observed contact anchor {observedStart}; "
                 + $"expansions={diagnostics.ExpansionCount}, terminals={diagnostics.TerminalCandidateCount}, "

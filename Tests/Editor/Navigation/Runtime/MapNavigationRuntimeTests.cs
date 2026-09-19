@@ -10,9 +10,12 @@ namespace Aethiumian.AI.Navigation.Tests
     /// <summary>Verifies Map-owned queueing before publication, planning, cancellation, and build failure.</summary>
     public sealed partial class MapNavigationRuntimeTests
     {
-        private static readonly WalkNavigationParameters WalkParameters = new(new Vector2(0.8f, 1f), 4f, new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
-        private static readonly JumpNavigationParameters JumpParameters = new(new Vector2(0.8f, 1f), new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
-        private static readonly FlyNavigationParameters FlyParameters = new(new Vector2(0.8f, 0.8f));
+        private static readonly Vector2 WalkBodySize = new(0.8f, 1f);
+        private static readonly Vector2 JumpBodySize = new(0.8f, 1f);
+        private static readonly Vector2 FlyBodySize = new(0.8f, 0.8f);
+        private static readonly WalkNavigationParameters WalkParameters = new(4f, new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
+        private static readonly JumpNavigationParameters JumpParameters = new(new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
+        private static readonly FlyNavigationParameters FlyParameters = new();
 
         /// <summary>Execution filters use the explicit configuration before and after world publication.</summary>
         [Test]
@@ -122,13 +125,13 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             NavigationPlanningOperation walk = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkParameters.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkBodySize),
                 Goal(new Vector2(3.5f, 1f)), WalkParameters);
             NavigationPlanningOperation jump = runtime.PlanJumpAsync(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpParameters.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpBodySize),
                 Goal(new Vector2(3.5f, 1f)), JumpParameters);
             NavigationPlanningOperation fly = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyParameters.BodySize),
+                AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyBodySize),
                 Goal(new Vector2(3.5f, 2.5f)), FlyParameters);
 
             Assert.That(walk.IsCompleted, Is.False);
@@ -157,7 +160,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 AABB.Point(100f, 2.5f), DistanceMetric.Euclidean, 1f);
 
             NavigationPlanningOperation operation = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyParameters.BodySize), goal, FlyParameters);
+                AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyBodySize), goal, FlyParameters);
             WaitForCompletion(operation);
 
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
@@ -172,11 +175,11 @@ namespace Aethiumian.AI.Navigation.Tests
             using MapNavigationRuntime runtime = CreateRuntime();
             runtime.PublishWorld(CreateOpenWorld());
             NavigationPlanningOperation walk = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkParameters.BodySize), Goal(new Vector2(3.5f, 1f)), WalkParameters);
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkBodySize), Goal(new Vector2(3.5f, 1f)), WalkParameters);
             NavigationPlanningOperation jump = runtime.PlanJumpAsync(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpParameters.BodySize), Goal(new Vector2(3.5f, 1f)), JumpParameters);
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpBodySize), Goal(new Vector2(3.5f, 1f)), JumpParameters);
             NavigationPlanningOperation fly = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyParameters.BodySize), Goal(new Vector2(4.5f, 2.5f)), FlyParameters);
+                AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyBodySize), Goal(new Vector2(4.5f, 2.5f)), FlyParameters);
 
             WaitForCompletion(walk);
             WaitForCompletion(jump);
@@ -203,15 +206,16 @@ namespace Aethiumian.AI.Navigation.Tests
 
             NavigationGoalRequest captured = NavigationGoalRequest.GroundRange(
                 new AABB(1.25f, 0.5f, 3.25f, 0.5f), 0.1f);
-            WalkNavigationParameters parameters = new(new Vector2(0.2f, 0.4f), 4f,
+            Vector2 bodySize = new(0.2f, 0.4f);
+            WalkNavigationParameters parameters = new(4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
             Assert.That(world.TryResolveGroundSupport(
-                AABB.FromLowerCenter(new Vector2(2.25f, 0.5f), parameters.BodySize), out _, out _), Is.True);
+                AABB.FromLowerCenter(new Vector2(2.25f, 0.5f), bodySize), out _, out _), Is.True);
             Assert.That(world.IsGoalComplete(captured,
-                AABB.FromCenterAndSize(new Vector2(2.25f, 0.5f) + Vector2.up * (parameters.BodySize.y * 0.5f),
-                    parameters.BodySize)), Is.True);
+                AABB.FromCenterAndSize(new Vector2(2.25f, 0.5f) + Vector2.up * (bodySize.y * 0.5f),
+                    bodySize)), Is.True);
             NavigationPlanningOperation operation = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(new Vector2(2.25f, 0.5f), parameters.BodySize), captured, parameters);
+                AABB.FromLowerCenter(new Vector2(2.25f, 0.5f), bodySize), captured, parameters);
             WaitForCompletion(operation);
 
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
@@ -228,14 +232,14 @@ namespace Aethiumian.AI.Navigation.Tests
             CountingNavigationWorld world = new(new AABBInt(0, 0, 6, 5));
             using MapNavigationRuntime runtime = CreateRuntime();
             runtime.PublishWorld(world);
-            WalkNavigationParameters parameters = new(new Vector2(0.8f, 1f), 4f,
+            WalkNavigationParameters parameters = new(4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
             NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
                 AABB.Point(3.5f, 1f), 0.1f);
             Vector2 start = new(1.5f, 1f);
 
             NavigationPlanningOperation first = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(start, parameters.BodySize), goal, parameters);
+                AABB.FromLowerCenter(start, new Vector2(0.8f, 1f)), goal, parameters);
             WaitForCompletion(first);
             Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
             Assert.That(first.Result, Is.Null);
@@ -243,7 +247,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 "The runtime should not make a second support query outside the planner.");
 
             NavigationPlanningOperation second = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(start, parameters.BodySize), goal, parameters);
+                AABB.FromLowerCenter(start, new Vector2(0.8f, 1f)), goal, parameters);
             WaitForCompletion(second);
             Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
             Assert.That(second.Result, Is.Null);
@@ -303,21 +307,21 @@ namespace Aethiumian.AI.Navigation.Tests
             {
                 case "Walk":
                     start = new Vector2(0.5f, 1f);
-                    operation = runtime.PlanWalkAsync(AABB.FromLowerCenter(start, WalkParameters.BodySize),
+                    operation = runtime.PlanWalkAsync(AABB.FromLowerCenter(start, WalkBodySize),
                         NavigationGoalRequest.GroundRange(AABB.Point(4.5f, 1f), 0.1f),
                         WalkParameters, NavigationPlanningExtent.NextAction);
                     expectedSegmentType = typeof(GroundRouteSegment);
                     break;
                 case "Jump":
                     start = new Vector2(0.5f, 1f);
-                    operation = runtime.PlanJumpAsync(AABB.FromLowerCenter(start, JumpParameters.BodySize),
+                    operation = runtime.PlanJumpAsync(AABB.FromLowerCenter(start, JumpBodySize),
                         Goal(new Vector2(3.5f, 1f)), JumpParameters,
                         NavigationPlanningExtent.NextAction);
                     expectedSegmentType = typeof(JumpRouteSegment);
                     break;
                 case "Fly":
                     start = new Vector2(1.5f, 2.5f);
-                    operation = runtime.PlanFlyAsync(AABB.FromCenterAndSize(start, FlyParameters.BodySize),
+                    operation = runtime.PlanFlyAsync(AABB.FromCenterAndSize(start, FlyBodySize),
                         Goal(new Vector2(4.5f, 2.5f)), FlyParameters,
                         NavigationPlanningExtent.NextAction);
                     expectedSegmentType = typeof(FlyRouteSegment);
@@ -342,12 +346,12 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             using MapNavigationRuntime runtime = new(4, 64, 1);
             runtime.PublishWorld(CreateOpenWorld());
-            WalkNavigationParameters groundedOnly = new(new Vector2(0.8f, 1f), 4f,
+            WalkNavigationParameters groundedOnly = new(4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
             NavigationGoalRequest goal = Goal(new Vector2(5.5f, 1f));
 
             NavigationPlanningOperation first = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), groundedOnly.BodySize), goal, groundedOnly);
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkBodySize), goal, groundedOnly);
             Complete(runtime, first);
             Assert.That(first.Result, Is.Not.Null, DescribeRoute(first.Result));
             Assert.That(first.Result.ReachesGoal, Is.True, DescribeRoute(first.Result));
@@ -363,15 +367,15 @@ namespace Aethiumian.AI.Navigation.Tests
             using MapNavigationRuntime runtime = new(4, 1, 1);
             runtime.PublishWorld(CreateBlockedWorld());
             NavigationPlanningOperation walk = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkParameters.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkBodySize),
                 Goal(new Vector2(5.5f, 1f)), WalkParameters,
                 NavigationPlanningExtent.Route);
             NavigationPlanningOperation jump = runtime.PlanJumpAsync(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpParameters.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpBodySize),
                 Goal(new Vector2(5.5f, 1f)), JumpParameters,
                 NavigationPlanningExtent.Route);
             NavigationPlanningOperation fly = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyParameters.BodySize),
+                AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyBodySize),
                 Goal(new Vector2(4.5f, 2.5f)), FlyParameters,
                 NavigationPlanningExtent.Route);
 
@@ -397,14 +401,14 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2 start = new(0.5f, 0.5f);
 
             NavigationPlanningOperation manhattan = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(start, FlyParameters.BodySize),
+                AABB.FromCenterAndSize(start, FlyBodySize),
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Manhattan, 0.25f), FlyParameters);
             WaitForCompletion(manhattan);
             Assert.That(manhattan.Result, Is.Null);
             Assert.That(manhattan.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
 
             NavigationPlanningOperation chebyshev = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(start, FlyParameters.BodySize),
+                AABB.FromCenterAndSize(start, FlyBodySize),
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f), FlyParameters);
             WaitForCompletion(chebyshev);
             Assert.That(chebyshev.Result, Is.Not.Null);
@@ -425,7 +429,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             NavigationPlanningOperation constrained = runtime.PlanFlyAsync(
                 AABB.FromCenterAndSize(start, new Vector2(0.8f, 0.8f)), goal,
-                new FlyNavigationParameters(new Vector2(0.8f, 0.8f), 0.1f));
+                new FlyNavigationParameters(0.1f));
             WaitForCompletion(constrained);
             Assert.That(constrained.Result, Is.Null);
             Assert.That(constrained.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.SearchExhausted));
@@ -433,7 +437,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             NavigationPlanningOperation relaxed = runtime.PlanFlyAsync(
                 AABB.FromCenterAndSize(start, new Vector2(0.8f, 0.8f)), goal,
-                new FlyNavigationParameters(new Vector2(0.8f, 0.8f), 1f));
+                new FlyNavigationParameters(1f));
             WaitForCompletion(relaxed);
             Assert.That(relaxed.Result, Is.Not.Null,
                 "A larger approach budget must not hit the failed-request cache entry for the smaller budget.");
@@ -451,14 +455,14 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2 start = new(0.5f, 0.5f);
 
             NavigationPlanningOperation requiresLineOfSight = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(start, FlyParameters.BodySize),
+                AABB.FromCenterAndSize(start, FlyBodySize),
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f, true), FlyParameters);
             WaitForCompletion(requiresLineOfSight);
             Assert.That(requiresLineOfSight.Result, Is.Null);
             Assert.That(requiresLineOfSight.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
 
             NavigationPlanningOperation noLineOfSight = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(start, FlyParameters.BodySize),
+                AABB.FromCenterAndSize(start, FlyBodySize),
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f), FlyParameters);
             WaitForCompletion(noLineOfSight);
             Assert.That(noLineOfSight.Result, Is.Not.Null);
@@ -474,12 +478,12 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(CreateOpenWorld());
 
             NavigationPlanningOperation touching = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(new Vector2(0.5f, 2.5f), FlyParameters.BodySize),
+                AABB.FromCenterAndSize(new Vector2(0.5f, 2.5f), FlyBodySize),
                 Goal(new Vector2(-0.1f, 2.5f)), FlyParameters);
             Assert.That(touching.IsCompleted, Is.False);
 
             NavigationPlanningOperation separated = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(new Vector2(0.5f, 2.5f), FlyParameters.BodySize),
+                AABB.FromCenterAndSize(new Vector2(0.5f, 2.5f), FlyBodySize),
                 Goal(new Vector2(-10f, 2.5f)), FlyParameters);
             Assert.That(separated.IsCompleted, Is.True);
         }
@@ -492,13 +496,13 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(CreateOpenWorld());
 
             NavigationPlanningOperation airborne = runtime.PlanJumpAsync(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpParameters.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpBodySize),
                 Goal(new Vector2(2.5f, 3.5f)), JumpParameters);
             Assert.That(airborne.IsCompleted, Is.False);
 
             AABB partialBounds = new(new Vector2(-0.75f, 2f), new Vector2(0.25f, 3f));
             NavigationPlanningOperation partial = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(new Vector2(0.5f, 2.5f), FlyParameters.BodySize),
+                AABB.FromCenterAndSize(new Vector2(0.5f, 2.5f), FlyBodySize),
                 NavigationGoalRequest.Proximity(partialBounds, DistanceMetric.Euclidean, 0f), FlyParameters);
             Assert.That(partial.IsCompleted, Is.False);
         }
@@ -510,7 +514,7 @@ namespace Aethiumian.AI.Navigation.Tests
             using CancellationTokenSource cancellation = new();
             using MapNavigationRuntime runtime = CreateRuntime();
             NavigationPlanningOperation operation = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(Vector2.one, FlyParameters.BodySize), Goal(Vector2.right), FlyParameters,
+                AABB.FromCenterAndSize(Vector2.one, FlyBodySize), Goal(Vector2.right), FlyParameters,
                 NavigationPlanningExtent.Route, cancellation.Token);
             cancellation.Cancel();
             Assert.That(operation.IsCompleted, Is.True);
@@ -523,11 +527,11 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             NavigationPlanningOperation waiting = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(Vector2.one, FlyParameters.BodySize), Goal(Vector2.right), FlyParameters);
+                AABB.FromCenterAndSize(Vector2.one, FlyBodySize), Goal(Vector2.right), FlyParameters);
             InvalidOperationException failure = new("capture failed");
             runtime.FailWorld(failure);
             NavigationPlanningOperation later = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(Vector2.one, FlyParameters.BodySize), Goal(Vector2.right), FlyParameters);
+                AABB.FromCenterAndSize(Vector2.one, FlyBodySize), Goal(Vector2.right), FlyParameters);
 
             Assert.That(waiting.Exception, Is.SameAs(failure));
             Assert.That(later.Exception, Is.SameAs(failure));
@@ -561,14 +565,14 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             MapNavigationRuntime runtime = CreateRuntime();
             NavigationPlanningOperation operation = runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(Vector2.one, FlyParameters.BodySize), Goal(Vector2.right), FlyParameters);
+                AABB.FromCenterAndSize(Vector2.one, FlyBodySize), Goal(Vector2.right), FlyParameters);
             runtime.Dispose();
             Assert.That(operation.IsCancelled, Is.True);
             Assert.That(runtime.IsReady, Is.False);
             Assert.Throws<ObjectDisposedException>(() => runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(Vector2.zero, FlyParameters.BodySize), Goal(Vector2.one), FlyParameters));
+                AABB.FromCenterAndSize(Vector2.zero, FlyBodySize), Goal(Vector2.one), FlyParameters));
             Assert.Throws<ObjectDisposedException>(() => runtime.PlanFlyAsync(
-                AABB.FromCenterAndSize(Vector2.one, FlyParameters.BodySize), Goal(Vector2.right), FlyParameters));
+                AABB.FromCenterAndSize(Vector2.one, FlyBodySize), Goal(Vector2.right), FlyParameters));
         }
 
         /// <summary>Verifies runtime construction and world publication validate their owning inputs.</summary>
@@ -579,6 +583,19 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(() => new MapNavigationRuntime(2, 1, 0), Throws.InstanceOf<ArgumentException>());
             using MapNavigationRuntime runtime = new(2, 32, 32);
             Assert.Throws<ArgumentNullException>(() => runtime.PublishWorld(null));
+        }
+
+        /// <summary>Verifies zero-width or zero-height request bodies are rejected before queueing.</summary>
+        [TestCase(0f, 1f)]
+        [TestCase(1f, 0f)]
+        public void RejectsNonPositivePlanningBody(float width, float height)
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+
+            Assert.That(() => runtime.PlanFlyAsync(
+                AABB.FromCenterAndSize(Vector2.zero, new Vector2(width, height)),
+                Goal(Vector2.one), FlyParameters),
+                Throws.InstanceOf<ArgumentException>());
         }
 
         private static MapNavigationRuntime CreateRuntime()

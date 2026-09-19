@@ -44,7 +44,7 @@ namespace Aethiumian.AI.Nodes
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
             operation = NavigationRuntime.PlanFlyAsync(body, goal,
-                new FlyNavigationParameters(body.Size, RetreatExecution?.RemainingApproachDistance ?? 0f, RetreatExecution?.HasApproachLimit ?? false), extent, cancellation);
+                new FlyNavigationParameters(RetreatExecution?.RemainingApproachDistance ?? 0f, RetreatExecution?.HasApproachLimit ?? false), extent, cancellation);
             return true;
         }
 

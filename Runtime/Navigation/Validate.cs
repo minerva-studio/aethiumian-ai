@@ -70,10 +70,16 @@ namespace Aethiumian.AI.Navigation
         {
             if (!NavigationNumeric.IsFinite(value.Min) || !NavigationNumeric.IsFinite(value.Max)
                 || value.MaxX < value.MinX || value.MaxY < value.MinY)
-                throw new ArgumentException("Goal bounds must be finite and non-negative.", parameterName);
+                throw new ArgumentException("Bounds must be finite and non-inverted.", parameterName);
         }
 
-
-
+        /// <summary>Validates a finite, non-inverted body box with positive width and height.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void PositiveAabb(AABB value, string parameterName)
+        {
+            Aabb(value, parameterName);
+            if (value.SizeX <= 0f || value.SizeY <= 0f)
+                throw new ArgumentException("Planning body must have positive width and height.", parameterName);
+        }
     }
 }

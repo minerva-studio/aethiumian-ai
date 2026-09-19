@@ -115,8 +115,9 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Queues ground planning with an explicit local-action or route horizon.
+        /// Queues ground planning with an explicit local-action or route horizon. The body AABB supplies the planning pose and size.
         /// </summary>
+        /// <param name="body">The captured body bounds used for every planning geometry query.</param>
         public NavigationPlanningOperation PlanWalkAsync(AABB body,
             NavigationGoalRequest goalRequest,
             WalkNavigationParameters parameters,
@@ -127,8 +128,9 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Queues jump planning without requiring a complete path for NextAction.
+        /// Queues jump planning without requiring a complete path for NextAction. The body AABB supplies the planning pose and size.
         /// </summary>
+        /// <param name="body">The captured body bounds used for every planning geometry query.</param>
         public NavigationPlanningOperation PlanJumpAsync(AABB body,
             NavigationGoalRequest goalRequest,
             JumpNavigationParameters parameters,
@@ -139,8 +141,9 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Queues aerial planning with the same horizon contract as ground movement.
+        /// Queues aerial planning with the same horizon contract as ground movement. The body AABB supplies the planning pose and size.
         /// </summary>
+        /// <param name="body">The captured body bounds used for every planning geometry query.</param>
         public NavigationPlanningOperation PlanFlyAsync(AABB body,
             NavigationGoalRequest goalRequest,
             FlyNavigationParameters parameters,
@@ -194,6 +197,7 @@ namespace Aethiumian.AI.Navigation
             ThrowIfDisposed();
             ReleaseCompletedOperations();
             if (request == null) throw new ArgumentNullException(nameof(request));
+            Validate.PositiveAabb(request.Body, "body");
             if (worldBuildException != null) return NavigationPlanningOperation.CreateFailed(worldBuildException);
             CancellationTokenSource ownedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             try
@@ -224,7 +228,7 @@ namespace Aethiumian.AI.Navigation
             try
             {
                 NavigationGoalRequest goal = request.Goal;
-                if (!world.CanBodyPossiblyReachGoal(request.BodySize, goal))
+                if (!world.CanBodyPossiblyReachGoal(request.Body.Size, goal))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.NoResult);
                     return;
@@ -275,7 +279,7 @@ namespace Aethiumian.AI.Navigation
             /// <summary>Gets the runtime-owned cancellation source for the queued operation.</summary>
             public CancellationTokenSource Cancellation { get; private set; }
 
-            public abstract Vector2 BodySize { get; }
+            public abstract AABB Body { get; }
             public abstract NavigationGoalRequest Goal { get; }
 
             /// <summary>Creates detached planner work from this request's immutable value data.</summary>
@@ -304,7 +308,7 @@ namespace Aethiumian.AI.Navigation
                 requestData = new RequestData(body, goal, parameters, extent);
             }
 
-            public sealed override Vector2 BodySize => requestData.Body.Size;
+            public sealed override AABB Body => requestData.Body;
             public sealed override NavigationGoalRequest Goal => requestData.Goal;
 
             public sealed override INavigationPlanningWork CreateWork(MapNavigationRuntime runtime)

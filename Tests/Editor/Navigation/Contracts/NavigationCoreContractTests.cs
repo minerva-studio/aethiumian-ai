@@ -1230,22 +1230,16 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationParameterConstructorsValidateValues()
         {
-            Assert.DoesNotThrow(() => new WalkNavigationParameters(new Vector2(1, 2), 5, new Vector2(0, -9.81f), 1, 0, 2, 3, 0.02f));
-            Assert.That(() => new WalkNavigationParameters(new Vector2(0, 2), 5, Vector2.down, 1, 0, 2, 3, 0.02f),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => new WalkNavigationParameters(new Vector2(1, 2), -1, Vector2.down, 1, 0, 2, 3, 0.02f),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.DoesNotThrow(() => new JumpNavigationParameters(new Vector2(1, 2), new Vector2(0, -9.81f), 1, 0, 2, 3, 0.02f));
-            Assert.That(() => new JumpNavigationParameters(new Vector2(1, 2), new Vector2(float.NaN, -1), 1, 0, 2, 3, 0.02f),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.DoesNotThrow(() => new FlyNavigationParameters(new Vector2(1, 2)));
-            Assert.That(() => new FlyNavigationParameters(new Vector2(float.NaN, 2)),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.DoesNotThrow(() => new FlyNavigationParameters(new Vector2(1, 2), 0f, true));
-            Assert.That(() => new FlyNavigationParameters(new Vector2(1, 2), -1f),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => new FlyNavigationParameters(new Vector2(1, 2), 1f, false),
-                Throws.InstanceOf<ArgumentException>());
+            Assert.DoesNotThrow(() => new WalkNavigationParameters(5, new Vector2(0, -9.81f), 1, 0, 2, 3, 0.02f));
+            Assert.That(() => new WalkNavigationParameters(5, new Vector2(float.NaN, -1), 1, 0, 2, 3, 0.02f), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => new WalkNavigationParameters(-1, Vector2.down, 1, 0, 2, 3, 0.02f), Throws.InstanceOf<ArgumentException>());
+            Assert.DoesNotThrow(() => new JumpNavigationParameters(new Vector2(0, -9.81f), 1, 0, 2, 3, 0.02f));
+            Assert.That(() => new JumpNavigationParameters(new Vector2(float.NaN, -1), 1, 0, 2, 3, 0.02f), Throws.InstanceOf<ArgumentException>());
+            Assert.DoesNotThrow(() => new FlyNavigationParameters());
+            Assert.That(() => new FlyNavigationParameters(float.NaN), Throws.InstanceOf<ArgumentException>());
+            Assert.DoesNotThrow(() => new FlyNavigationParameters(0f, true));
+            Assert.That(() => new FlyNavigationParameters(-1f), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => new FlyNavigationParameters(1f, false), Throws.InstanceOf<ArgumentException>());
         }
 
         /// <summary>Verifies approach budget geometry observes the closest point inside a segment.</summary>

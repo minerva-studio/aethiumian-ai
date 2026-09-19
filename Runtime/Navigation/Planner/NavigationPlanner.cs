@@ -32,7 +32,7 @@ namespace Aethiumian.AI.Navigation
         /// Runs planning synchronously against this planner's immutable navigation world. The body AABB
         /// carries the caller's pose: each planner derives its own mode-specific start anchor from it
         /// (Walk and Jump from the lower center, Fly from the center), so no caller ever supplies a
-        /// separate start vector. The profile still owns the body dimension the search is generated with.
+        /// separate start vector. Each planner also derives the collision size from this same body snapshot.
         /// </summary>
         public abstract NavigationPlanResult Plan(AABB body, NavigationGoalRequest goal, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null);
 
@@ -68,7 +68,7 @@ namespace Aethiumian.AI.Navigation
         protected void ValidatePlanInputs(AABB body, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Validate.Aabb(body, nameof(body));
+            Validate.PositiveAabb(body, nameof(body));
         }
 
         /// <summary>

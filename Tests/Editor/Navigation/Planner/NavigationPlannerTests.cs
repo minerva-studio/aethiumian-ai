@@ -10,6 +10,7 @@ namespace Aethiumian.AI.Navigation.Tests
     public sealed partial class NavigationPlannerTests
     {
         private static readonly Vector2 Gravity = new(0f, -9.81f);
+        private static readonly Vector2 GroundBodySize = new(0.8f, 1.5f);
 
         /// <summary>Verifies Fly Retreat stops at any reachable cell that satisfies the distance predicate.</summary>
         [Test]
@@ -20,7 +21,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = NavigationGoalRequest.Retreat(AABB.Point(1.5f, 2.5f), DistanceMetric.Euclidean, 2f);
 
             Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(AABB.FromCenterAndSize(new Vector2(3.5f, 2.5f), bodySize), goal,
-                new FlyNavigationParameters(bodySize), out NavigationRoute route), Is.True);
+                new FlyNavigationParameters(), out NavigationRoute route), Is.True);
             Assert.That(route, Is.Not.Null);
             Assert.That(world.IsGoalComplete(goal, AABB.FromCenterAndSize(route.Endpoint, bodySize)), Is.True);
             Assert.That(route.Segments.Count, Is.GreaterThan(0));
@@ -35,7 +36,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = NavigationGoalRequest.Retreat(AABB.Point(1.5f, 2.5f), DistanceMetric.Euclidean, 3f);
 
             NavigationPlanResult result = new FlyNavigationPlanner(world, 1).Plan(
-                AABB.FromCenterAndSize(new Vector2(3.5f, 2.5f), bodySize), goal, new FlyNavigationParameters(bodySize));
+                AABB.FromCenterAndSize(new Vector2(3.5f, 2.5f), bodySize), goal, new FlyNavigationParameters());
             NavigationRoute route = result.Route;
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.BudgetReached));
             Assert.That(route, Is.Null);
@@ -51,7 +52,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = NavigationGoalRequest.Retreat(AABB.Point(6.5f, 2.5f), DistanceMetric.Euclidean, 4f);
 
             Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(AABB.FromCenterAndSize(start, bodySize), goal,
-                new FlyNavigationParameters(bodySize, 0.25f), out NavigationRoute route), Is.True);
+                new FlyNavigationParameters(0.25f), out NavigationRoute route), Is.True);
             Assert.That(world.IsGoalComplete(goal, AABB.FromCenterAndSize(route.Endpoint, bodySize)), Is.True);
             Assert.That(route.Endpoint.x, Is.LessThan(start.x),
                 "The finite approach budget must prevent the route from spending its budget toward the target.");
@@ -66,7 +67,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(new FlyNavigationPlanner(world, 16).TryPlan(
                 AABB.FromCenterAndSize(new Vector2(0.5f, 0.5f), new Vector2(0.8f, 0.8f)), goal,
-                new FlyNavigationParameters(new Vector2(0.8f, 0.8f)), out NavigationRoute route), Is.False);
+                new FlyNavigationParameters(), out NavigationRoute route), Is.False);
             Assert.That(route, Is.Null);
         }
 
@@ -80,7 +81,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(new WalkNavigationPlanner(world, 32, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize), goal,
-                WalkParameters(bodySize, jumpHeight: 0f, jumpLength: 0f), out NavigationRoute route), Is.True);
+                WalkParameters(jumpHeight: 0f, jumpLength: 0f), out NavigationRoute route), Is.True);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
             Assert.That(world.IsGoalCompleteAlong(goal,
@@ -99,7 +100,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WalkNavigationPlanner planner = new(world, 32, new GroundJumpSolver(world));
             using INavigationPlanningWork work = new PlannerWork<WalkNavigationPlanner, WalkNavigationParameters>(AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize),
                 goal,
-                planner, new WalkNavigationParameters(bodySize, 0f, Gravity, 1f, 0f, 2f, 2.1f, 0.02f), NavigationPlanningExtent.NextAction);
+                planner, new WalkNavigationParameters(0f, Gravity, 1f, 0f, 2f, 2.1f, 0.02f), NavigationPlanningExtent.NextAction);
 
             NavigationRoute route = work.Execute(CancellationToken.None).Route;
 
@@ -123,7 +124,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WalkNavigationPlanner planner = new(world, 32, new GroundJumpSolver(world));
             using INavigationPlanningWork work = new PlannerWork<WalkNavigationPlanner, WalkNavigationParameters>(AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize),
                 goal,
-                planner, WalkParameters(bodySize, jumpHeight: 2f, jumpLength: 4f), NavigationPlanningExtent.NextAction);
+                planner, WalkParameters(jumpHeight: 2f, jumpLength: 4f), NavigationPlanningExtent.NextAction);
 
             NavigationRoute route = work.Execute(CancellationToken.None).Route;
 
@@ -149,7 +150,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(AABB.Point(10.5f, 1f), 0.1f);
             WalkNavigationPlanner planner = new(world, 32, new GroundJumpSolver(world));
             using INavigationPlanningWork work = new PlannerWork<WalkNavigationPlanner, WalkNavigationParameters>(AABB.FromLowerCenter(new Vector2(0.8f, 1f), bodySize),
-                goal, planner, WalkParameters(bodySize),
+                goal, planner, WalkParameters(),
                 NavigationPlanningExtent.NextAction);
 
             NavigationRoute route = work.Execute(CancellationToken.None).Route;
@@ -174,7 +175,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(new WalkNavigationPlanner(groundWorld, 32, new GroundJumpSolver(groundWorld)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize), walkGoal,
-                WalkParameters(bodySize, jumpHeight: 0f, jumpLength: 0f), out NavigationRoute walkRoute), Is.True);
+                WalkParameters(jumpHeight: 0f, jumpLength: 0f), out NavigationRoute walkRoute), Is.True);
             Assert.That(walkRoute.Count, Is.GreaterThan(0));
 
             TestNavigationWorld flyWorld = new(new AABBInt(0, 0, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
@@ -182,7 +183,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest flyGoal = NavigationGoalRequest.Proximity(AABB.Point(1.3001f, 1.5f), DistanceMetric.Euclidean, 0.5f, true);
             Assert.That(new FlyNavigationPlanner(flyWorld, 32).TryPlan(
                 AABB.FromCenterAndSize(new Vector2(0.5f, 1.5f), flyBodySize), flyGoal,
-                new FlyNavigationParameters(flyBodySize), out NavigationRoute flyRoute), Is.True);
+                new FlyNavigationParameters(), out NavigationRoute flyRoute), Is.True);
             Assert.That(flyRoute.Count, Is.GreaterThan(0));
             Assert.That(flyWorld.IsGoalComplete(flyGoal, AABB.FromCenterAndSize(flyRoute.Endpoint, flyBodySize)), Is.True);
         }
@@ -199,7 +200,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(world.IsGoalComplete(goal, AABB.FromCenterAndSize(new Vector2(0.5f, 1.75f), bodySize)), Is.False);
             Assert.That(new JumpNavigationPlanner(world, 32, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize), goal,
-                new JumpNavigationParameters(bodySize, Gravity, 1f, 0f, 2f, 2.1f, 0.02f),
+                new JumpNavigationParameters(Gravity, 1f, 0f, 2f, 2.1f, 0.02f),
                 out NavigationRoute route), Is.True);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
@@ -219,7 +220,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goalRegion = NavigationGoalRequest.GroundRange(AABB.Point(goal), 1f);
 
             Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(start, bodySize), goalRegion, WalkParameters(bodySize), out NavigationRoute route), Is.True);
+                AABB.FromLowerCenter(start, bodySize), goalRegion, WalkParameters(), out NavigationRoute route), Is.True);
             Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
             Assert.That(route.Start, Is.EqualTo(new Vector2(0.5f, 1f)));
             Assert.That(route.Endpoint.y, Is.EqualTo(1f));
@@ -237,7 +238,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2 start = new(0.63f, 2.37f);
 
             Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(start, WalkParameters().BodySize),
+                AABB.FromLowerCenter(start, GroundBodySize),
                 Goal(new Vector2(2.5f, 2.37f), 0.1f), WalkParameters(), out NavigationRoute route), Is.True);
             Assert.That(route.Start.x, Is.EqualTo(start.x).Within(0.0001f));
             Assert.That(route.Start.y, Is.EqualTo(start.y).Within(0.0001f));
@@ -257,7 +258,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WalkNavigationParameters parameters = WalkParameters(jumpHeight: 0f, jumpLength: 0f);
 
             Assert.That(new WalkNavigationPlanner(world, 32, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), parameters.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize),
                 Goal(new Vector2(1.5f, 1.005f), 0.01f), parameters, out NavigationRoute route), Is.True);
             Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
         }
@@ -276,7 +277,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WalkNavigationParameters parameters = WalkParameters(jumpHeight: 0f, jumpLength: 0f);
 
             Assert.That(new WalkNavigationPlanner(world, 32, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), parameters.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize),
                 Goal(new Vector2(1.5f, 1.02f), 0.01f), parameters, out _), Is.False);
         }
 
@@ -294,7 +295,7 @@ namespace Aethiumian.AI.Navigation.Tests
             JumpNavigationParameters parameters = JumpParameters();
 
             Assert.That(new JumpNavigationPlanner(world, 32, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), parameters.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize),
                 Goal(new Vector2(1.5f, 1.005f), 0.01f), parameters, out NavigationRoute route), Is.True);
             Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
         }
@@ -318,7 +319,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanningDiagnostics diagnostics = new();
             WalkNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
             NavigationPlanResult result = planner.Plan(
-                AABB.FromLowerCenter(new Vector2(1.5f, 1f), WalkParameters().BodySize),
+                AABB.FromLowerCenter(new Vector2(1.5f, 1f), GroundBodySize),
                 Goal(new Vector2(3.5f, 1f), 0.1f), WalkParameters(), CancellationToken.None, diagnostics);
             Assert.That(result.Route, Is.Null);
             Assert.That(diagnostics.ExpansionCount, Is.Zero);
@@ -345,7 +346,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2 start = new(0.5f, 1f + NavigationWorldQueries.SupportSnapDistance + NavigationWorldQueries.GeometryEpsilon);
 
             Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(start, WalkParameters().BodySize),
+                AABB.FromLowerCenter(start, GroundBodySize),
                 Goal(new Vector2(4.5f, 1f), 10f), WalkParameters(), out _), Is.False);
         }
 
@@ -357,7 +358,7 @@ namespace Aethiumian.AI.Navigation.Tests
             floor.Add(new Vector2Int(2, 1));
             TestNavigationWorld world = new(new AABBInt(0, 0, 6, 7), floor, Array.Empty<Vector2Int>());
             Assert.That(new WalkNavigationPlanner(world, 256, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkParameters(jumpHeight: 2.5f, jumpLength: 5f).BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize),
                 Goal(new Vector2(4.5f, 1f), 0.1f), WalkParameters(jumpHeight: 2.5f, jumpLength: 5f), out NavigationRoute route), Is.True);
             Assert.That(ContainsSegment<JumpRouteSegment>(route), Is.True);
         }
@@ -378,7 +379,7 @@ namespace Aethiumian.AI.Navigation.Tests
                         TestNavigationWorld world = GroundWorld(0, 3);
                         start = new Vector2(0.50002f, 1f);
                         Assert.That(new WalkNavigationPlanner(world, 64, new GroundJumpSolver(world)).TryPlan(
-                            AABB.FromLowerCenter(start, WalkParameters(jumpHeight: 0f, jumpLength: 0f).BodySize),
+                            AABB.FromLowerCenter(start, GroundBodySize),
                             Goal(new Vector2(1.5f, 1f), 0.1f),
                             WalkParameters(jumpHeight: 0f, jumpLength: 0f), out route), Is.True);
                         break;
@@ -390,7 +391,7 @@ namespace Aethiumian.AI.Navigation.Tests
                         TestNavigationWorld world = new(new AABBInt(0, 0, 6, 7), floor, Array.Empty<Vector2Int>());
                         start = new Vector2(0.50002f, 1f);
                         Assert.That(new WalkNavigationPlanner(world, 256, new GroundJumpSolver(world)).TryPlan(
-                            AABB.FromLowerCenter(start, WalkParameters(jumpHeight: 2.5f, jumpLength: 2.1f).BodySize),
+                            AABB.FromLowerCenter(start, GroundBodySize),
                             Goal(new Vector2(4.5f, 1f), 0.1f),
                             WalkParameters(jumpHeight: 2.5f, jumpLength: 2.1f), out route), Is.True);
                         break;
@@ -402,7 +403,7 @@ namespace Aethiumian.AI.Navigation.Tests
                         Assert.That(new FlyNavigationPlanner(world, 64).TryPlan(
                             AABB.FromCenterAndSize(start, new Vector2(0.6f, 0.6f)),
                             Goal(new Vector2(1.5f, 1.5f), 0.1f),
-                            new FlyNavigationParameters(new Vector2(0.6f, 0.6f)), out route), Is.True);
+                            new FlyNavigationParameters(), out route), Is.True);
                         break;
                     }
                 default:
@@ -428,7 +429,7 @@ namespace Aethiumian.AI.Navigation.Tests
             TestNavigationWorld world = new(new AABBInt(0, 0, 6, 7), floor, Array.Empty<Vector2Int>());
 
             Assert.That(new WalkNavigationPlanner(world, 256, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkParameters(jumpHeight: 2.5f, jumpLength: 5f, linearDamping: 5f).BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize),
                 Goal(new Vector2(4.5f, 1f), 0.1f),
                 WalkParameters(jumpHeight: 2.5f, jumpLength: 5f, linearDamping: 5f),
                 out NavigationRoute route), Is.True);
@@ -444,7 +445,7 @@ namespace Aethiumian.AI.Navigation.Tests
             TestNavigationWorld world = new(new AABBInt(0, 0, 3, 5), solids, Array.Empty<Vector2Int>());
             Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(0.5f, 1f), new Vector2(0.8f, 1.5f)),
-                Goal(new Vector2(2.5f, 1f), 0.1f), WalkParameters(bodySize: new Vector2(0.8f, 1.5f)), out _), Is.False);
+                Goal(new Vector2(2.5f, 1f), 0.1f), WalkParameters(), out _), Is.False);
         }
 
         /// <summary>Verifies only an authored one-way surface enables drop-through.</summary>
@@ -453,7 +454,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             TestNavigationWorld world = new(new AABBInt(0, 0, 4, 6), new[] { new Vector2Int(1, 0) }, new[] { new Vector2Int(1, 2) });
             Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(1.5f, 3f), WalkParameters(jumpHeight: 0, jumpLength: 0).BodySize),
+                AABB.FromLowerCenter(new Vector2(1.5f, 3f), GroundBodySize),
                 Goal(new Vector2(1.5f, 1f), 0.1f), WalkParameters(jumpHeight: 0, jumpLength: 0), out NavigationRoute route), Is.True);
             Assert.That(route.Segments[0], Is.TypeOf<DropThroughRouteSegment>());
         }
@@ -465,7 +466,7 @@ namespace Aethiumian.AI.Navigation.Tests
             TestNavigationWorld world = new(new AABBInt(0, 0, 6, 6), new[] { new Vector2Int(0, 0), new Vector2Int(2, 0), new Vector2Int(4, 0) }, Array.Empty<Vector2Int>());
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
             JumpNavigationParameters parameters = JumpParameters();
-            using INavigationPlanningWork work = new PlannerWork<JumpNavigationPlanner, JumpNavigationParameters>(AABB.FromLowerCenter(new Vector2(0.5f, 1f), parameters.BodySize),
+            using INavigationPlanningWork work = new PlannerWork<JumpNavigationPlanner, JumpNavigationParameters>(AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize),
                 Goal(new Vector2(4.5f, 1f), 0.1f), planner,
                 parameters, NavigationPlanningExtent.Route);
             NavigationRoute route = work.Execute(CancellationToken.None).Route;
@@ -488,7 +489,7 @@ namespace Aethiumian.AI.Navigation.Tests
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
 
             NavigationPlanResult result = planner.PlanSingleStep(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpParameters().BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize),
                 Goal(new Vector2(4.5f, 1f), 0.1f), JumpParameters());
 
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
@@ -504,7 +505,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanningDiagnostics diagnostics = new();
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
             NavigationPlanResult result = planner.Plan(
-                AABB.FromLowerCenter(new Vector2(1.5f, 1f), JumpParameters().BodySize),
+                AABB.FromLowerCenter(new Vector2(1.5f, 1f), GroundBodySize),
                 Goal(new Vector2(3.5f, 1f), 0.1f), JumpParameters(), CancellationToken.None, diagnostics);
             Assert.That(result.Route, Is.Null);
             Assert.That(diagnostics.ExpansionCount, Is.Zero);
@@ -516,11 +517,11 @@ namespace Aethiumian.AI.Navigation.Tests
         public void JumpPlannerRejectsNonPositiveAuthoredJumpHeight()
         {
             TestNavigationWorld world = GroundWorld(0, 3);
-            JumpNavigationParameters noJump = new(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 0f, 0f, 0.02f);
+            JumpNavigationParameters noJump = new(Gravity, 1f, 0f, 0f, 0f, 0.02f);
             JumpNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
 
             Assert.Throws<ArgumentException>(() => planner.Plan(
-                AABB.FromLowerCenter(new Vector2(0.5f, 1f), noJump.BodySize),
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize),
                 Goal(new Vector2(2.5f, 1f), 0.1f), noJump));
         }
 
@@ -536,7 +537,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(new JumpNavigationPlanner(world, 256, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(1.5f, 5f), new Vector2(0.8f, 1.5f)),
                 Goal(new Vector2(1.5f, 2f), 0.1f),
-                new JumpNavigationParameters(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 1f, 2.1f, 0.02f),
+                new JumpNavigationParameters(Gravity, 1f, 0f, 1f, 2.1f, 0.02f),
                 out NavigationRoute route), Is.True);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
@@ -555,7 +556,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(new JumpNavigationPlanner(world, 256, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(1.5f, 5f), new Vector2(0.8f, 1.5f)),
                 Goal(new Vector2(1.5f, 2f), 0.1f),
-                new JumpNavigationParameters(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 1f, 2.1f, 0.02f),
+                new JumpNavigationParameters(Gravity, 1f, 0f, 1f, 2.1f, 0.02f),
                 out _), Is.False);
         }
 
@@ -566,7 +567,7 @@ namespace Aethiumian.AI.Navigation.Tests
             TestNavigationWorld world = new(new AABBInt(0, 0, 7, 5), new[] { new Vector2Int(3, 2) }, Array.Empty<Vector2Int>());
             Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(
                 AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), new Vector2(0.6f, 0.6f)),
-                Goal(new Vector2(5.5f, 2.5f), 0.1f), new FlyNavigationParameters(new Vector2(0.6f, 0.6f)), out NavigationRoute route), Is.True);
+                Goal(new Vector2(5.5f, 2.5f), 0.1f), new FlyNavigationParameters(), out NavigationRoute route), Is.True);
             Assert.That(route.Count, Is.GreaterThan(1));
         }
 
@@ -581,7 +582,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(
                 AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), bodySize), confrontRequest,
-                new FlyNavigationParameters(bodySize), out NavigationRoute route), Is.True);
+                new FlyNavigationParameters(), out NavigationRoute route), Is.True);
             Assert.That(route.Goal.IsGroundWalk, Is.True);
             Assert.That(route.Goal.RequiresLineOfSight, Is.True);
             Assert.That(world.IsGoalComplete(route.Goal, AABB.FromCenterAndSize(route.Endpoint, bodySize)), Is.True);
@@ -597,7 +598,7 @@ namespace Aethiumian.AI.Navigation.Tests
             using INavigationPlanningWork work = new PlannerWork<FlyNavigationPlanner, FlyNavigationParameters>(AABB.FromCenterAndSize(new Vector2(0.5f, 1.5f), new Vector2(0.6f, 0.6f)),
                 Goal(new Vector2(127.5f, 1.5f), 0.1f),
                 planner,
-                new FlyNavigationParameters(new Vector2(0.6f, 0.6f)), NavigationPlanningExtent.Route);
+                new FlyNavigationParameters(), NavigationPlanningExtent.Route);
 
             NavigationRoute route = work.Execute(CancellationToken.None).Route;
             Assert.That(route, Is.Not.Null);
@@ -611,13 +612,14 @@ namespace Aethiumian.AI.Navigation.Tests
             FlyNavigationPlanner planner = new(world, 64);
             Vector2 start = new(1.5f, 1.5f);
             NavigationGoalRequest goal = Goal(new Vector2(12.5f, 1.5f), 0.1f);
-            FlyNavigationParameters parameters = new(new Vector2(0.6f, 0.6f));
+            Vector2 bodySize = new(0.6f, 0.6f);
+            FlyNavigationParameters parameters = new();
 
-            NavigationPlanResult synchronous = planner.Plan(AABB.FromCenterAndSize(start, parameters.BodySize), goal, parameters);
+            NavigationPlanResult synchronous = planner.Plan(AABB.FromCenterAndSize(start, bodySize), goal, parameters);
             NavigationPlanningDiagnostics diagnostics = new();
-            NavigationPlanResult diagnosed = planner.Plan(AABB.FromCenterAndSize(start, parameters.BodySize), goal, parameters,
+            NavigationPlanResult diagnosed = planner.Plan(AABB.FromCenterAndSize(start, bodySize), goal, parameters,
                 CancellationToken.None, diagnostics);
-            using INavigationPlanningWork work = new PlannerWork<FlyNavigationPlanner, FlyNavigationParameters>(AABB.FromCenterAndSize(start, parameters.BodySize),
+            using INavigationPlanningWork work = new PlannerWork<FlyNavigationPlanner, FlyNavigationParameters>(AABB.FromCenterAndSize(start, bodySize),
                 goal, planner, parameters, NavigationPlanningExtent.Route);
             NavigationPlanResult detached = work.Execute(CancellationToken.None);
 
@@ -658,7 +660,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 Box(new Vector2(16.5f, 3.5f), new Vector2(12f, 4f)), DistanceMetric.Euclidean, 0.1f);
             using INavigationPlanningWork work = new PlannerWork<FlyNavigationPlanner, FlyNavigationParameters>(AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), new Vector2(0.6f, 0.6f)),
                 goal,
-                planner, new FlyNavigationParameters(new Vector2(0.6f, 0.6f)),
+                planner, new FlyNavigationParameters(),
                 NavigationPlanningExtent.Route);
 
             NavigationRoute route = work.Execute(CancellationToken.None).Route;
@@ -744,7 +746,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.Throws<ArgumentNullException>(() => new WalkNavigationPlanner(null, 8, null));
             Assert.That(() => new FlyNavigationPlanner(world, 8).TryPlan(
                 AABB.FromCenterAndSize(new Vector2(float.NaN, 0f), Vector2.one),
-                Goal(Vector2.one, 0.1f), new FlyNavigationParameters(Vector2.one), out _),
+                Goal(Vector2.one, 0.1f), new FlyNavigationParameters(), out _),
                 Throws.InstanceOf<ArgumentException>());
         }
 
@@ -768,7 +770,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanningDiagnostics diagnostics = new();
             WalkNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
             NavigationPlanResult result = planner.Plan(
-                AABB.FromLowerCenter(start, WalkParameters().BodySize),
+                AABB.FromLowerCenter(start, GroundBodySize),
                 Goal(new Vector2(19.7f, 9f), 0.1f), WalkParameters(), CancellationToken.None, diagnostics);
             Assert.That(diagnostics.ExpansionCount, Is.GreaterThan(0));
             Assert.That(result.Termination, Is.Not.EqualTo(NavigationPlanTermination.SearchExhausted));
@@ -786,7 +788,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(new JumpNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(1.5f, 1f), new Vector2(0.8f, 1.5f)),
                 Goal(new Vector2(1.5f, 3f), 0.1f),
-                new JumpNavigationParameters(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 3.5f, 0f, 0.02f),
+                new JumpNavigationParameters(Gravity, 1f, 0f, 3.5f, 0f, 0.02f),
                 out NavigationRoute route), Is.True);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
@@ -804,7 +806,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 new[] { new Vector2Int(1, 2) });
 
             Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(1.5f, 1f), WalkParameters(jumpHeight: 3.5f, jumpLength: 0f).BodySize),
+                AABB.FromLowerCenter(new Vector2(1.5f, 1f), GroundBodySize),
                 Goal(new Vector2(1.5f, 3f), 0.1f),
                 WalkParameters(jumpHeight: 3.5f, jumpLength: 0f), out NavigationRoute route), Is.True);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
@@ -822,7 +824,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 new[] { new Vector2Int(1, 2) });
 
             Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(1.5f, 1f), WalkParameters(jumpHeight: 3.5f, jumpLength: 0f).BodySize),
+                AABB.FromLowerCenter(new Vector2(1.5f, 1f), GroundBodySize),
                 new Vector2(1.5f, 3f), 0.1f,
                 WalkParameters(jumpHeight: 3.5f, jumpLength: 0f), out NavigationRoute route), Is.True);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
@@ -839,7 +841,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 new[] { new Vector2Int(1, 2) });
 
             Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
-                AABB.FromLowerCenter(new Vector2(1.5f, 1f), WalkParameters(jumpHeight: 2.99f, jumpLength: 0f).BodySize),
+                AABB.FromLowerCenter(new Vector2(1.5f, 1f), GroundBodySize),
                 Goal(new Vector2(1.5f, 3f), 0.1f),
                 WalkParameters(jumpHeight: 2.99f, jumpLength: 0f), out NavigationRoute route), Is.True);
             Assert.That(route.Segments.Count, Is.EqualTo(1));
@@ -858,11 +860,11 @@ namespace Aethiumian.AI.Navigation.Tests
             WalkNavigationPlanner planner = new(world, 128, new GroundJumpSolver(world));
 
             Assert.That(planner.TryPlan(
-                AABB.FromLowerCenter(new Vector2(1.5f, 1f), WalkParameters(jumpHeight: 2.99f, jumpLength: 0f).BodySize),
+                AABB.FromLowerCenter(new Vector2(1.5f, 1f), GroundBodySize),
                 Goal(new Vector2(1.5f, 3f), 0.1f),
                 WalkParameters(jumpHeight: 2.99f, jumpLength: 0f), out _), Is.True);
             Assert.That(planner.TryPlan(
-                AABB.FromLowerCenter(new Vector2(1.5f, 1f), WalkParameters(jumpHeight: 2.99f, jumpLength: 0f).BodySize),
+                AABB.FromLowerCenter(new Vector2(1.5f, 1f), GroundBodySize),
                 Goal(new Vector2(1.5f, 3.25f), 0.1f),
                 WalkParameters(jumpHeight: 2.99f, jumpLength: 0f), out NavigationRoute highTargetRoute), Is.True);
             Assert.That(highTargetRoute, Is.Not.Null);
@@ -889,7 +891,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(new JumpNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(1.5f, 1f), new Vector2(0.8f, 1.5f)),
                 Goal(new Vector2(1.5f, 4f), 0.1f),
-                new JumpNavigationParameters(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 5.5f, 0f, 0.02f),
+                new JumpNavigationParameters(Gravity, 1f, 0f, 5.5f, 0f, 0.02f),
                 out NavigationRoute route), Is.True);
 
             JumpRouteSegment segment = (JumpRouteSegment)route.Segments[0];
@@ -914,7 +916,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             NavigationGoalRequest walkGoal = NavigationGoalRequest.GroundRange(AABB.Point(1f, 1f), 0f);
             Assert.That(new WalkNavigationPlanner(groundWorld, 32, new GroundJumpSolver(groundWorld)).TryPlan(
-                groundBody, walkGoal, WalkParameters(bodySize, jumpHeight: 0f, jumpLength: 0f),
+                groundBody, walkGoal, WalkParameters(jumpHeight: 0f, jumpLength: 0f),
                 out NavigationRoute walkRoute), Is.True);
             Assert.That(walkRoute.Start, Is.EqualTo(groundBody.LowerCenter));
             Assert.That(walkRoute.Start, Is.Not.EqualTo(groundBody.Center),
@@ -932,10 +934,40 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest flyGoal = NavigationGoalRequest.Proximity(
                 AABB.Point(new Vector2(5.5f, 2.5f)), DistanceMetric.Euclidean, 0.1f);
             Assert.That(new FlyNavigationPlanner(flyWorld, 128).TryPlan(
-                flyBody, flyGoal, new FlyNavigationParameters(bodySize), out NavigationRoute flyRoute), Is.True);
+                flyBody, flyGoal, new FlyNavigationParameters(), out NavigationRoute flyRoute), Is.True);
             Assert.That(flyRoute.Start, Is.EqualTo(flyBody.Center));
             Assert.That(flyRoute.Start, Is.Not.EqualTo(flyBody.LowerCenter),
                 "A Fly body must plan from its center, not from its lower center.");
+        }
+
+        /// <summary>Verifies Fly collision geometry always uses the request AABB size.</summary>
+        [Test]
+        public void FlyPlannerUsesRequestBodySizeForCollisionClearance()
+        {
+            TestNavigationWorld world = new(new AABBInt(0, 0, 5, 5),
+                new[] { new Vector2Int(2, 1) }, Array.Empty<Vector2Int>());
+            FlyNavigationPlanner planner = new(world, 64);
+            NavigationGoalRequest goal = Goal(new Vector2(1.5f, 3.5f), 0.1f);
+            AABB body = AABB.FromCenterAndSize(new Vector2(1.5f, 1.5f), new Vector2(2f, 2f));
+
+            NavigationPlanResult result = planner.Plan(body, goal, new FlyNavigationParameters());
+
+            Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
+            Assert.That(result.Route, Is.Null);
+        }
+
+        /// <summary>Verifies direct planner entry rejects a body with a zero dimension.</summary>
+        [TestCase(0f, 1f)]
+        [TestCase(1f, 0f)]
+        public void PlannerRejectsNonPositiveRequestBody(float width, float height)
+        {
+            TestNavigationWorld world = GroundWorld(0, 2);
+            FlyNavigationPlanner planner = new(world, 8);
+
+            Assert.That(() => planner.Plan(
+                AABB.FromCenterAndSize(Vector2.zero, new Vector2(width, height)),
+                Goal(Vector2.one, 0.1f), new FlyNavigationParameters()),
+                Throws.InstanceOf<ArgumentException>());
         }
 
         private static TestNavigationWorld GroundWorld(int firstX, int count)
@@ -944,8 +976,8 @@ namespace Aethiumian.AI.Navigation.Tests
         private static List<Vector2Int> Floor(int firstX, int count)
             => NavigationTestWorlds.Floor(firstX, count);
 
-        private static WalkNavigationParameters WalkParameters(Vector2? bodySize = null, float jumpHeight = 2f, float jumpLength = 4f, float linearDamping = 0f)
-            => new(bodySize ?? new Vector2(0.8f, 1.5f), 5f, Gravity, 1f, linearDamping, jumpHeight, jumpLength, 0.02f);
+        private static WalkNavigationParameters WalkParameters(float jumpHeight = 2f, float jumpLength = 4f, float linearDamping = 0f)
+            => new(5f, Gravity, 1f, linearDamping, jumpHeight, jumpLength, 0.02f);
 
         /// <summary>Creates continuous goal geometry from a Bounds-style center and size.</summary>
         private static AABB Box(Vector2 center, Vector2 size) => new(center - size * 0.5f, center + size * 0.5f);
@@ -954,7 +986,7 @@ namespace Aethiumian.AI.Navigation.Tests
             => NavigationGoalRequest.Proximity(AABB.Point(destination), DistanceMetric.Euclidean, arrivalErrorBound);
 
         private static JumpNavigationParameters JumpParameters()
-            => new(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 2f, 2.1f, 0.02f);
+            => new(Gravity, 1f, 0f, 2f, 2.1f, 0.02f);
 
         private static bool ContainsSegment<TSegment>(NavigationRoute route) where TSegment : NavigationRouteSegment
         {

@@ -162,8 +162,8 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             TestNavigationWorld world = CreateGappedWorld();
             NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(AABB.Point(PlanGoalPoint), 0.1f);
-            WalkNavigationParameters withJumps = new(BodySize, 5f, Gravity, 1f, 0f, 2f, 4f, 0.02f);
-            WalkNavigationParameters groundOnly = new(BodySize, 5f, Gravity, 1f, 0f, 0f, 0f, 0.02f);
+            WalkNavigationParameters withJumps = new(5f, Gravity, 1f, 0f, 2f, 4f, 0.02f);
+            WalkNavigationParameters groundOnly = new(5f, Gravity, 1f, 0f, 0f, 0f, 0.02f);
 
             Measure.Method(() => RunPlan(world, goal, withJumps, out _))
                 .SampleGroup("Plan.Walk.GappedWithJumps")
@@ -199,7 +199,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             diagnostics = new NavigationPlanningDiagnostics();
             WalkNavigationPlanner planner = new(world, 256, new GroundJumpSolver(world));
-            NavigationPlanResult result = planner.Plan(AABB.FromLowerCenter(PlanStart, parameters.BodySize), goal, parameters, default, diagnostics);
+            NavigationPlanResult result = planner.Plan(AABB.FromLowerCenter(PlanStart, BodySize), goal, parameters, default, diagnostics);
             sink += result.Route == null ? 0f : result.Route.Count;
         }
 

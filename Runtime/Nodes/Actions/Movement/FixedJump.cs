@@ -255,7 +255,6 @@ namespace Aethiumian.AI.Nodes
             }
 
             parameters = new JumpNavigationParameters(
-                bodySize,
                 Physics2D.gravity,
                 rb.gravityScale,
                 rb.linearDamping,
@@ -379,7 +378,7 @@ namespace Aethiumian.AI.Nodes
 
         private GroundJumpParameters CreateGeometryParameters(JumpNavigationParameters source)
             => new(
-                source.BodySize,
+                bodySize,
                 source.Gravity,
                 source.GravityScale,
                 source.LinearDamping,

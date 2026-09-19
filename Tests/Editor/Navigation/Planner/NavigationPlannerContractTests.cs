@@ -18,7 +18,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = BindGoal(new Vector2(5.5f, 1f));
 
             NavigationPlanResult result = new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world))
-                .Plan(AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize), goal, WalkParameters(bodySize));
+                .Plan(AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize), goal, WalkParameters());
 
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(result.Route, Is.Not.Null);
@@ -33,7 +33,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = BindGoal(new Vector2(10.5f, 0.5f));
 
             NavigationPlanResult result = new FlyNavigationPlanner(world, 16)
-                .Plan(AABB.FromCenterAndSize(new Vector2(0.5f, 0.5f), new Vector2(0.8f, 0.8f)), goal, new FlyNavigationParameters(new Vector2(0.8f, 0.8f)));
+                .Plan(AABB.FromCenterAndSize(new Vector2(0.5f, 0.5f), new Vector2(0.8f, 0.8f)), goal, new FlyNavigationParameters());
 
             // An unreachable goal can be rejected before the search frontier is built;
             // both the no-result termination and a null route are the public no-path contract.
@@ -46,7 +46,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             TestNavigationWorld world = NavigationTestWorlds.Ground(0, 2);
             Assert.That(() => new WalkNavigationPlanner(world, 16, new GroundJumpSolver(world)).Plan(
-                AABB.FromLowerCenter(new Vector2(float.NaN, 1f), new Vector2(0.8f, 1.5f)), BindGoal(new Vector2(1.5f, 1f)), WalkParameters(new Vector2(0.8f, 1.5f))),
+                AABB.FromLowerCenter(new Vector2(float.NaN, 1f), new Vector2(0.8f, 1.5f)), BindGoal(new Vector2(1.5f, 1f)), WalkParameters()),
                 Throws.ArgumentException);
         }
 
@@ -86,7 +86,7 @@ namespace Aethiumian.AI.Navigation.Tests
         private static NavigationGoalRequest BindGoal(Vector2 center)
             => NavigationGoalRequest.Proximity(AABB.Point(center), DistanceMetric.Euclidean, 0.1f);
 
-        private static WalkNavigationParameters WalkParameters(Vector2 bodySize)
-            => new(bodySize, 5f, Gravity, 1f, 0f, 2f, 4f, 0.02f);
+        private static WalkNavigationParameters WalkParameters()
+            => new(5f, Gravity, 1f, 0f, 2f, 4f, 0.02f);
     }
 }

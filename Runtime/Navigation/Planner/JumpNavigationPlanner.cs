@@ -25,15 +25,17 @@ namespace Aethiumian.AI.Navigation
         {
             ValidatePlanInputs(body, cancellationToken);
             ValidateParameters(parameters);
+            Vector2 bodySize = body.Size;
+            GroundJumpParameters jumpParameters = parameters.GetJumpParameters(bodySize);
 
             NavigationPlanResult result;
-            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
+            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
             {
                 result = NavigationPlanResult.NoResult;
             }
             else
             {
-                AABB startBody = AABB.FromLowerCenter(resolvedStart, parameters.BodySize);
+                AABB startBody = AABB.FromLowerCenter(resolvedStart, bodySize);
                 if (World.IsGoalComplete(goal, startBody))
                 {
                     var complete = NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true);
@@ -42,10 +44,10 @@ namespace Aethiumian.AI.Navigation
                 else
                 {
                     NavigationSearchRequest request = new(World, resolvedStart, startSupport, goal,
-                        parameters.BodySize, NavigationActions.Jump, MaxExpandedNodes,
+                        bodySize, NavigationActions.Jump, MaxExpandedNodes,
                         NavigationNodeIdentity.Jump(-1),
-                        node => EnumerateSharedTransitions(node, goal, parameters, diagnostics),
-                        position => EvaluateGoalHeuristic(position, goal, parameters.BodySize));
+                        node => EnumerateSharedTransitions(node, goal, jumpParameters, diagnostics),
+                        position => EvaluateGoalHeuristic(position, goal, bodySize));
                     result = RunSearch(request, diagnostics, cancellationToken);
                 }
             }
@@ -56,7 +58,7 @@ namespace Aethiumian.AI.Navigation
             }
             else
             {
-                return result.WithRoute(jumpSolver.PrepareRouteForExecution(result.Route, parameters.GetJumpParameters(), cancellationToken));
+                return result.WithRoute(jumpSolver.PrepareRouteForExecution(result.Route, jumpParameters, cancellationToken));
             }
         }
 
@@ -65,12 +67,14 @@ namespace Aethiumian.AI.Navigation
         {
             ValidatePlanInputs(body, cancellationToken);
             ValidateParameters(parameters);
-            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support))
+            Vector2 bodySize = body.Size;
+            GroundJumpParameters jumpParameters = parameters.GetJumpParameters(bodySize);
+            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support))
             {
                 return NavigationPlanResult.NoResult;
             }
 
-            AABB startBody = AABB.FromLowerCenter(resolvedStart, parameters.BodySize);
+            AABB startBody = AABB.FromLowerCenter(resolvedStart, bodySize);
             if (World.IsGoalComplete(goal, startBody))
             {
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true));
@@ -81,13 +85,13 @@ namespace Aethiumian.AI.Navigation
             float distance = goal.GuidanceDistance(startBody);
             int work = 0;
             bool budgetReached = false;
-            foreach (NavigationTransitionWork candidate in EnumerateSharedTransitions(node, goal, parameters, null))
+            foreach (NavigationTransitionWork candidate in EnumerateSharedTransitions(node, goal, jumpParameters, null))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (++work > MaxExpandedNodes) { budgetReached = true; break; }
                 if (!candidate.HasTransition) continue;
                 NavigationTransition edge = candidate.Transition;
-                AABB landingBody = AABB.FromLowerCenter(edge.DestinationPosition, parameters.BodySize);
+                AABB landingBody = AABB.FromLowerCenter(edge.DestinationPosition, bodySize);
                 float nextDistance = goal.GuidanceDistance(landingBody);
                 if (!edge.CompletesGoal && !IsStrictlyLess(nextDistance, distance)) continue;
                 best = edge;
@@ -98,14 +102,12 @@ namespace Aethiumian.AI.Navigation
             NavigationTransition selected = best.Value;
             NavigationRoute route = NavigationRoute.Create(goal, new[] { selected.Segment }, selected.CompletesGoal);
 
-            route = jumpSolver.PrepareRouteForExecution(route, parameters.GetJumpParameters(), cancellationToken);
+            route = jumpSolver.PrepareRouteForExecution(route, jumpParameters, cancellationToken);
             return NavigationPlanResult.ResultProduced(route);
         }
 
-        private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRequest goal, JumpNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
+        private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRequest goal, GroundJumpParameters jumpParameters, NavigationPlanningDiagnostics diagnostics)
         {
-            GroundJumpParameters jumpParameters = parameters.GetJumpParameters();
-
             if (TryCreateDirectGoalSuccessor(jumpSolver, node.Position, goal, jumpParameters, out Successor nearestGoal))
             {
                 diagnostics?.RecordTerminalCandidate();
@@ -117,7 +119,7 @@ namespace Aethiumian.AI.Navigation
             {
                 yield return NavigationTransitionWork.WorkUnit;
                 if (jump == null) continue;
-                AABB landingBody = AABB.FromLowerCenter(jump.Trajectory.LandingPosition, parameters.BodySize);
+                AABB landingBody = AABB.FromLowerCenter(jump.Trajectory.LandingPosition, jumpParameters.BodySize);
                 bool completesGoal = World.IsGoalComplete(goal, landingBody);
                 if (completesGoal)
                     diagnostics?.RecordTerminalCandidate();
@@ -164,7 +166,6 @@ namespace Aethiumian.AI.Navigation
 
         private static void ValidateParameters(JumpNavigationParameters profile)
         {
-            Validate.PositiveVector(profile.BodySize, nameof(profile));
             Validate.NonNegativeFinite(profile.GravityScale, nameof(profile));
             Validate.NonNegativeFinite(profile.LinearDamping, nameof(profile));
             Validate.PositiveFinite(profile.JumpHeight, nameof(profile));

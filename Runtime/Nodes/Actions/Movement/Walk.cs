@@ -31,7 +31,7 @@ namespace Aethiumian.AI.Nodes
 
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
-            operation = NavigationRuntime.PlanWalkAsync(body, goal, CreateNavigationParameters(body.Size), extent, cancellation);
+            operation = NavigationRuntime.PlanWalkAsync(body, goal, CreateNavigationParameters(), extent, cancellation);
             return true;
         }
 
@@ -181,9 +181,8 @@ namespace Aethiumian.AI.Nodes
             return WalkNavigationPlanner.TryReconnectGroundRoute(snapshot, route, body, executionHorizontalCompletionTolerance, out reconnectedRoute);
         }
 
-        private WalkNavigationParameters CreateNavigationParameters(Vector2 bodySize)
+        private WalkNavigationParameters CreateNavigationParameters()
             => new(
-                bodySize,
                 NewFixedSpeed,
                 Physics2D.gravity,
                 RigidBody.gravityScale,

@@ -38,16 +38,17 @@ namespace Aethiumian.AI.Navigation
         {
             ValidatePlanInputs(body, cancellationToken);
             ValidateParameters(parameters);
+            Vector2 bodySize = body.Size;
             Vector2 start = body.Center;
-            if (!IsFlyBodyClear(World, start, parameters.BodySize))
+            if (!IsFlyBodyClear(World, start, bodySize))
                 return NavigationPlanResult.NoResult;
 
             if (goal.IsRetreat)
-                return PlanRetreat(start, goal, parameters, cancellationToken, diagnostics);
+                return PlanRetreat(start, goal, parameters, bodySize, cancellationToken, diagnostics);
 
             Vector2 resolvedGoal = default;
             bool hasGoal = false;
-            foreach (Vector2? candidate in EnumerateGoalResolution(goal, parameters))
+            foreach (Vector2? candidate in EnumerateGoalResolution(goal, bodySize))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (candidate.HasValue)
@@ -63,7 +64,7 @@ namespace Aethiumian.AI.Navigation
 
             bool directClear = false;
             foreach (bool? segmentClear in EnumerateCenteredSegmentClear(World, start, resolvedGoal,
-                parameters.BodySize))
+                bodySize))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (segmentClear.HasValue)
@@ -75,13 +76,13 @@ namespace Aethiumian.AI.Navigation
             if (directClear)
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, new[] { new FlyRouteSegment(start, resolvedGoal) }));
 
-            if (!TryFindConnectorCell(World, start, parameters.BodySize, out Vector2Int startCell)
-                || !TryFindConnectorCell(World, resolvedGoal, parameters.BodySize, out Vector2Int goalCell))
+            if (!TryFindConnectorCell(World, start, bodySize, out Vector2Int startCell)
+                || !TryFindConnectorCell(World, resolvedGoal, bodySize, out Vector2Int goalCell))
                 return NavigationPlanResult.NoResult;
 
-            NavigationSearchRequest request = new(World, start, default, goal, parameters.BodySize,
+            NavigationSearchRequest request = new(World, start, default, goal, bodySize,
                 NavigationActions.Fly, MaxExpandedNodes, NavigationNodeIdentity.Fly(startCell),
-                node => EnumerateFlyTransitions(node, goal, resolvedGoal, goalCell, parameters),
+                node => EnumerateFlyTransitions(node, goal, resolvedGoal, goalCell, bodySize),
                 _ => 0f);
             return RunSearch(request, diagnostics, cancellationToken);
         }
@@ -91,17 +92,18 @@ namespace Aethiumian.AI.Navigation
         {
             ValidatePlanInputs(body, cancellationToken);
             ValidateParameters(parameters);
+            Vector2 bodySize = body.Size;
             Vector2 start = body.Center;
-            if (!IsFlyBodyClear(World, start, parameters.BodySize)) return NavigationPlanResult.NoResult;
-            if (World.IsGoalComplete(goal, CenteredBody(start, parameters.BodySize)))
+            if (!IsFlyBodyClear(World, start, bodySize)) return NavigationPlanResult.NoResult;
+            if (World.IsGoalComplete(goal, CenteredBody(start, bodySize)))
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
-            Vector2 direct = GetGoalCenter(goal, parameters.BodySize);
+            Vector2 direct = GetGoalCenter(goal, bodySize);
             if (goal.IsRetreat)
             {
                 Vector2 away = start - goal.TargetBounds.Center;
-                direct = start + away.normalized * Mathf.Max(NavigationConstant.MinimumRetreatStep, goal.RetreatDistance + parameters.BodySize.magnitude);
+                direct = start + away.normalized * Mathf.Max(NavigationConstant.MinimumRetreatStep, goal.RetreatDistance + bodySize.magnitude);
             }
-            if (World.IsGoalComplete(goal, CenteredBody(direct, parameters.BodySize)) && LocalStepAllowed(start, direct, goal, parameters))
+            if (World.IsGoalComplete(goal, CenteredBody(direct, bodySize)) && LocalStepAllowed(start, direct, goal, parameters, bodySize))
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, new[] { new FlyRouteSegment(start, direct) }));
             Vector2? best = null;
             float bestDistance = goal.GuidanceDistance(body);
@@ -112,15 +114,15 @@ namespace Aethiumian.AI.Navigation
                 Vector2Int nextCell = cell + direction;
                 Vector2 next = LatticeCenter(World, nextCell);
                 if (!IsInsideWorld(World, next)) continue;
-                if (!LocalStepAllowed(start, next, goal, parameters)) continue;
-                float distance = goal.GuidanceDistance(CenteredBody(next, parameters.BodySize));
+                if (!LocalStepAllowed(start, next, goal, parameters, bodySize)) continue;
+                float distance = goal.GuidanceDistance(CenteredBody(next, bodySize));
                 if (!IsStrictlyLess(distance, bestDistance)) continue;
                 bestDistance = distance;
                 best = next;
             }
             if (!best.HasValue) return NavigationPlanResult.NoResult;
             Vector2 endpoint = best.Value;
-            NavigationRoute route = NavigationRoute.Create(goal, new[] { new FlyRouteSegment(start, endpoint) }, World.IsGoalComplete(goal, CenteredBody(endpoint, parameters.BodySize)));
+            NavigationRoute route = NavigationRoute.Create(goal, new[] { new FlyRouteSegment(start, endpoint) }, World.IsGoalComplete(goal, CenteredBody(endpoint, bodySize)));
             return NavigationPlanResult.ResultProduced(route);
         }
 
@@ -135,12 +137,12 @@ namespace Aethiumian.AI.Navigation
         private static bool IsFlyBodyPathClear(INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize)
             => world.IsBodyPathClear(CenteredBody(start, bodySize), end - start, 0f);
 
-        private bool LocalStepAllowed(Vector2 start, Vector2 end, NavigationGoalRequest goal, FlyNavigationParameters parameters)
-            => IsFlyBodyClear(World, end, parameters.BodySize)
-                && IsFlyBodyPathClear(World, start, end, parameters.BodySize)
+        private bool LocalStepAllowed(Vector2 start, Vector2 end, NavigationGoalRequest goal, FlyNavigationParameters parameters, Vector2 bodySize)
+            => IsFlyBodyClear(World, end, bodySize)
+                && IsFlyBodyPathClear(World, start, end, bodySize)
                 && (!goal.IsRetreat || !parameters.HasApproachLimit || RetreatNavigationGeometry.SegmentApproachDistance(start, end, goal.TargetBounds.Center) <= parameters.RemainingApproachDistance);
 
-        private IEnumerable<NavigationTransitionWork> EnumerateFlyTransitions(NavigationSearchNode node, NavigationGoalRequest goal, Vector2 resolvedGoal, Vector2Int goalCell, FlyNavigationParameters parameters)
+        private IEnumerable<NavigationTransitionWork> EnumerateFlyTransitions(NavigationSearchNode node, NavigationGoalRequest goal, Vector2 resolvedGoal, Vector2Int goalCell, Vector2 bodySize)
         {
             Vector2 source = node.Position;
             Vector2Int currentCell = node.Identity.Cell;
@@ -156,20 +158,18 @@ namespace Aethiumian.AI.Navigation
                 Vector2 center = LatticeCenter(World, next);
                 if (!IsInsideWorld(World, center)) continue;
                 Vector2 destination = next == goalCell ? resolvedGoal : center;
-                if (!IsFlyBodyClear(World, destination, parameters.BodySize)
-                    || !IsFlyBodyPathClear(World, source, destination, parameters.BodySize))
+                if (!IsFlyBodyClear(World, destination, bodySize) || !IsFlyBodyPathClear(World, source, destination, bodySize))
                     continue;
-                bool completesGoal = next == goalCell && World.IsGoalComplete(goal, CenteredBody(destination, parameters.BodySize));
+                bool completesGoal = next == goalCell && World.IsGoalComplete(goal, CenteredBody(destination, bodySize));
                 yield return NavigationTransitionWork.Edge(NavigationTransition.FlyMove(next, destination, new FlyRouteSegment(source, destination), Vector2.Distance(source, destination), completesGoal));
             }
         }
 
         /// <summary>Scans goal cells with explicit cancellation boundaries and returns the nearest clear center.</summary>
-        private IEnumerable<Vector2?> EnumerateGoalResolution(NavigationGoalRequest goal, FlyNavigationParameters parameters)
+        private IEnumerable<Vector2?> EnumerateGoalResolution(NavigationGoalRequest goal, Vector2 bodySize)
         {
-            Vector2 requestedCenter = GetGoalCenter(goal, parameters.BodySize);
-            if (World.IsGoalComplete(goal, CenteredBody(requestedCenter, parameters.BodySize))
-                && IsFlyBodyClear(World, requestedCenter, parameters.BodySize))
+            Vector2 requestedCenter = GetGoalCenter(goal, bodySize);
+            if (World.IsGoalComplete(goal, CenteredBody(requestedCenter, bodySize)) && IsFlyBodyClear(World, requestedCenter, bodySize))
             {
                 yield return requestedCenter;
                 yield break;
@@ -178,10 +178,10 @@ namespace Aethiumian.AI.Navigation
             Vector2 resolvedGoal = default;
             float bestDistanceSquared = float.PositiveInfinity;
             AABB target = goal.TargetBounds;
-            int xMin = Mathf.FloorToInt((target.MinX - parameters.BodySize.x * 0.5f - goal.ArrivalTolerance - World.WorldBounds.MinX) / FlightStep) - 1;
-            int xMax = Mathf.CeilToInt((target.MaxX + parameters.BodySize.x * 0.5f + goal.ArrivalTolerance - World.WorldBounds.MinX) / FlightStep) + 1;
-            int yMin = Mathf.FloorToInt((target.MinY - parameters.BodySize.y * 0.5f - goal.ArrivalTolerance - World.WorldBounds.MinY) / FlightStep) - 1;
-            int yMax = Mathf.CeilToInt((target.MaxY + parameters.BodySize.y * 0.5f + goal.ArrivalTolerance - World.WorldBounds.MinY) / FlightStep) + 1;
+            int xMin = Mathf.FloorToInt((target.MinX - bodySize.x * 0.5f - goal.ArrivalTolerance - World.WorldBounds.MinX) / FlightStep) - 1;
+            int xMax = Mathf.CeilToInt((target.MaxX + bodySize.x * 0.5f + goal.ArrivalTolerance - World.WorldBounds.MinX) / FlightStep) + 1;
+            int yMin = Mathf.FloorToInt((target.MinY - bodySize.y * 0.5f - goal.ArrivalTolerance - World.WorldBounds.MinY) / FlightStep) - 1;
+            int yMax = Mathf.CeilToInt((target.MaxY + bodySize.y * 0.5f + goal.ArrivalTolerance - World.WorldBounds.MinY) / FlightStep) + 1;
             for (int y = yMin; y <= yMax; y++)
             {
                 for (int x = xMin; x <= xMax; x++)
@@ -190,13 +190,11 @@ namespace Aethiumian.AI.Navigation
                     Vector2 candidate = LatticeCenter(World, cell);
                     if (IsInsideWorld(World, candidate))
                     {
-                        Vector2 candidateCenter = GetGoalCenter(goal, parameters.BodySize, candidate);
-                        AABB candidateBody = CenteredBody(candidateCenter, parameters.BodySize);
+                        Vector2 candidateCenter = GetGoalCenter(goal, bodySize, candidate);
+                        AABB candidateBody = CenteredBody(candidateCenter, bodySize);
                         float distance = World.GetGoalCompletionDistance(goal, candidateBody);
                         float distanceSquared = distance * distance;
-                        if (World.IsGoalComplete(goal, candidateBody)
-                            && distanceSquared + Tolerance < bestDistanceSquared
-                            && IsFlyBodyClear(World, candidateCenter, parameters.BodySize))
+                        if (World.IsGoalComplete(goal, candidateBody) && distanceSquared + Tolerance < bestDistanceSquared && IsFlyBodyClear(World, candidateCenter, bodySize))
                         {
                             bestDistanceSquared = distanceSquared;
                             resolvedGoal = candidateCenter;
@@ -211,12 +209,12 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Searches the same aerial grid until any clear cell satisfies the Retreat predicate.</summary>
-        private NavigationPlanResult PlanRetreat(Vector2 start, NavigationGoalRequest goal, FlyNavigationParameters parameters, CancellationToken cancellationToken, NavigationPlanningDiagnostics diagnostics)
+        private NavigationPlanResult PlanRetreat(Vector2 start, NavigationGoalRequest goal, FlyNavigationParameters parameters, Vector2 bodySize, CancellationToken cancellationToken, NavigationPlanningDiagnostics diagnostics)
         {
-            if (World.IsGoalComplete(goal, CenteredBody(start, parameters.BodySize)))
+            if (World.IsGoalComplete(goal, CenteredBody(start, bodySize)))
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
 
-            if (!TryFindRetreatConnectorCell(World, start, goal.TargetBounds.Center, parameters, out Vector2Int startCell))
+            if (!TryFindRetreatConnectorCell(World, start, goal.TargetBounds.Center, parameters, bodySize, out Vector2Int startCell))
                 return NavigationPlanResult.NoResult;
 
             Vector2 startCellPosition = LatticeCenter(World, startCell);
@@ -227,7 +225,7 @@ namespace Aethiumian.AI.Navigation
             List<RetreatSearchLabel> labels = new();
             Dictionary<Vector2Int, List<int>> labelIdsByCell = new();
             NavigationMinHeap<HeapKey> open = new();
-            float startHeuristic = World.GetGoalCompletionDistance(goal, CenteredBody(startCellPosition, parameters.BodySize));
+            float startHeuristic = World.GetGoalCompletionDistance(goal, CenteredBody(startCellPosition, bodySize));
             RetreatSearchLabel startLabel = new(startCell, -1, Vector2.Distance(start, startCellPosition), startApproach, startHeuristic);
             labels.Add(startLabel);
             labelIdsByCell.Add(startCell, new List<int> { 0 });
@@ -240,7 +238,7 @@ namespace Aethiumian.AI.Navigation
                 RetreatSearchLabel currentLabel = labels[currentLabelId];
                 currentLabel.State = RetreatSearchLabelState.Closed;
                 Vector2 currentPosition = LatticeCenter(World, currentLabel.Cell);
-                if (World.IsGoalComplete(goal, CenteredBody(currentPosition, parameters.BodySize)))
+                if (World.IsGoalComplete(goal, CenteredBody(currentPosition, bodySize)))
                 {
                     return NavigationPlanResult.ResultProduced(BuildRetreatRoute(start, goal, World, labels, currentLabelId));
                 }
@@ -254,14 +252,14 @@ namespace Aethiumian.AI.Navigation
                     Vector2Int next = currentLabel.Cell + Directions[i];
                     Vector2 nextPosition = LatticeCenter(World, next);
                     if (!IsInsideWorld(World, nextPosition)) continue;
-                    if (!IsFlyBodyClear(World, nextPosition, parameters.BodySize)
-                        || !IsFlyBodyPathClear(World, currentPosition, nextPosition, parameters.BodySize)) continue;
+                    if (!IsFlyBodyClear(World, nextPosition, bodySize)
+                        || !IsFlyBodyPathClear(World, currentPosition, nextPosition, bodySize)) continue;
 
                     float candidateCost = currentLabel.PathCost + FlightStep;
                     float candidateApproach = currentLabel.ApproachCost + RetreatNavigationGeometry.SegmentApproachDistance(currentPosition, nextPosition, goal.TargetBounds.Center);
                     if (parameters.HasApproachLimit && candidateApproach > parameters.RemainingApproachDistance + Tolerance) continue;
                     RetreatSearchLabel candidate = new(next, currentLabelId, candidateCost, candidateApproach,
-                        World.GetGoalCompletionDistance(goal, CenteredBody(nextPosition, parameters.BodySize)));
+                        World.GetGoalCompletionDistance(goal, CenteredBody(nextPosition, bodySize)));
                     if (!TryAddRetreatLabel(labels, labelIdsByCell, candidate, out int candidateId)) continue;
                     open.Enqueue(new(next, candidateId), candidate.RetreatScore, candidate.Heuristic);
                 }
@@ -374,7 +372,7 @@ namespace Aethiumian.AI.Navigation
             return false;
         }
 
-        private static bool TryFindRetreatConnectorCell(INavigationWorld snapshot, Vector2 position, Vector2 targetCenter, FlyNavigationParameters parameters, out Vector2Int connector)
+        private static bool TryFindRetreatConnectorCell(INavigationWorld snapshot, Vector2 position, Vector2 targetCenter, FlyNavigationParameters parameters, Vector2 bodySize, out Vector2Int connector)
         {
             connector = default;
             Vector2Int origin = ToLattice(snapshot, position);
@@ -387,8 +385,7 @@ namespace Aethiumian.AI.Navigation
                     Vector2Int cell = new(x, y);
                     Vector2 center = LatticeCenter(snapshot, cell);
                     if (!IsInsideWorld(snapshot, center)) continue;
-                    if (!IsFlyBodyClear(snapshot, center, parameters.BodySize)
-                        || !IsFlyBodyPathClear(snapshot, position, center, parameters.BodySize)) continue;
+                    if (!IsFlyBodyClear(snapshot, center, bodySize) || !IsFlyBodyPathClear(snapshot, position, center, bodySize)) continue;
                     float approach = RetreatNavigationGeometry.SegmentApproachDistance(position, center, targetCenter);
                     if (parameters.HasApproachLimit && approach > parameters.RemainingApproachDistance + Tolerance) continue;
                     float distanceSquared = (center - position).sqrMagnitude;
@@ -452,7 +449,6 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Validates the physical aerial profile at the planner boundary.</summary>
         private static void ValidateParameters(FlyNavigationParameters parameters)
         {
-            Validate.PositiveVector(parameters.BodySize, nameof(parameters));
             if (!NavigationNumeric.IsFinite(parameters.RemainingApproachDistance) || parameters.RemainingApproachDistance < 0f
                 || !parameters.HasApproachLimit && parameters.RemainingApproachDistance != 0f)
                 throw new ArgumentException("Fly retreat approach budget must be finite and non-negative.", nameof(parameters));
