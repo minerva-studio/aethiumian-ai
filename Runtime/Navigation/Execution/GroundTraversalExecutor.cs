@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-using Aethiumian.AI.Diagnostics;
+using Unity.Profiling;
 #endif
 using UnityEngine;
 
@@ -12,6 +12,10 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public sealed class GroundTraversalExecutor : MovementExecutor
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly ProfilerMarker MovementMarker = new("Aethiumian.AI/MovementExecutor");
+#endif
+
         private const int HitCapacity = 8;
 
         // Tick records action-specific progress; only the base consumes it and advances timeout.
@@ -189,8 +193,7 @@ namespace Aethiumian.AI.Navigation
         protected override ExecutionResult Tick_Internal(float deltaTime)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            using var marker = AIPerformanceDiagnostics.MovementMarker.Auto();
-            AIPerformanceDiagnostics.RecordMovementTick();
+            using var marker = MovementMarker.Auto();
 #endif
             elapsedSeconds += deltaTime;
             progress = ProgressObservation.Waiting;

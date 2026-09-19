@@ -92,7 +92,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets whether cancellation has been requested from any thread.</summary>
         public bool IsCancellationRequested => Volatile.Read(ref cancellationRequested) != 0;
 
-        /// <summary>Publishes a completed result after an optional completion record is queued.</summary>
+        /// <summary>Prepares a completed result before publishing its terminal state.</summary>
         public bool TryPrepareCompletion(NavigationPlanResult result, out bool wasCancelled)
         {
             wasCancelled = false;
@@ -109,7 +109,7 @@ namespace Aethiumian.AI.Navigation
             return true;
         }
 
-        /// <summary>Publishes a prepared result after the scheduler has made its completion evidence visible.</summary>
+        /// <summary>Publishes a prepared result after the result and terminal state are ready.</summary>
         public void PublishPreparedCompletion()
         {
             if (Interlocked.CompareExchange(ref terminalState, Completed, Publishing) != Publishing)

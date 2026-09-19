@@ -1,38 +1,35 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-using Aethiumian.AI.Diagnostics;
-#endif
 using Unity.Profiling;
+#endif
 
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>Owns a finite queue consumed by Map-lifetime background planning tasks.</summary>
     public sealed class NavigationPlanningScheduler : IDisposable
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly ProfilerMarker PlanningMarker = new("AethiumianAI.Navigation.BackgroundPlanning");
+        private static readonly ProfilerMarker PathFindingMarker = new("Aethiumian.AI/PathFinding");
+#endif
         private readonly int capacity;
         private readonly ConcurrentQueue<ScheduledWork> queue = new();
         private readonly SemaphoreSlim signal = new(0);
         private readonly CancellationTokenSource shutdown = new();
         private readonly ConcurrentDictionary<NavigationPlanningOperation, ScheduledWork> active = new();
-        private readonly ConcurrentQueue<NavigationPlanningCompletion> completed = new();
         private readonly Task[] consumers;
         private int queuedCount;
         private int started;
         private int disposed;
-        private static readonly ProfilerMarker QueueWaitMarker = new("AethiumianAI.Navigation.QueueWait");
-        private static readonly ProfilerMarker PlanningMarker = new("AethiumianAI.Navigation.BackgroundPlanning");
 
-        /// <summary>Gets the fixed number of consumers owned by this scheduler.</summary>
-        internal int WorkerCount => consumers.Length;
-
-        /// <summary>Dequeues one detached completion record for the Map-owned main-thread drain.</summary>
-        internal bool TryDequeueCompletion(out NavigationPlanningCompletion completion)
-            => completed.TryDequeue(out completion);
+        /// <summary>
+        /// Gets the fixed number of consumers owned by this scheduler.
+        /// </summary>
+        public int WorkerCount => consumers.Length;
 
         /// <summary>Creates a finite Map-owned queue without starting planning before world publication.</summary>
         public NavigationPlanningScheduler(int capacity)
@@ -44,7 +41,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Starts the fixed consumers after the immutable world snapshot has been published.</summary>
-        internal void Start()
+        public void Start()
         {
             ThrowIfDisposed();
             if (Interlocked.Exchange(ref started, 1) != 0) return;
@@ -52,20 +49,13 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Queues already-created pure planning work without retaining its Unity owner.</summary>
-        internal NavigationPlanningOperation PlanWork(INavigationPlanningWork work,
-            CancellationToken cancellationToken = default, NavigationPlanningOperation operation = null)
+        public NavigationPlanningOperation PlanWork(INavigationPlanningWork work, CancellationToken cancellationToken = default, NavigationPlanningOperation operation = null)
         {
             if (work == null) throw new ArgumentNullException(nameof(work));
             ThrowIfDisposed();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            AIPerformanceDiagnostics.RecordNavigationSubmission();
-#endif
             if (cancellationToken.IsCancellationRequested)
             {
                 work.Dispose();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                AIPerformanceDiagnostics.RecordNavigationCancelled();
-#endif
                 return NavigationPlanningOperation.CreateCancelled();
             }
             int count = Interlocked.Increment(ref queuedCount);
@@ -73,17 +63,11 @@ namespace Aethiumian.AI.Navigation
             {
                 Interlocked.Decrement(ref queuedCount);
                 work.Dispose();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                AIPerformanceDiagnostics.RecordNavigationQueueRejected();
-#endif
                 throw new InvalidOperationException("The navigation planning queue is full.");
             }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            AIPerformanceDiagnostics.RecordNavigationAccepted(count);
-#endif
             NavigationPlanningOperation result = operation ?? new NavigationPlanningOperation();
             if (operation == null) result.RegisterCancellation(cancellationToken);
-            queue.Enqueue(new ScheduledWork(work, result, cancellationToken, shutdown.Token, Stopwatch.GetTimestamp()));
+            queue.Enqueue(new ScheduledWork(work, result, cancellationToken, shutdown.Token));
             signal.Release();
             return result;
         }
@@ -146,10 +130,7 @@ namespace Aethiumian.AI.Navigation
                     await signal.WaitAsync(shutdown.Token).ConfigureAwait(false);
                     if (shutdown.IsCancellationRequested) return;
                     if (!queue.TryDequeue(out ScheduledWork scheduled)) continue;
-                    int depth = Interlocked.Decrement(ref queuedCount);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    AIPerformanceDiagnostics.RecordNavigationDequeued(depth);
-#endif
+                    Interlocked.Decrement(ref queuedCount);
                     Execute(scheduled);
                 }
             }
@@ -163,84 +144,30 @@ namespace Aethiumian.AI.Navigation
                 scheduled.DisposePendingWork();
                 return;
             }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            bool navigationWorkerStarted = false;
-            bool navigationCompletionRecorded = false;
-            long planningStartTimestamp = 0;
-            long planningNanoseconds = 0;
-#endif
             try
             {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                AIPerformanceDiagnostics.RecordNavigationWorkerStarted(
-                    ElapsedNanoseconds(scheduled.QueuedTimestamp, Stopwatch.GetTimestamp()));
-                navigationWorkerStarted = true;
-#endif
                 if (scheduled.IsCancellationRequested)
                 {
                     scheduled.Operation.TryFinalizeCancellation();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    AIPerformanceDiagnostics.RecordNavigationWorkerCompleted(0);
-                    AIPerformanceDiagnostics.RecordNavigationCancelled();
-                    navigationCompletionRecorded = true;
-#endif
                     return;
                 }
-                using (QueueWaitMarker.Auto())
-                {
-                    // Keep the legacy marker for compatibility; the cross-thread queue wait is recorded by diagnostics below.
-                    _ = ElapsedMilliseconds(scheduled.QueuedTimestamp, Stopwatch.GetTimestamp());
-                }
-                using (PlanningMarker.Auto())
                 using (INavigationPlanningWork work = scheduled.TakeWork())
                 {
+                    NavigationPlanResult result;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    AIPerformanceDiagnostics.RecordPathRequest();
-                    planningStartTimestamp = Stopwatch.GetTimestamp();
-                    NavigationPlanResult result = ExecuteMeasuredWork(work, scheduled.CancellationToken);
-                    planningNanoseconds = ElapsedNanoseconds(planningStartTimestamp, Stopwatch.GetTimestamp());
-#else
-                    NavigationPlanResult result = work.Execute(scheduled.CancellationToken);
+                    using (PlanningMarker.Auto())
+                    using (PathFindingMarker.Auto())
 #endif
-                    if (scheduled.Operation.TryPrepareCompletion(result, out bool wasCancelled))
+                        result = work.Execute(scheduled.CancellationToken);
+                    if (scheduled.Operation.TryPrepareCompletion(result, out _))
                     {
-                        if (!wasCancelled)
-                        {
-                            completed.Enqueue(new NavigationPlanningCompletion(scheduled.Operation));
-                        }
-
                         scheduled.Operation.ReleaseCancellationRegistration();
                         scheduled.Operation.PublishPreparedCompletion();
                     }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    AIPerformanceDiagnostics.RecordNavigationWorkerCompleted(planningNanoseconds);
-                    if (wasCancelled || scheduled.Operation.IsCancelled)
-                        AIPerformanceDiagnostics.RecordNavigationCancelled();
-                    else if (scheduled.Operation.Exception != null)
-                        AIPerformanceDiagnostics.RecordNavigationException();
-                    else if (result.Route != null)
-                        AIPerformanceDiagnostics.RecordNavigationRouteFound();
-                    else
-                        AIPerformanceDiagnostics.RecordNavigationNoPath();
-                    navigationCompletionRecorded = true;
-#endif
                 }
             }
             catch (Exception exception)
             {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                if (navigationWorkerStarted && !navigationCompletionRecorded)
-                {
-                    if (planningStartTimestamp != 0)
-                        planningNanoseconds = ElapsedNanoseconds(planningStartTimestamp, Stopwatch.GetTimestamp());
-                    AIPerformanceDiagnostics.RecordNavigationWorkerCompleted(planningNanoseconds);
-                    if (scheduled.IsCancellationRequested)
-                        AIPerformanceDiagnostics.RecordNavigationCancelled();
-                    else
-                        AIPerformanceDiagnostics.RecordNavigationException();
-                    navigationCompletionRecorded = true;
-                }
-#endif
                 if (scheduled.IsCancellationRequested) scheduled.Operation.TryFinalizeCancellation();
                 else scheduled.Operation.TryFail(exception);
             }
@@ -251,21 +178,6 @@ namespace Aethiumian.AI.Navigation
                 scheduled.DisposeCancellation();
             }
         }
-
-        private static double ElapsedMilliseconds(long start, long end) => (end - start) * 1000d / Stopwatch.Frequency;
-
-        /// <summary>Converts a stopwatch interval to nanoseconds for worker lifecycle diagnostics.</summary>
-        private static long ElapsedNanoseconds(long start, long end)
-            => (long)((end - start) * (1_000_000_000d / Stopwatch.Frequency));
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        /// <summary>Executes one detached planner under the shared path-finding profiler marker.</summary>
-        private static NavigationPlanResult ExecuteMeasuredWork(INavigationPlanningWork work, CancellationToken cancellationToken)
-        {
-            using (AIPerformanceDiagnostics.PathFindingMarker.Auto())
-                return work.Execute(cancellationToken);
-        }
-#endif
 
         private void ThrowIfDisposed()
         {
@@ -278,18 +190,17 @@ namespace Aethiumian.AI.Navigation
             private readonly CancellationTokenSource cancellation;
             private int cancellationDisposed;
             public NavigationPlanningOperation Operation { get; }
-            public long QueuedTimestamp { get; }
-            public bool IsCancellationRequested => cancellation.IsCancellationRequested || Operation.IsCancellationRequested;
-            public CancellationToken CancellationToken => cancellation.Token;
 
-            public ScheduledWork(INavigationPlanningWork work, NavigationPlanningOperation operation,
-                CancellationToken requestCancellation, CancellationToken runtimeCancellation, long queuedTimestamp)
+            public ScheduledWork(INavigationPlanningWork work, NavigationPlanningOperation operation, CancellationToken requestCancellation, CancellationToken runtimeCancellation)
             {
                 this.work = work;
                 Operation = operation;
-                QueuedTimestamp = queuedTimestamp;
                 cancellation = CancellationTokenSource.CreateLinkedTokenSource(requestCancellation, runtimeCancellation);
             }
+
+            public bool IsCancellationRequested => cancellation.IsCancellationRequested || Operation.IsCancellationRequested;
+            public CancellationToken CancellationToken => cancellation.Token;
+
 
             public INavigationPlanningWork TakeWork()
             {

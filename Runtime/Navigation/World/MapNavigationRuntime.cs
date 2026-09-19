@@ -254,7 +254,6 @@ namespace Aethiumian.AI.Navigation
         public void ReleaseCompletedOperations()
         {
             if (isDisposed) return;
-            DrainCompletedPlanningResults();
             for (int i = pendingRequests.Count - 1; i >= 0; i--)
             {
                 PendingRequest request = pendingRequests[i];
@@ -271,13 +270,6 @@ namespace Aethiumian.AI.Navigation
                 pendingRequests.RemoveAt(i);
             }
         }
-
-        /// <summary>Drains worker completion notifications after operations publish their own results.</summary>
-        private void DrainCompletedPlanningResults()
-        {
-            while (scheduler.TryDequeueCompletion(out _)) { }
-        }
-
 
         /// <summary>Rejects work after this Map runtime has reached its cleanup boundary.</summary>
         private void ThrowIfDisposed()

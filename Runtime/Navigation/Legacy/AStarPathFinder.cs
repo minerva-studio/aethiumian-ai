@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-using Aethiumian.AI.Diagnostics;
+using Unity.Profiling;
 #endif
 
 namespace Aethiumian.AI.Navigation
@@ -16,6 +16,10 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public class AStarPathFinder : PathFinder
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly ProfilerMarker PathFindingMarker = new("Aethiumian.AI/PathFinding");
+#endif
+
         protected const int NEIGHBOR_COST = 10;
         protected const int DIAGONAL_COST = 14;
         protected const int MAX_OPEN_TILE = 10000;
@@ -94,8 +98,7 @@ namespace Aethiumian.AI.Navigation
         public override List<Vector2Int> FindPath(Vector2Int start, Vector2Int goal)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            using var marker = AIPerformanceDiagnostics.PathFindingMarker.Auto();
-            AIPerformanceDiagnostics.RecordPathRequest();
+            using var marker = PathFindingMarker.Auto();
 #endif
             if (start == goal) return new List<Vector2Int> { goal };
             if (IsSolidBlock(goal) || !CanStandAt(goal)) return null;
@@ -117,9 +120,6 @@ namespace Aethiumian.AI.Navigation
                 if (closed.Count > MAX_CLOSE_TILE) return null; // safety bailout
 
                 var current = open.Pop();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                AIPerformanceDiagnostics.RecordPathExpandedNode();
-#endif
                 if (current == goal)
                     return ReconstructPath(current);
 

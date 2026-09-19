@@ -1,6 +1,6 @@
 using System;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-using Aethiumian.AI.Diagnostics;
+using Unity.Profiling;
 #endif
 using Aethiumian.AI.Nodes;
 using UnityEngine;
@@ -9,14 +9,17 @@ namespace Aethiumian.AI
 {
     public partial class BehaviourTree
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly ProfilerMarker ServiceUpdateMarker = new("Aethiumian.AI/BehaviourTree.Services");
+#endif
+
         /// <summary>
         /// Service update (during fixed update)
         /// </summary>
         private void ServiceUpdate()
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            using var marker = AIPerformanceDiagnostics.ServiceUpdateMarker.Auto();
-            AIPerformanceDiagnostics.RecordServiceUpdate();
+            using var marker = ServiceUpdateMarker.Auto();
 #endif
             //Debug.Log("Service Update Start :" + mainStack);
             using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);

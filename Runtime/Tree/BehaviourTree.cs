@@ -1,7 +1,7 @@
 #nullable enable
 using Aethiumian.AI.Accessors;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-using Aethiumian.AI.Diagnostics;
+using Unity.Profiling;
 #endif
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Randomization;
@@ -37,6 +37,12 @@ namespace Aethiumian.AI
     [Serializable]
     public partial class BehaviourTree
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly ProfilerMarker TreeUpdateMarker = new("Aethiumian.AI/BehaviourTree.Update");
+        private static readonly ProfilerMarker TreeLateUpdateMarker = new("Aethiumian.AI/BehaviourTree.LateUpdate");
+        private static readonly ProfilerMarker TreeFixedUpdateMarker = new("Aethiumian.AI/BehaviourTree.FixedUpdate");
+#endif
+
         public delegate void UpdateDelegate();
 
         internal enum StackType
@@ -518,8 +524,7 @@ namespace Aethiumian.AI
             //don't update when paused
             if (!CanContinue) return;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            using var marker = AIPerformanceDiagnostics.TreeUpdateMarker.Auto();
-            AIPerformanceDiagnostics.RecordTreeUpdate();
+            using var marker = TreeUpdateMarker.Auto();
 #endif
 
             using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
@@ -544,8 +549,7 @@ namespace Aethiumian.AI
             //don't update when paused
             if (!CanContinue) return;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            using var marker = AIPerformanceDiagnostics.TreeLateUpdateMarker.Auto();
-            AIPerformanceDiagnostics.RecordTreeLateUpdate();
+            using var marker = TreeLateUpdateMarker.Auto();
 #endif
 
             using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
@@ -566,8 +570,7 @@ namespace Aethiumian.AI
             //don't update when paused  
             if (!CanContinue) return;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            using var marker = AIPerformanceDiagnostics.TreeFixedUpdateMarker.Auto();
-            AIPerformanceDiagnostics.RecordTreeFixedUpdate();
+            using var marker = TreeFixedUpdateMarker.Auto();
 #endif
             using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
             for (int index = 0; index < stacks.Count; index++)

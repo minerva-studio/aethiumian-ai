@@ -1,5 +1,4 @@
 using System.Collections;
-using Aethiumian.AI.Diagnostics;
 using Aethiumian.AI.Navigation.Diagnostics;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
@@ -19,8 +18,6 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             MovementReplanDiagnostics.Enabled = false;
             MovementReplanDiagnostics.Reset();
-            AIPerformanceDiagnostics.Enabled = false;
-            AIPerformanceDiagnostics.Reset();
         }
 
         [UnityTest]

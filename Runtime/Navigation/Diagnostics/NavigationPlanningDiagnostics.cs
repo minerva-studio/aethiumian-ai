@@ -1,8 +1,5 @@
 using System;
 using System.Collections.Generic;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-using Aethiumian.AI.Diagnostics;
-#endif
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
@@ -51,9 +48,6 @@ namespace Aethiumian.AI.Navigation
         public void RecordPathExpansion()
         {
             RecordExpansion();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            AIPerformanceDiagnostics.RecordPathExpandedNode();
-#endif
         }
     }
 }

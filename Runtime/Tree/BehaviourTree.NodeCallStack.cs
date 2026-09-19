@@ -1,6 +1,6 @@
 using Aethiumian.AI.Nodes;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-using Aethiumian.AI.Diagnostics;
+using Unity.Profiling;
 #endif
 using System;
 using System.Collections.Generic;
@@ -17,6 +17,13 @@ namespace Aethiumian.AI
         [Serializable]
         public class NodeCallStack
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            private static readonly ProfilerMarker StackTickMarker = new("Aethiumian.AI/BehaviourTree.Stack.Tick");
+            private static readonly ProfilerMarker StackUpdateMarker = new("Aethiumian.AI/BehaviourTree.Stack.Update");
+            private static readonly ProfilerMarker StackFixedUpdateMarker = new("Aethiumian.AI/BehaviourTree.Stack.FixedUpdate");
+            private static readonly ProfilerMarker StackLateUpdateMarker = new("Aethiumian.AI/BehaviourTree.Stack.LateUpdate");
+#endif
+
             public enum EventType
             {
                 Start,
@@ -177,8 +184,7 @@ namespace Aethiumian.AI
             internal void Tick(bool singleNodeStep = false)
             {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                using var marker = AIPerformanceDiagnostics.StackTickMarker.Auto();
-                AIPerformanceDiagnostics.RecordStackTick();
+                using var marker = StackTickMarker.Auto();
 #endif
                 stopAfterCurrentNode = false;
                 bool waitFlag = State == StackState.WaitUntilNextUpdate;
@@ -580,9 +586,7 @@ namespace Aethiumian.AI
                     return;
                 }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                using var marker = AIPerformanceDiagnostics.StackUpdateMarker.Auto();
-                AIPerformanceDiagnostics.RecordStackUpdate();
-                AIPerformanceDiagnostics.RecordActionUpdate();
+                using var marker = StackUpdateMarker.Auto();
 #endif
                 action.Update();
             }
@@ -594,9 +598,7 @@ namespace Aethiumian.AI
                     return;
                 }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                using var marker = AIPerformanceDiagnostics.StackFixedUpdateMarker.Auto();
-                AIPerformanceDiagnostics.RecordStackFixedUpdate();
-                AIPerformanceDiagnostics.RecordActionFixedUpdate();
+                using var marker = StackFixedUpdateMarker.Auto();
 #endif
                 action.FixedUpdate();
             }
@@ -608,9 +610,7 @@ namespace Aethiumian.AI
                     return;
                 }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                using var marker = AIPerformanceDiagnostics.StackLateUpdateMarker.Auto();
-                AIPerformanceDiagnostics.RecordStackLateUpdate();
-                AIPerformanceDiagnostics.RecordActionLateUpdate();
+                using var marker = StackLateUpdateMarker.Auto();
 #endif
                 action.LateUpdate();
             }
