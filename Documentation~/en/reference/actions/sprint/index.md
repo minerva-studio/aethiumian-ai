@@ -2,23 +2,23 @@
 
 ## Purpose
 
-Applies a configured force to the AI host for a bounded duration.
+Applies force to the AI host during a bounded movement-state window and reports `Sprinting` / `Idle` through `IMovementSource`.
 
-## Key inputs / outputs
+## Inputs
 
-- Inputs: `duration`, `force`, and `forceApplication` (`Timed` or `Legacy`).
-- Outputs: none.
+- `force`: a bindable `Vector2` force value.
+- `duration`: the movement-state window; in `Repeated` mode it also limits the force-application window.
+- `forceApplication`: `Once` or `Repeated`, defaulting to `Once`.
 
-## Success / Failure semantics
+## Force application
 
-- `Timed` succeeds after its force interval completes and fails if the movement source no longer permits movement.
-- `Legacy` applies force on each fixed update and ends successfully after the elapsed time exceeds `duration`.
+- `Once`: applies `ForceMode2D.Force` once when the action starts, then remains active until `duration` elapses so the whole window reports as `Sprinting`.
+- `Repeated`: applies `ForceMode2D.Force` on each eligible fixed update until `duration` elapses.
+- With zero duration, `Once` still applies one force but does not report a zero-length `Sprinting` window; `Repeated` applies no force.
 
-## Important limitations
+## Lifecycle
 
-- Requires a `Rigidbody2D` on the host and a control target implementing `IMovementSource`.
-- `Legacy` preserves the older repeated-force behavior; `Timed` uses a bounded force executor.
-
-## Source code
-
-[Source](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Actions/Movement/Sprint.cs)
+- If the movement source cannot move when the action starts, the action fails without applying force.
+- If movement becomes unavailable while running, force application stops, the action reports `Idle`, and fails.
+- Successful completion and action destruction report `Idle`.
+- The host must have a `Rigidbody2D`, and the control target must implement `IMovementSource`. Force must be finite and duration must be finite and non-negative.

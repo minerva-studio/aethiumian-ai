@@ -1,110 +1,172 @@
 using Aethiumian.AI.Navigation;
+using Aethiumian.AI.Variables;
 using System;
 using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    /// <summary>Applies a bounded continuous force through the authored force mode.</summary>
+    /// <summary>Applies one force or repeats it over a bounded sprint window.</summary>
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Library-of-Meialia-AI")]
     public class Sprint : Aethiumian.AI.Nodes.Action
     {
-        public float duration;
-        public Vector2 force;
+        /// <summary>
+        /// Duration of the reported Sprinting movement-state window, captured when the action starts.
+        /// </summary>
+        [Readable]
+        public VariableField<float> duration = 0f;
 
-        /// <summary>Selects either the current bounded force action or the historical launch-and-repeat force behavior.</summary>
-        public enum ForceApplication { Timed = 0, Legacy = 1 }
+        /// <summary>
+        /// Authored or bound force vector submitted with <see cref="ForceMode2D.Force"/>.
+        /// </summary>
+        [Readable]
+        public VariableField<Vector2> force = Vector2.zero;
 
-        /// <summary>Authored per node; defaults to the current timed executor behavior.</summary>
-        public ForceApplication forceApplication;
-        private ForceApplication activeForceApplication;
+        /// <summary>
+        /// Selects whether the configured force is applied once or on every active fixed tick.
+        /// </summary>
+        public enum ForceApplication
+        {
+            Once = 0,
+            Repeated = 1
+        }
+
+        /// <summary>
+        /// Chooses the force cadence; defaults to one application to preserve single-call force behavior.
+        /// </summary>
+        public ForceApplication forceApplication = ForceApplication.Once;
+
         private IMovementSource movementSource;
+        private Rigidbody2D body;
         private TimedForceExecutor executor;
-        private float current;
+        private ForceApplication activeForceApplication;
+        private Vector2 activeForce;
+        private float activeDuration;
+        private float elapsed;
+        private MovementState reportedMovementState = MovementState.Unspecified;
 
-        /// <summary>Caches the authored force mode and prepares its execution state.</summary>
+
+
+
+
+
+        /// <summary>
+        /// Validates the host and movement source, then starts a one-shot application when selected.
+        /// </summary>
         public override void Start()
         {
             activeForceApplication = forceApplication;
-            current = 0f;
-            movementSource = Script as IMovementSource
-                ?? throw new InvalidOperationException($"{nameof(Sprint)} requires its ControlTarget to implement {nameof(IMovementSource)}.");
-            if (activeForceApplication == ForceApplication.Legacy)
-            {
-                var legacyBody = gameObject.GetComponent<Rigidbody2D>();
-                legacyBody.AddForce(force);
-                ReportMovementState(MovementState.Sprinting);
-                return;
-            }
+            elapsed = 0f;
+            reportedMovementState = MovementState.Unspecified;
+            movementSource = Script as IMovementSource ?? throw new InvalidOperationException($"{nameof(Sprint)} requires its ControlTarget to implement {nameof(IMovementSource)}.");
 
-            var body = gameObject.GetComponent<Rigidbody2D>();
+            body = gameObject.GetComponent<Rigidbody2D>();
             if (!body)
             {
                 throw new InvalidOperationException($"{nameof(Sprint)} requires a {nameof(Rigidbody2D)} on the AI host GameObject.");
             }
 
-            executor = new TimedForceExecutor(body, force, ForceMode2D.Force, duration);
+            activeForce = force;
+            activeDuration = duration;
+            Validate.Finite(activeForce, nameof(force));
+            Validate.NonNegativeFinite(activeDuration, nameof(duration));
+
+            switch (activeForceApplication)
+            {
+                case ForceApplication.Once:
+                    if (!movementSource.CanMove)
+                    {
+                        Finish(false);
+                        return;
+                    }
+
+                    body.AddForce(activeForce, ForceMode2D.Force);
+                    if (activeDuration > 0f)
+                    {
+                        ReportMovementState(MovementState.Sprinting);
+                    }
+                    else
+                    {
+                        ReportMovementState(MovementState.Idle);
+                        Success();
+                    }
+                    break;
+
+                case ForceApplication.Repeated:
+                    executor = new TimedForceExecutor(body, activeForce, ForceMode2D.Force, activeDuration);
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(forceApplication), forceApplication, "Unknown force application strategy.");
+            }
         }
 
-        /// <summary>Advances the selected maneuver from the behaviour tree's fixed-update path.</summary>
+        /// <summary>
+        /// Advances the selected force strategy and reports its active movement window.
+        /// </summary>
         public override void FixedUpdate()
         {
-            if (activeForceApplication == ForceApplication.Legacy)
-            {
-                LegacyFixedUpdate();
-                return;
-            }
+            if (IsComplete) return;
 
             if (!movementSource.CanMove)
             {
-                ReportMovementState(MovementState.Idle);
-                Fail();
+                Finish(false);
                 return;
+            }
+
+            if (activeForceApplication == ForceApplication.Once)
+            {
+                elapsed += Time.fixedDeltaTime;
+                if (elapsed >= activeDuration)
+                {
+                    Finish(true);
+                }
+                return;
+            }
+
+            if (activeDuration > 0f)
+            {
+                ReportMovementState(MovementState.Sprinting);
             }
 
             ExecutionResult result = executor.Tick(Time.fixedDeltaTime);
-            if (result.Status == ExecutionStatus.Running)
-            {
-                ReportMovementState(MovementState.Sprinting);
-                return;
-            }
+            if (result.Status == ExecutionStatus.Running) return;
 
-            ReportMovementState(MovementState.Idle);
-            if (result.Status == ExecutionStatus.Completed)
-            {
-                Success();
-            }
+            Finish(result.Status == ExecutionStatus.Completed);
         }
 
-        /// <summary>Releases runtime-only references owned by the current execution.</summary>
+        /// <summary>
+        /// Returns the movement source to idle and releases the active timed executor.
+        /// </summary>
         public override void OnDestroy()
         {
             ReportMovementState(MovementState.Idle);
             movementSource = null;
+            body = null;
             executor?.Dispose();
             executor = null;
         }
 
-        /// <summary>Advances the original Sprint implementation without changing its behavior.</summary>
-        private void LegacyFixedUpdate()
+        private void Finish(bool success)
         {
-            var body = gameObject.GetComponent<Rigidbody2D>();
-            body.AddForce(force);
-            ReportMovementState(MovementState.Sprinting);
-
-            current += Time.fixedDeltaTime;
-            if (current > duration)
+            ReportMovementState(MovementState.Idle);
+            if (success)
             {
-                ReportMovementState(MovementState.Idle);
-                End(true);
+                Success();
+            }
+            else
+            {
+                Fail();
             }
         }
 
         private void ReportMovementState(MovementState state)
         {
             if (state == MovementState.Unspecified || movementSource == null) return;
+            if (reportedMovementState == state) return;
             try
             {
                 movementSource.SetMovementState(new MovementStateInfo(state));
+                reportedMovementState = state;
             }
             catch (Exception exception)
             {

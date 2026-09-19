@@ -1,19 +1,24 @@
 # `Sprint`
 
 ## 用途
-在有限时长内向 AI 宿主施加配置的力。
 
-## 关键输入 / 输出
-- 输入：`duration`、`force` 和 `forceApplication`（`Timed` 或 `Legacy`）。
-- 输出：无。
+在有时限的 movement-state 窗口内向 AI 宿主施力，并通过 `IMovementSource` 报告 `Sprinting` / `Idle`。
 
-## 成功 / 失败语义
-- `Timed` 在施力时段结束后成功；若移动源不再允许移动则失败。
-- `Legacy` 在每个固定更新中施力，经过时间大于 `duration` 后成功结束。
+## 输入
 
-## 重要限制
-- 宿主需要有 `Rigidbody2D`，控制目标需要实现 `IMovementSource`。
-- `Legacy` 保留旧版重复施力行为；`Timed` 使用有时限的施力执行器。
+- `force`：可绑定变量的 `Vector2` 施力值。
+- `duration`：movement-state 窗口时长；`Repeated` 模式下也限制施力时长。
+- `forceApplication`：`Once` 或 `Repeated`，默认 `Once`。
 
-## 源码链接
-- [Source code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Actions/Movement/Sprint.cs)
+## 施力语义
+
+- `Once`：动作开始时使用 `ForceMode2D.Force` 施力一次；动作仍运行到 `duration` 结束，以便整个窗口报告为 `Sprinting`。
+- `Repeated`：在有效 FixedUpdate 中使用 `ForceMode2D.Force` 重复施力，直到达到 `duration`。
+- `duration` 为零时，`Once` 仍施力一次但不报告一个零时长的 `Sprinting` 窗口；`Repeated` 不施力。
+
+## 生命周期
+
+- 动作开始时若 movement source 不允许移动，则不施力并失败。
+- 运行期间若 movement source 不再允许移动，则停止施力、报告 `Idle` 并失败。
+- 正常完成或动作销毁时报告 `Idle`。
+- 宿主需要有 `Rigidbody2D`，控制目标需要实现 `IMovementSource`；力值必须有限，时长必须为有限非负值。
