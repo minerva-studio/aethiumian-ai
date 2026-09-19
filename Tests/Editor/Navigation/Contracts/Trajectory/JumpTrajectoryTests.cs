@@ -264,7 +264,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         public void CacheRetainsDeterministicRejectionAndEvictsLeastRecentlyUsedEntry()
         {
             JumpTrajectoryCache cache = new(2);
-            GroundJumpParameters parameters = new(new Vector2(0.8f, 1.5f), new Vector2(0f, -9.81f), 1f, 0f, 2f, 4f, 0.02f, 0.1f, 0.01f);
+            GroundJumpParameters parameters = new(new Vector2(0.8f, 1.5f), new Vector2(0f, -9.81f), 1f, 0f, 2f, 4f, 0.02f);
             Vector2 start = new(1f, 1f);
             Vector2 landing = new(3f, 1f);
             cache.Publish(start, landing, parameters, null);

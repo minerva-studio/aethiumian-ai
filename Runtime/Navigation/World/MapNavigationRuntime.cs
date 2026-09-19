@@ -22,38 +22,17 @@ namespace Aethiumian.AI.Navigation
         private Exception worldBuildException;
         private bool isDisposed;
 
+        /// <summary>Gets the immutable terrain configuration shared by capture and execution.</summary>
+        public NavigationPhysicsLayers PhysicsLayers { get; }
+
         /// <summary>Gets whether a NavWorld has been published and this runtime remains available.</summary>
         public bool IsReady => !isDisposed && world != null;
 
         /// <summary>Gets whether the owning world lifetime has ended.</summary>
         public bool IsDisposed => isDisposed;
 
-        /// <summary>Gets the immutable terrain configuration shared by capture and execution.</summary>
-        public NavigationPhysicsLayers PhysicsLayers { get; }
-
-        /// <summary>Creates execution candidates even before geometry publication; invalid after disposal.</summary>
-        public ContactFilter2D CreateTerrainFilter()
-        {
-            ThrowIfDisposed();
-            return PhysicsLayers.CreateTerrainFilter();
-        }
-
         /// <summary>Gets the compatibility snapshot revision for existing editor and coordinator diagnostics.</summary>
         public int SnapshotRevision => !isDisposed && world != null ? 1 : 0;
-
-        /// <summary>Returns the currently published immutable world without exposing runtime ownership.</summary>
-        public bool TryGetWorld(out INavigationWorld snapshot)
-        {
-            snapshot = world;
-            return !isDisposed && snapshot != null;
-        }
-
-        /// <summary>Returns the runtime-owned shared jump solver only after its world has been published.</summary>
-        public bool TryGetJumpSolver(out GroundJumpSolver solver)
-        {
-            solver = jumpSolver;
-            return !isDisposed && solver != null;
-        }
 
         /// <summary>Creates a planning runtime with empty execution layers and no project-specific defaults.</summary>
         public MapNavigationRuntime(int queueCapacity, int groundExpansionLimit, int flyExpansionLimit)
@@ -66,6 +45,8 @@ namespace Aethiumian.AI.Navigation
         {
             if (groundExpansionLimit <= 0) throw new ArgumentOutOfRangeException(nameof(groundExpansionLimit));
             if (flyExpansionLimit <= 0) throw new ArgumentOutOfRangeException(nameof(flyExpansionLimit));
+            NavigationWorldQueries.CaptureSupportSnapDistance();
+            GroundTraversalEndpointPolicy.CaptureVerticalSupportTolerance();
             this.groundExpansionLimit = groundExpansionLimit;
             this.flyExpansionLimit = flyExpansionLimit;
             PhysicsLayers = physicsLayers;
@@ -98,7 +79,9 @@ namespace Aethiumian.AI.Navigation
             scheduler.Start();
         }
 
-        /// <summary>Fails all waiting requests and makes later requests fail immediately with the same exception.</summary>
+        /// <summary>
+        /// Fails all waiting requests and makes later requests fail immediately with the same exception.
+        /// </summary>
         public void FailWorld(Exception failure)
         {
             ThrowIfDisposed();
@@ -106,39 +89,68 @@ namespace Aethiumian.AI.Navigation
             if (world != null) throw new InvalidOperationException("Navigation world has already been published.");
             if (worldBuildException != null) return;
             worldBuildException = failure;
-            scheduler.FailPending(failure);
             for (int i = 0; i < pendingRequests.Count; i++)
                 pendingRequests[i].Operation.TryFail(failure);
             ReleaseCompletedOperations();
         }
 
-        /// <summary>Queues ground planning with an explicit local-action or route horizon.</summary>
-        public NavigationPlanningOperation PlanWalkAsync(AABB body, NavigationGoalRequest goalRequest,
-            WalkNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
-            CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
+        /// <summary>Creates execution candidates even before geometry publication; invalid after disposal.</summary>
+        public ContactFilter2D CreateTerrainFilter()
         {
-            ReleaseCompletedOperations();
-            parameters = parameters.WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
-                .WithGroundContactTolerance(GroundTraversalEndpointPolicy.VerticalSupportTolerance);
-            return QueueWork(new WalkRequestDescriptor(body, goalRequest, parameters,
-                extent == NavigationPlanningExtent.NextAction, purpose), cancellationToken);
+            ThrowIfDisposed();
+            return PhysicsLayers.CreateTerrainFilter();
         }
-        /// <summary>Queues jump planning without requiring a complete path for NextAction.</summary>
-        public NavigationPlanningOperation PlanJumpAsync(AABB body, NavigationGoalRequest goalRequest,
-            JumpNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
-            CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
+
+        /// <summary>Returns the currently published immutable world without exposing runtime ownership.</summary>
+        public bool TryGetWorld(out INavigationWorld snapshot)
         {
-            ReleaseCompletedOperations();
-            parameters = parameters.WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
-                .WithGroundContactTolerance(GroundTraversalEndpointPolicy.VerticalSupportTolerance);
+            snapshot = world;
+            return !isDisposed && snapshot != null;
+        }
+
+        /// <summary>Returns the runtime-owned shared jump solver only after its world has been published.</summary>
+        public bool TryGetJumpSolver(out GroundJumpSolver solver)
+        {
+            solver = jumpSolver;
+            return !isDisposed && solver != null;
+        }
+
+        /// <summary>
+        /// Queues ground planning with an explicit local-action or route horizon.
+        /// </summary>
+        public NavigationPlanningOperation PlanWalkAsync(AABB body,
+            NavigationGoalRequest goalRequest,
+            WalkNavigationParameters parameters,
+            NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
+            CancellationToken cancellationToken = default,
+            NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
+        {
+            return QueueWork(new WalkRequestDescriptor(body, goalRequest, parameters, extent == NavigationPlanningExtent.NextAction, purpose), cancellationToken);
+        }
+
+        /// <summary>
+        /// Queues jump planning without requiring a complete path for NextAction.
+        /// </summary>
+        public NavigationPlanningOperation PlanJumpAsync(AABB body,
+            NavigationGoalRequest goalRequest,
+            JumpNavigationParameters parameters,
+            NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
+            CancellationToken cancellationToken = default,
+            NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
+        {
             return QueueWork(new JumpRequestDescriptor(body, goalRequest, parameters, extent, purpose), cancellationToken);
         }
-        /// <summary>Queues aerial planning with the same horizon contract as ground movement.</summary>
-        public NavigationPlanningOperation PlanFlyAsync(AABB body, NavigationGoalRequest goalRequest,
-            FlyNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
-            CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
+
+        /// <summary>
+        /// Queues aerial planning with the same horizon contract as ground movement.
+        /// </summary>
+        public NavigationPlanningOperation PlanFlyAsync(AABB body,
+            NavigationGoalRequest goalRequest,
+            FlyNavigationParameters parameters,
+            NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
+            CancellationToken cancellationToken = default,
+            NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
         {
-            ReleaseCompletedOperations();
             return QueueWork(new FlyRequestDescriptor(body, goalRequest, parameters, extent, purpose), cancellationToken);
         }
 
@@ -205,10 +217,10 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        /// <summary>Constructs a request's worker-owned planner graph before it enters the background queue.</summary>
+        /// <summary>Constructs and binds each pending request exactly once before it enters the background queue.</summary>
         private void Schedule(PendingRequest request)
         {
-            if (request.IsScheduled || request.Operation.IsCompleted) return;
+            if (request.Operation.IsCompleted) return;
             if (request.Operation.IsCancellationRequested)
             {
                 request.Operation.TryFinalizeCancellation();
@@ -221,7 +233,6 @@ namespace Aethiumian.AI.Navigation
                 if (!world.CanBodyPossiblyReachGoal(request.Descriptor.BodySize, goal))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.NoResult);
-                    request.IsScheduled = true;
                     return;
                 }
 
@@ -229,20 +240,17 @@ namespace Aethiumian.AI.Navigation
                     request.Descriptor.Purpose, out NavigationFailureKey failureKey))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.NoResult);
-                    request.IsScheduled = true;
                     return;
                 }
                 request.AssignFailureKey(failureKey);
                 if (failedRequests.Contains(failureKey))
                 {
                     request.Operation.TryComplete(NavigationPlanResult.SearchExhausted());
-                    request.IsScheduled = true;
                     return;
                 }
 
                 INavigationPlanningWork work = request.TakeDescriptor().CreateWork(this);
                 scheduler.PlanWork(work, request.Cancellation.Token, request.Operation);
-                request.IsScheduled = true;
             }
             catch (Exception exception)
             {
@@ -287,24 +295,21 @@ namespace Aethiumian.AI.Navigation
             /// <summary>Gets the immutable deduplication key for an ordinary failed request, when available.</summary>
             public NavigationFailureKey? FailureKey { get; private set; }
             private PlanningRequestDescriptor descriptor;
-            /// <summary>Gets or sets whether this request has entered the background queue.</summary>
-            public bool IsScheduled { get; set; }
-            private bool hasFailureKey;
-            /// <summary>Creates one runtime-owned pending request record.</summary>
-            public PendingRequest(NavigationPlanningOperation operation, CancellationTokenSource cancellation,
-                PlanningRequestDescriptor descriptor)
+
+            /// <summary>
+            /// Creates one runtime-owned pending request record.
+            /// </summary>
+            public PendingRequest(NavigationPlanningOperation operation, CancellationTokenSource cancellation, PlanningRequestDescriptor descriptor)
             {
-                Operation = operation;
-                Cancellation = cancellation;
+                this.Operation = operation;
+                this.Cancellation = cancellation;
                 this.descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
             }
 
-            /// <summary>Assigns the snapshot-derived failure key exactly once during Schedule binding.</summary>
-            public void AssignFailureKey(NavigationFailureKey? failureKey)
+            /// <summary>Assigns the snapshot-derived failure key during the request's one-time binding.</summary>
+            public void AssignFailureKey(NavigationFailureKey failureKey)
             {
-                if (hasFailureKey) throw new InvalidOperationException("A planning failure key was already assigned.");
                 FailureKey = failureKey;
-                hasFailureKey = true;
             }
 
             /// <summary>Gets the still-owned descriptor before detached work is created.</summary>
@@ -465,24 +470,23 @@ namespace Aethiumian.AI.Navigation
         private static NavigationProfileKey ProfileKeyFor(FlyNavigationParameters parameters, int kind) => ProfileKey(parameters, kind);
 
         private static NavigationProfileKey ProfileKey(WalkNavigationParameters parameters, int kind)
-            => CombineProfile(kind, parameters.BodySize, parameters.Speed, parameters.SupportSnapDistance, parameters.Gravity,
-                parameters.GravityScale, parameters.LinearDamping, parameters.JumpHeight, parameters.JumpLength, parameters.SimulationTimeStep,
-                parameters.GroundContactTolerance);
+            => CombineProfile(kind, parameters.BodySize, parameters.Speed, parameters.Gravity,
+                parameters.GravityScale, parameters.LinearDamping, parameters.JumpHeight, parameters.JumpLength,
+                parameters.SimulationTimeStep, 0f);
 
         private static NavigationProfileKey ProfileKey(JumpNavigationParameters parameters, int kind)
-            => CombineProfile(kind, parameters.BodySize, 0f, parameters.SupportSnapDistance, parameters.Gravity,
-                parameters.GravityScale, parameters.LinearDamping, parameters.JumpHeight, parameters.JumpLength, parameters.SimulationTimeStep,
-                parameters.GroundContactTolerance);
+            => CombineProfile(kind, parameters.BodySize, 0f, parameters.Gravity,
+                parameters.GravityScale, parameters.LinearDamping, parameters.JumpHeight, parameters.JumpLength,
+                parameters.SimulationTimeStep, 0f);
 
         private static NavigationProfileKey ProfileKey(FlyNavigationParameters parameters, int kind)
-            => CombineProfile(kind, parameters.BodySize, 0f, 0f, Vector2.zero, 0f, 0f, 0f, 0f, 0f,
+            => CombineProfile(kind, parameters.BodySize, 0f, Vector2.zero, 0f, 0f, 0f, 0f, 0f,
                 parameters.HasApproachLimit ? parameters.RemainingApproachDistance : -1f);
 
-        private static NavigationProfileKey CombineProfile(int kind, Vector2 bodySize, float walkSpeed, float supportSnap,
+        private static NavigationProfileKey CombineProfile(int kind, Vector2 bodySize, float walkSpeed,
             Vector2 gravity, float gravityScale, float damping, float jumpHeight, float jumpLength, float timestep,
-            float groundContactTolerance)
-            => new(kind, bodySize, walkSpeed, supportSnap, gravity, gravityScale, damping, jumpHeight, jumpLength, timestep,
-                groundContactTolerance);
+            float extraValue)
+            => new(kind, bodySize, walkSpeed, gravity, gravityScale, damping, jumpHeight, jumpLength, timestep, extraValue);
 
         private readonly struct NavigationFailureKey : IEquatable<NavigationFailureKey>
         {
@@ -532,39 +536,39 @@ namespace Aethiumian.AI.Navigation
             private readonly int bodyWidth;
             private readonly int bodyHeight;
             private readonly int walkSpeed;
-            private readonly int value0;
             private readonly int gravityX;
             private readonly int gravityY;
-            private readonly int value1;
-            private readonly int value2;
-            private readonly int value3;
-            private readonly int value4;
-            private readonly int value5;
-            private readonly int value6;
+            private readonly int gravityScale;
+            private readonly int damping;
+            private readonly int jumpHeight;
+            private readonly int jumpLength;
+            private readonly int simulationTimeStep;
+            private readonly int extraValue;
 
             public bool IsGround => kind == 1 || kind == 2 || kind == 4;
             public bool IsSmartWalk => kind == 1;
             public float WalkSpeed => BitConverter.Int32BitsToSingle(walkSpeed);
-            public float SimulationTimeStep => BitConverter.Int32BitsToSingle(value5);
+            public float SimulationTimeStep => BitConverter.Int32BitsToSingle(simulationTimeStep);
             public Vector2 BodySize => new(
                 BitConverter.Int32BitsToSingle(bodyWidth), BitConverter.Int32BitsToSingle(bodyHeight));
 
             /// <summary>Creates an exact value key from one planner profile.</summary>
-            public NavigationProfileKey(int kind, Vector2 bodySize, float walkSpeed, float value0, Vector2 gravity, float value1, float value2, float value3, float value4, float value5, float value6)
+            public NavigationProfileKey(int kind, Vector2 bodySize, float walkSpeed, Vector2 gravity,
+                float gravityScale, float damping, float jumpHeight, float jumpLength, float simulationTimeStep,
+                float extraValue)
             {
                 this.kind = kind;
                 this.walkSpeed = BitConverter.SingleToInt32Bits(walkSpeed);
                 this.bodyWidth = BitConverter.SingleToInt32Bits(bodySize.x);
                 this.bodyHeight = BitConverter.SingleToInt32Bits(bodySize.y);
-                this.value0 = BitConverter.SingleToInt32Bits(value0);
                 this.gravityX = BitConverter.SingleToInt32Bits(gravity.x);
                 this.gravityY = BitConverter.SingleToInt32Bits(gravity.y);
-                this.value1 = BitConverter.SingleToInt32Bits(value1);
-                this.value2 = BitConverter.SingleToInt32Bits(value2);
-                this.value3 = BitConverter.SingleToInt32Bits(value3);
-                this.value4 = BitConverter.SingleToInt32Bits(value4);
-                this.value5 = BitConverter.SingleToInt32Bits(value5);
-                this.value6 = BitConverter.SingleToInt32Bits(value6);
+                this.gravityScale = BitConverter.SingleToInt32Bits(gravityScale);
+                this.damping = BitConverter.SingleToInt32Bits(damping);
+                this.jumpHeight = BitConverter.SingleToInt32Bits(jumpHeight);
+                this.jumpLength = BitConverter.SingleToInt32Bits(jumpLength);
+                this.simulationTimeStep = BitConverter.SingleToInt32Bits(simulationTimeStep);
+                this.extraValue = BitConverter.SingleToInt32Bits(extraValue);
             }
 
             /// <summary>Compares every exact profile value rather than relying on a hash.</summary>
@@ -573,15 +577,14 @@ namespace Aethiumian.AI.Navigation
                     && walkSpeed == other.walkSpeed
                     && bodyWidth == other.bodyWidth
                     && bodyHeight == other.bodyHeight
-                    && value0 == other.value0
                     && gravityX == other.gravityX
                     && gravityY == other.gravityY
-                    && value1 == other.value1
-                    && value2 == other.value2
-                    && value3 == other.value3
-                    && value4 == other.value4
-                    && value5 == other.value5
-                    && value6 == other.value6;
+                    && gravityScale == other.gravityScale
+                    && damping == other.damping
+                    && jumpHeight == other.jumpHeight
+                    && jumpLength == other.jumpLength
+                    && simulationTimeStep == other.simulationTimeStep
+                    && extraValue == other.extraValue;
 
             public override bool Equals(object obj) => obj is NavigationProfileKey other && Equals(other);
 
@@ -593,15 +596,14 @@ namespace Aethiumian.AI.Navigation
                     hash = hash * 31 + walkSpeed;
                     hash = hash * 31 + bodyWidth;
                     hash = hash * 31 + bodyHeight;
-                    hash = hash * 31 + value0;
                     hash = hash * 31 + gravityX;
                     hash = hash * 31 + gravityY;
-                    hash = hash * 31 + value1;
-                    hash = hash * 31 + value2;
-                    hash = hash * 31 + value3;
-                    hash = hash * 31 + value4;
-                    hash = hash * 31 + value5;
-                    return hash * 31 + value6;
+                    hash = hash * 31 + gravityScale;
+                    hash = hash * 31 + damping;
+                    hash = hash * 31 + jumpHeight;
+                    hash = hash * 31 + jumpLength;
+                    hash = hash * 31 + simulationTimeStep;
+                    return hash * 31 + extraValue;
                 }
             }
         }

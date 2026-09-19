@@ -47,26 +47,23 @@ namespace Aethiumian.AI.Navigation
         {
             cancellationToken.ThrowIfCancellationRequested();
             trajectory = null;
-            if (!World.TryResolveSupport(AABB.FromLowerCenter(start, parameters.BodySize), parameters.SupportSnapDistance,
-                    out NavigationSupport startSupport)
-                || !World.TryResolveSupport(AABB.FromLowerCenter(landing, parameters.BodySize), parameters.SupportSnapDistance,
-                    out NavigationSupport endSupport)
+            if (!World.TryResolveSupport(AABB.FromLowerCenter(start, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out NavigationSupport startSupport)
+                || !World.TryResolveSupport(AABB.FromLowerCenter(landing, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out NavigationSupport endSupport)
                 || Mathf.Abs(endSupport.Position.x - startSupport.Position.x) > parameters.JumpLength + Tolerance)
                 return;
 
             Vector2 snappedStart = startSupport.Position;
             Vector2 snappedEnd = endSupport.Position;
             float maximumApex = JumpTrajectory.GetMaximumAllowedApexHeight(parameters.JumpHeight);
-            float minimumApex = snappedEnd.y <= snappedStart.y + Tolerance
-                ? JumpTrajectory.GetDefaultMinimumApexHeight(parameters.JumpHeight)
-                : Mathf.Max(JumpTrajectory.GetDefaultMinimumApexHeight(parameters.JumpHeight),
-                    snappedEnd.y + NavigationConstant.LandingApexClearance - snappedStart.y);
-            if (!JumpTrajectory.IsApexHeightAllowed(parameters.JumpHeight, minimumApex)
-                || minimumApex > maximumApex + Tolerance) return;
+            float minimumApex = JumpTrajectory.GetDefaultMinimumApexHeight(parameters.JumpHeight);
+            if (snappedEnd.y > snappedStart.y + Tolerance)
+            {
+                minimumApex = Mathf.Max(minimumApex, snappedEnd.y + NavigationConstant.LandingApexClearance - snappedStart.y);
+            }
+            if (!JumpTrajectory.IsApexHeightAllowed(parameters.JumpHeight, minimumApex) || minimumApex > maximumApex + Tolerance)
+                return;
 
-            JumpTrajectoryInput input = new(snappedStart, snappedEnd, parameters.Gravity,
-                parameters.GravityScale, parameters.LinearDamping, parameters.JumpHeight,
-                parameters.SimulationTimeStep);
+            JumpTrajectoryInput input = new(snappedStart, snappedEnd, parameters.Gravity, parameters.GravityScale, parameters.LinearDamping, parameters.JumpHeight, parameters.SimulationTimeStep);
             for (int attempt = 0; attempt < 64 && minimumApex <= maximumApex + Tolerance; attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -81,7 +78,7 @@ namespace Aethiumian.AI.Navigation
                     cancellationToken.ThrowIfCancellationRequested();
                     Vector2 next = trajectory.GetPosition(trajectory.FlightDuration * index / samples);
                     AABB body = AABB.FromLowerCenter(previous, parameters.BodySize);
-                    if (!World.IsBodyPathClear(body, next - previous, parameters.GroundContactTolerance))
+                    if (!World.IsBodyPathClear(body, next - previous, GroundTraversalEndpointPolicy.VerticalSupportTolerance))
                     {
                         clear = false;
                         break;
@@ -91,8 +88,7 @@ namespace Aethiumian.AI.Navigation
 
                 if (clear && trajectory.ApexPosition.y - trajectory.StartPosition.y + Tolerance >= minimumApex)
                     return;
-                minimumApex = Mathf.Max(minimumApex,
-                    trajectory.ApexPosition.y - trajectory.StartPosition.y + Tolerance);
+                minimumApex = Mathf.Max(minimumApex, trajectory.ApexPosition.y - trajectory.StartPosition.y + Tolerance);
             }
 
             trajectory = null;
@@ -130,8 +126,7 @@ namespace Aethiumian.AI.Navigation
                     prepared = new List<NavigationRouteSegment>(route.Count);
                     for (int copied = 0; copied < index; copied++) prepared.Add(route.Segments[copied]);
                 }
-                prepared.Add(GroundJumpGeometry.CreateSegment(World, trajectory, parameters.BodySize,
-                    parameters.SupportSnapDistance, cancellationToken));
+                prepared.Add(GroundJumpGeometry.CreateSegment(World, trajectory, parameters.BodySize, cancellationToken));
             }
 
             return prepared == null ? route : route.WithSegments(prepared);

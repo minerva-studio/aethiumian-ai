@@ -340,7 +340,7 @@ namespace Aethiumian.AI.Nodes
                 return false;
             }
 
-            JumpRouteSegment segment = GroundJumpGeometry.CreateSegment(world, solved, bodySize, parameters.SupportSnapDistance);
+            JumpRouteSegment segment = GroundJumpGeometry.CreateSegment(world, solved, bodySize);
             if (!OneWayPlatformCollisionLease.TryCreateForSegment(bodyCollider, segment, navigation, out OneWayPlatformCollisionLease lease))
             {
                 return false;
@@ -369,7 +369,7 @@ namespace Aethiumian.AI.Nodes
                     out JumpTrajectorySolution solved))
                 return false;
 
-            JumpRouteSegment segment = GroundJumpGeometry.CreateSegment(world, solved, bodySize, parameters.SupportSnapDistance);
+            JumpRouteSegment segment = GroundJumpGeometry.CreateSegment(world, solved, bodySize);
             if (!OneWayPlatformCollisionLease.TryCreateForSegment(bodyCollider, segment, navigation, out OneWayPlatformCollisionLease lease))
                 return false;
 
@@ -385,9 +385,7 @@ namespace Aethiumian.AI.Nodes
                 source.LinearDamping,
                 source.JumpHeight,
                 source.JumpLength,
-                source.SimulationTimeStep,
-                NavigationWorldQueries.SupportSnapDistance,
-                GroundTraversalEndpointPolicy.VerticalSupportTolerance);
+                source.SimulationTimeStep);
 
         private void BeginExecutor(JumpTrajectorySolution solved, OneWayPlatformCollisionLease lease)
         {

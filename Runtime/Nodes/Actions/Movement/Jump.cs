@@ -92,13 +92,10 @@ namespace Aethiumian.AI.Nodes
             INavigationWorld navigationWorld = NavigationWorld;
             if (!navigation.TryGetJumpSolver(out GroundJumpSolver jumpSolver))
                 return ActionPreparation.Waiting;
-            GroundJumpParameters parameters = new(body.Size, Physics2D.gravity,
-                RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength,
-                Time.fixedDeltaTime, NavigationWorldQueries.SupportSnapDistance,
-                GroundTraversalEndpointPolicy.VerticalSupportTolerance);
+            GroundJumpParameters parameters = new(body.Size, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime);
             if (!jumpSolver.TrySolve(body.LowerCenter, jump.End, parameters, out JumpTrajectorySolution trajectory))
                 return ActionPreparation.Unavailable;
-            JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(navigationWorld, trajectory, body.Size, parameters.SupportSnapDistance);
+            JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(navigationWorld, trajectory, body.Size);
             if (!OneWayPlatformCollisionLease.TryCreateForSegment(Collider, resolvedSegment, navigation, out OneWayPlatformCollisionLease lease))
                 return ActionPreparation.Unavailable;
 
@@ -128,8 +125,7 @@ namespace Aethiumian.AI.Nodes
         {
             float modifier = speedModifier;
             if (!NavigationNumeric.IsFinite(modifier) || modifier <= 0f)
-                throw new ArgumentOutOfRangeException(nameof(speedModifier), modifier,
-                    "Jump speedModifier must be finite and positive.");
+                throw new ArgumentOutOfRangeException(nameof(speedModifier), modifier, "Jump speedModifier must be finite and positive.");
             return modifier;
         }
 

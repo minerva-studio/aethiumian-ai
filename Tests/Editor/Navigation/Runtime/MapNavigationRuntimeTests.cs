@@ -560,6 +560,26 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(later.IsCompleted, Is.True);
         }
 
+        /// <summary>Verifies world failure keeps its strict lifecycle contract.</summary>
+        [Test]
+        public void FailWorldRejectsInvalidLifecycleTransitions()
+        {
+            MapNavigationRuntime runtime = CreateRuntime();
+            try
+            {
+                Assert.Throws<ArgumentNullException>(() => runtime.FailWorld(null));
+
+                runtime.PublishWorld(CreateOpenWorld());
+                Assert.Throws<InvalidOperationException>(() => runtime.FailWorld(new InvalidOperationException("too late")));
+            }
+            finally
+            {
+                runtime.Dispose();
+            }
+
+            Assert.Throws<ObjectDisposedException>(() => runtime.FailWorld(new InvalidOperationException("disposed")));
+        }
+
         /// <summary>Verifies disposal cancels queued work and rejects later use.</summary>
         [Test]
         public void DisposeCancelsQueuedOperations()

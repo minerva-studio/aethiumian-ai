@@ -48,10 +48,8 @@ namespace Aethiumian.AI.Nodes
                 if (!NavigationRuntime.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport currentSupport))
                     return false;
                 Vector2 offset = candidate.Start - currentSupport.Position;
-                float horizontalTolerance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(
-                    NewFixedSpeed, Time.fixedDeltaTime);
-                if (Mathf.Abs(offset.x) > horizontalTolerance
-                    || Mathf.Abs(offset.y) > GroundTraversalEndpointPolicy.VerticalSupportTolerance)
+                float horizontalTolerance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(NewFixedSpeed);
+                if (Mathf.Abs(offset.x) > horizontalTolerance || Mathf.Abs(offset.y) > GroundTraversalEndpointPolicy.VerticalSupportTolerance)
                     return false;
             }
             else if (!IsWithinContinuationTolerance(candidate.Start, body.LowerCenter))
@@ -139,9 +137,7 @@ namespace Aethiumian.AI.Nodes
                         RigidBody.linearDamping,
                         jumpHeight,
                         jumpLength,
-                        Time.fixedDeltaTime,
-                        NavigationWorldQueries.SupportSnapDistance,
-                        GroundTraversalEndpointPolicy.VerticalSupportTolerance);
+                        Time.fixedDeltaTime);
                     if (!solver.TrySolve(
                         body.LowerCenter,
                         jump.End,
@@ -152,8 +148,7 @@ namespace Aethiumian.AI.Nodes
                     JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(
                         navigationWorld,
                         trajectory,
-                        body.Size,
-                        parameters.SupportSnapDistance);
+                        body.Size);
                     if (!OneWayPlatformCollisionLease.TryCreateForSegment(
                         Collider, resolvedSegment, navigation, out OneWayPlatformCollisionLease lease))
                         return ActionPreparation.Unavailable;
@@ -182,12 +177,8 @@ namespace Aethiumian.AI.Nodes
 
             MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
             INavigationWorld snapshot = NavigationWorld;
-            return WalkNavigationPlanner.TryReconnectGroundRoute(
-                snapshot, route, body,
-                NavigationWorldQueries.SupportSnapDistance, GroundTraversalEndpointPolicy.VerticalSupportTolerance,
-                GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(
-                    NewFixedSpeed, Time.fixedDeltaTime),
-                out reconnectedRoute);
+            float executionHorizontalCompletionTolerance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(NewFixedSpeed);
+            return WalkNavigationPlanner.TryReconnectGroundRoute(snapshot, route, body, executionHorizontalCompletionTolerance, out reconnectedRoute);
         }
 
         private WalkNavigationParameters CreateNavigationParameters(Vector2 bodySize)

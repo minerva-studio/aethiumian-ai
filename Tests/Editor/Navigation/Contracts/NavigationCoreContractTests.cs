@@ -117,7 +117,6 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
                 world, route, AABB.FromLowerCenter(new Vector2(1.2f, 1f), new Vector2(0.8f, 0.8f)),
-                NavigationWorldQueries.SupportSnapDistance, 0.05f,
                 out NavigationRoute reconnected), Is.True);
             Assert.That(reconnected.Start, Is.EqualTo(new Vector2(1.2f, 1f)));
             Assert.That(reconnected.Segments[0].End, Is.EqualTo(new Vector2(4f, 1f)));
@@ -138,7 +137,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
                 world, route, AABB.FromLowerCenter(new Vector2(2.81f, 1f), new Vector2(0.8f, 0.8f)),
-                0.05f, 0.05f, 0.2f, out NavigationRoute reconnected), Is.True);
+                0.2f, out NavigationRoute reconnected), Is.True);
             Assert.That(reconnected.Start.x, Is.EqualTo(2.81f).Within(0.0001f));
             Assert.That(reconnected.Segments[0].Start.x, Is.EqualTo(2.81f).Within(0.0001f));
             Assert.That(reconnected.Segments[0].End, Is.EqualTo(new Vector2(5f, 1f)));
@@ -161,7 +160,6 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(WalkNavigationPlanner.TryReconnectGroundRoute(
                 world, route, AABB.FromLowerCenter(new Vector2(1.2f, 1f), new Vector2(0.8f, 0.8f)),
-                NavigationWorldQueries.SupportSnapDistance, 0.05f,
                 out _), Is.False);
         }
 

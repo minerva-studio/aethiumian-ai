@@ -24,11 +24,10 @@ namespace Aethiumian.AI.Navigation
         public override NavigationPlanResult Plan(AABB body, NavigationGoalRequest goal, JumpNavigationParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null)
         {
             ValidatePlanInputs(body, cancellationToken);
-            parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
 
             NavigationPlanResult result;
-            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
+            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
             {
                 result = NavigationPlanResult.NoResult;
             }
@@ -65,9 +64,8 @@ namespace Aethiumian.AI.Navigation
         public override NavigationPlanResult PlanSingleStep(AABB body, NavigationGoalRequest goal, JumpNavigationParameters parameters, CancellationToken cancellationToken = default)
         {
             ValidatePlanInputs(body, cancellationToken);
-            parameters = PrepareParameters(parameters);
             ValidateParameters(parameters);
-            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, parameters.BodySize), parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support))
+            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support))
             {
                 return NavigationPlanResult.NoResult;
             }
@@ -174,18 +172,6 @@ namespace Aethiumian.AI.Navigation
             Validate.PositiveFinite(profile.SimulationTimeStep, nameof(profile));
             Validate.Finite(profile.Gravity, nameof(profile));
         }
-
-        private static JumpNavigationParameters CaptureSupportSnapDistance(JumpNavigationParameters parameters)
-            => parameters.SupportSnapDistance > 0f
-                ? parameters
-                : parameters.WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance);
-
-        private static JumpNavigationParameters CaptureGroundContactTolerance(JumpNavigationParameters parameters)
-            => parameters.GroundContactTolerance > 0f
-                ? parameters
-                : parameters.WithGroundContactTolerance(NavigationWorldQueries.GeometryEpsilon);
-
-        private static JumpNavigationParameters PrepareParameters(JumpNavigationParameters parameters) => CaptureGroundContactTolerance(CaptureSupportSnapDistance(parameters));
 
         private readonly struct Successor
         {

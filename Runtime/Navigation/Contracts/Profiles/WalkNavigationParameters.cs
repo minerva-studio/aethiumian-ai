@@ -31,11 +31,6 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>Gets the fixed-step duration used by jump trajectory simulation.</summary>
         public float SimulationTimeStep { get; }
-        /// <summary>Gets the main-thread-captured support contact distance.</summary>
-        public float SupportSnapDistance { get; }
-
-        /// <summary>Gets the main-thread-captured ground contact tolerance used by clearance queries.</summary>
-        public float GroundContactTolerance { get; }
 
         /// <summary>Creates and validates immutable walking navigation parameters.</summary>
         public WalkNavigationParameters(Vector2 bodySize, float speed, Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float jumpLength, float simulationTimeStep)
@@ -56,41 +51,14 @@ namespace Aethiumian.AI.Navigation
             JumpHeight = jumpHeight;
             JumpLength = jumpLength;
             SimulationTimeStep = simulationTimeStep;
-            SupportSnapDistance = 0f;
-            GroundContactTolerance = 0f;
         }
-
-
 
         /// <summary>
-        /// Creates a <see cref="GroundJumpParameters"/> from this profile, capturing the main-thread support distance and ground contact tolerance.
+        /// Creates a <see cref="GroundJumpParameters"/> from this profile.
         /// </summary>
-        /// <returns></returns>
         public GroundJumpParameters GetJumpParameters()
         {
-            return new(BodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep, SupportSnapDistance, GroundContactTolerance);
-        }
-
-
-
-        /// <summary>Copies this profile with a main-thread-captured support distance.</summary>
-        internal WalkNavigationParameters WithSupportSnapDistance(float distance)
-        {
-            return new WalkNavigationParameters(this, distance, GroundContactTolerance);
-        }
-
-        /// <summary>Copies this profile with a main-thread-captured ground contact tolerance.</summary>
-        internal WalkNavigationParameters WithGroundContactTolerance(float tolerance)
-        {
-            Validate.NonNegativeFinite(tolerance, nameof(tolerance));
-            return new WalkNavigationParameters(this, SupportSnapDistance, tolerance);
-        }
-
-        private WalkNavigationParameters(WalkNavigationParameters source, float supportSnapDistance, float groundContactTolerance)
-        {
-            this = source;
-            SupportSnapDistance = supportSnapDistance;
-            GroundContactTolerance = groundContactTolerance;
+            return new(BodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep);
         }
 
     }

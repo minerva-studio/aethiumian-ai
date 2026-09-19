@@ -14,13 +14,11 @@ namespace Aethiumian.AI.Navigation
         public float JumpHeight { get; }
         public float JumpLength { get; }
         public float SimulationTimeStep { get; }
-        public float SupportSnapDistance { get; }
-        public float GroundContactTolerance { get; }
 
         /// <summary>
-        /// Captures all physical values that affect support resolution and trajectory validation.
+        /// Captures all authored physical values that affect the jump trajectory.
         /// </summary>
-        public GroundJumpParameters(Vector2 bodySize, Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float jumpLength, float simulationTimeStep, float supportSnapDistance, float groundContactTolerance)
+        public GroundJumpParameters(Vector2 bodySize, Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float jumpLength, float simulationTimeStep)
         {
             BodySize = bodySize;
             Gravity = gravity;
@@ -29,8 +27,6 @@ namespace Aethiumian.AI.Navigation
             JumpHeight = jumpHeight;
             JumpLength = jumpLength;
             SimulationTimeStep = simulationTimeStep;
-            SupportSnapDistance = supportSnapDistance;
-            GroundContactTolerance = groundContactTolerance;
         }
     }
 }

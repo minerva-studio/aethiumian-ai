@@ -15,9 +15,7 @@ namespace Aethiumian.AI.Navigation
         /// Re-solves one selected jump and confirms the planned apex is still the exact
         /// collision-validated solution for the immutable world used to publish the route.
         /// </summary>
-        internal static bool TryRecreate(GroundJumpSolver jumpSolver, Vector2 start, Vector2 landing,
-            float plannedApexHeight, GroundJumpParameters parameters, CancellationToken cancellationToken,
-            out JumpTrajectorySolution trajectory)
+        internal static bool TryRecreate(GroundJumpSolver jumpSolver, Vector2 start, Vector2 landing, float plannedApexHeight, GroundJumpParameters parameters, CancellationToken cancellationToken, out JumpTrajectorySolution trajectory)
         {
             cancellationToken.ThrowIfCancellationRequested();
             trajectory = default;
@@ -32,29 +30,20 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Creates one route segment and derives its directed OneWay crossings.</summary>
-        public static JumpRouteSegment CreateSegment(INavigationWorld world,
-            JumpTrajectorySolution trajectory, Vector2 bodySize, float supportSnapDistance)
-            => CreateSegment(world, trajectory, bodySize, supportSnapDistance, CancellationToken.None);
+        public static JumpRouteSegment CreateSegment(INavigationWorld world, JumpTrajectorySolution trajectory, Vector2 bodySize)
+            => CreateSegment(world, trajectory, bodySize, CancellationToken.None);
 
         /// <summary>Creates one execution-ready route segment while allowing planning cancellation.</summary>
-        public static JumpRouteSegment CreateSegment(INavigationWorld world,
-            JumpTrajectorySolution trajectory, Vector2 bodySize, float supportSnapDistance,
-            CancellationToken cancellationToken)
+        public static JumpRouteSegment CreateSegment(INavigationWorld world, JumpTrajectorySolution trajectory, Vector2 bodySize, CancellationToken cancellationToken)
         {
             if (world == null) throw new ArgumentNullException(nameof(world));
             if (trajectory == null) throw new ArgumentNullException(nameof(trajectory));
-            if (!NavigationNumeric.IsFinite(supportSnapDistance)
-                || supportSnapDistance < 0f)
-                throw new ArgumentOutOfRangeException(nameof(supportSnapDistance));
 
-            IReadOnlyList<JumpSurfaceCrossing> crossings = CreateSurfaceCrossings(world, trajectory, bodySize,
-                cancellationToken);
-            return new JumpRouteSegment(trajectory.StartPosition, trajectory.LandingPosition,
-                Mathf.Max(0f, trajectory.ApexPosition.y - trajectory.StartPosition.y), crossings);
+            IReadOnlyList<JumpSurfaceCrossing> crossings = CreateSurfaceCrossings(world, trajectory, bodySize, cancellationToken);
+            return new JumpRouteSegment(trajectory.StartPosition, trajectory.LandingPosition, Mathf.Max(0f, trajectory.ApexPosition.y - trajectory.StartPosition.y), crossings);
         }
 
-        private static IReadOnlyList<JumpSurfaceCrossing> CreateSurfaceCrossings(INavigationWorld world,
-            JumpTrajectorySolution trajectory, Vector2 bodySize, CancellationToken cancellationToken)
+        private static IReadOnlyList<JumpSurfaceCrossing> CreateSurfaceCrossings(INavigationWorld world, JumpTrajectorySolution trajectory, Vector2 bodySize, CancellationToken cancellationToken)
         {
             List<JumpSurfaceCrossing> crossings = new();
             List<NavigationSurfaceCrossing> events = new();
@@ -80,8 +69,7 @@ namespace Aethiumian.AI.Navigation
             if (world.TryResolveSupport(AABB.FromLowerCenter(trajectory.LandingPosition, bodySize), Tolerance, out NavigationSupport landingSupport)
                 && landingSupport.Kind == NavigationSurfaceKind.OneWay)
             {
-                AddUnique(crossings, new JumpSurfaceCrossing(landingSupport.Surface, landingSupport.Position,
-                    landingSupport.Normal, 1f, JumpSurfaceCrossingKind.Landing));
+                AddUnique(crossings, new JumpSurfaceCrossing(landingSupport.Surface, landingSupport.Position, landingSupport.Normal, 1f, JumpSurfaceCrossingKind.Landing));
             }
             crossings.Sort((left, right) => left.Fraction.CompareTo(right.Fraction));
             return crossings.AsReadOnly();
@@ -90,7 +78,8 @@ namespace Aethiumian.AI.Navigation
         private static void AddUnique(List<JumpSurfaceCrossing> crossings, JumpSurfaceCrossing candidate)
         {
             for (int index = 0; index < crossings.Count; index++)
-                if (crossings[index].Surface == candidate.Surface && crossings[index].Kind == candidate.Kind
+                if (crossings[index].Surface == candidate.Surface
+                    && crossings[index].Kind == candidate.Kind
                     && Vector2.Distance(crossings[index].Position, candidate.Position) <= Tolerance) return;
             crossings.Add(candidate);
         }

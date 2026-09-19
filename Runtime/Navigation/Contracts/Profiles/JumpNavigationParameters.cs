@@ -27,11 +27,6 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>Gets the fixed-step duration used by jump trajectory simulation.</summary>
         public float SimulationTimeStep { get; }
-        /// <summary>Gets the main-thread-captured support contact distance.</summary>
-        public float SupportSnapDistance { get; }
-
-        /// <summary>Gets the main-thread-captured ground contact tolerance used by clearance queries.</summary>
-        public float GroundContactTolerance { get; }
 
         /// <summary>Creates and validates immutable jump-only navigation parameters.</summary>
         public JumpNavigationParameters(Vector2 bodySize, Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float jumpLength, float simulationTimeStep)
@@ -50,33 +45,12 @@ namespace Aethiumian.AI.Navigation
             JumpHeight = jumpHeight;
             JumpLength = jumpLength;
             SimulationTimeStep = simulationTimeStep;
-            SupportSnapDistance = 0f;
-            GroundContactTolerance = 0f;
         }
 
-        private JumpNavigationParameters(JumpNavigationParameters source, float supportSnapDistance, float groundContactTolerance)
-        {
-            this = source;
-            SupportSnapDistance = supportSnapDistance;
-            GroundContactTolerance = groundContactTolerance;
-        }
-
-        /// <summary>Copies this profile with a main-thread-captured support distance.</summary>
-        public JumpNavigationParameters WithSupportSnapDistance(float distance)
-        {
-            return new JumpNavigationParameters(this, distance, GroundContactTolerance);
-        }
-
-        /// <summary>Copies this profile with a main-thread-captured ground contact tolerance.</summary>
-        public JumpNavigationParameters WithGroundContactTolerance(float tolerance)
-        {
-            Validate.NonNegativeFinite(tolerance, nameof(tolerance));
-            return new JumpNavigationParameters(this, SupportSnapDistance, tolerance);
-        }
-
+        /// <summary>Creates grounded-jump solver inputs from this profile.</summary>
         public GroundJumpParameters GetJumpParameters()
         {
-            return new(BodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep, SupportSnapDistance, GroundContactTolerance);
+            return new(BodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep);
         }
     }
 

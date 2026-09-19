@@ -159,7 +159,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Endpoint.x, Is.GreaterThan(3.5f).And.LessThan(5f));
             Assert.That(route.Endpoint.y, Is.EqualTo(1f));
             Assert.That(world.CanStandAt(AABB.FromLowerCenter(route.Endpoint, bodySize),
-                WalkParameters(bodySize).SupportSnapDistance, out _), Is.True);
+                NavigationWorldQueries.SupportSnapDistance, out _), Is.True);
             Assert.That(world.IsGoalComplete(goal, route.ResolveEndpointBody(AABB.FromLowerCenter(Vector2.zero, bodySize))), Is.False);
         }
 
@@ -242,7 +242,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Start.y, Is.EqualTo(start.y).Within(0.0001f));
         }
 
-        /// <summary>Verifies a small adjacent-ground height drift is accepted by the captured contact tolerance.</summary>
+        /// <summary>Verifies a small adjacent-ground height drift is accepted by the shared contact policy.</summary>
         [Test]
         public void GroundPlannerAcceptsAdjacentHeightDriftWithinContactTolerance()
         {
@@ -253,8 +253,7 @@ namespace Aethiumian.AI.Navigation.Tests
             };
             TestNavigationWorld world = new(new AABBInt(0, 0, 2, 4),
                 new[] { new Vector2Int(0, 0), new Vector2Int(1, 0) }, Array.Empty<Vector2Int>(), heights);
-            WalkNavigationParameters parameters = WalkParameters(jumpHeight: 0f, jumpLength: 0f)
-                .WithGroundContactTolerance(0.01f);
+            WalkNavigationParameters parameters = WalkParameters(jumpHeight: 0f, jumpLength: 0f);
 
             Assert.That(new WalkNavigationPlanner(world, 32, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(0.5f, 1f), parameters.BodySize),
@@ -262,7 +261,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
         }
 
-        /// <summary>Verifies adjacent-ground height drift beyond contact tolerance remains impassable.</summary>
+        /// <summary>Verifies adjacent-ground height drift beyond the shared contact policy remains impassable.</summary>
         [Test]
         public void GroundPlannerRejectsAdjacentHeightDriftBeyondContactTolerance()
         {
@@ -273,15 +272,14 @@ namespace Aethiumian.AI.Navigation.Tests
             };
             TestNavigationWorld world = new(new AABBInt(0, 0, 2, 4),
                 new[] { new Vector2Int(0, 0), new Vector2Int(1, 0) }, Array.Empty<Vector2Int>(), heights);
-            WalkNavigationParameters parameters = WalkParameters(jumpHeight: 0f, jumpLength: 0f)
-                .WithGroundContactTolerance(0.01f);
+            WalkNavigationParameters parameters = WalkParameters(jumpHeight: 0f, jumpLength: 0f);
 
             Assert.That(new WalkNavigationPlanner(world, 32, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(0.5f, 1f), parameters.BodySize),
                 Goal(new Vector2(1.5f, 1.02f), 0.01f), parameters, out _), Is.False);
         }
 
-        /// <summary>Verifies jump trajectory clearance reuses the same ground contact tolerance.</summary>
+        /// <summary>Verifies jump trajectory clearance uses the shared ground contact policy.</summary>
         [Test]
         public void JumpPlannerAcceptsAdjacentHeightDriftWithinContactTolerance()
         {
@@ -292,7 +290,7 @@ namespace Aethiumian.AI.Navigation.Tests
             };
             TestNavigationWorld world = new(new AABBInt(0, 0, 2, 5),
                 new[] { new Vector2Int(0, 0), new Vector2Int(1, 0) }, Array.Empty<Vector2Int>(), heights);
-            JumpNavigationParameters parameters = JumpParameters().WithGroundContactTolerance(0.01f);
+            JumpNavigationParameters parameters = JumpParameters();
 
             Assert.That(new JumpNavigationPlanner(world, 32, new GroundJumpSolver(world)).TryPlan(
                 AABB.FromLowerCenter(new Vector2(0.5f, 1f), parameters.BodySize),

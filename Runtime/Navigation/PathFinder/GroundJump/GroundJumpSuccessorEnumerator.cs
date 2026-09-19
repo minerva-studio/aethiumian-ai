@@ -104,7 +104,7 @@ namespace Aethiumian.AI.Navigation
                 NavigationSupportCandidate landingCandidate = landingSupports[i];
                 NavigationSupport landingSupport = landingCandidate.Support;
                 if (excludeGroundAdjacent
-                    && Mathf.Abs(landingSupport.Position.y - support.Position.y) <= parameters.GroundContactTolerance
+                    && Mathf.Abs(landingSupport.Position.y - support.Position.y) <= GroundTraversalEndpointPolicy.VerticalSupportTolerance
                     && Mathf.Abs(landingSupport.Position.x - support.Position.x) <= NavigationConstant.AdjacentSupportReach)
                 {
                     diagnostics?.RecordJumpCandidatePruned();
