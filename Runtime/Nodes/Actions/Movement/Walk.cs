@@ -31,7 +31,7 @@ namespace Aethiumian.AI.Nodes
 
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
-            operation = NavigationRuntime.PlanWalkAsync(body, goal, CreateNavigationParameters(body.Size), extent, cancellation, purpose);
+            operation = NavigationRuntime.PlanWalkAsync(body, goal, CreateNavigationParameters(body.Size), extent, cancellation);
             return true;
         }
 

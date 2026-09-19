@@ -4,7 +4,9 @@ using System.Threading;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>
-    /// Represents one detached planner executed to completion by one background consumer.
+    /// Represents detached planner work executed by a scheduler worker.
+    /// Implementations must be safe for background execution, must not retain Unity scene owners,
+    /// and must not call Unity APIs that require the main thread.
     /// </summary>
     public interface INavigationPlanningWork : IDisposable
     {

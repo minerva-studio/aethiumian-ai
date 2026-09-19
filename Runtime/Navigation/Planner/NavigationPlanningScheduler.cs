@@ -149,6 +149,7 @@ namespace Aethiumian.AI.Navigation
                 if (scheduled.IsCancellationRequested)
                 {
                     scheduled.Operation.TryFinalizeCancellation();
+                    scheduled.DisposeWork();
                     return;
                 }
                 using (INavigationPlanningWork work = scheduled.TakeWork())
@@ -217,8 +218,13 @@ namespace Aethiumian.AI.Navigation
 
             public void DisposePendingWork()
             {
-                Interlocked.Exchange(ref work, null)?.Dispose();
+                DisposeWork();
                 DisposeCancellation();
+            }
+
+            public void DisposeWork()
+            {
+                Interlocked.Exchange(ref work, null)?.Dispose();
             }
 
             public void DisposeCancellation()

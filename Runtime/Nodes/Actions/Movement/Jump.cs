@@ -32,7 +32,7 @@ namespace Aethiumian.AI.Nodes
         {
             operation = null;
             if (purpose == NavigationPlanningPurpose.InitialRoute && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _)) return false;
-            operation = NavigationRuntime.PlanJumpAsync(body, goal, new JumpNavigationParameters(body.Size, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), extent, cancellation, purpose);
+            operation = NavigationRuntime.PlanJumpAsync(body, goal, new JumpNavigationParameters(body.Size, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), extent, cancellation);
             return true;
         }
 

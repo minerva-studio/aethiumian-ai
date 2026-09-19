@@ -29,13 +29,14 @@ namespace Aethiumian.AI.Navigation.Tests
             using CancellationTokenSource cancellation = new();
             using NavigationPlanningScheduler scheduler = new(1);
             int invocationCount = 0;
-            NavigationPlanningOperation operation = scheduler.PlanWork(
-                new TestWork(Vector2.zero, Vector2.right, () => Interlocked.Increment(ref invocationCount)), cancellation.Token);
+            TestWork work = new(Vector2.zero, Vector2.right, () => Interlocked.Increment(ref invocationCount));
+            NavigationPlanningOperation operation = scheduler.PlanWork(work, cancellation.Token);
             cancellation.Cancel();
             scheduler.Start();
             WaitForCompletion(operation);
             Assert.That(operation.IsCancelled, Is.True);
             Assert.That(invocationCount, Is.Zero);
+            Assert.That(work.DisposeCount, Is.EqualTo(1));
         }
 
         /// <summary>Verifies cancellation after publication cannot replace a successful result.</summary>
@@ -110,7 +111,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NullCompletionPublishesNoPathOutcome()
         {
-            NavigationPlanningOperation operation = NavigationPlanningOperation.CreateSearchExhausted();
+            NavigationPlanningOperation operation = new();
+            Assert.That(operation.TryComplete(NavigationPlanResult.SearchExhausted()), Is.True);
 
             Assert.That(operation.IsCompleted, Is.True);
             Assert.That(operation.IsCancelled, Is.False);
@@ -143,6 +145,9 @@ namespace Aethiumian.AI.Navigation.Tests
             private readonly Vector2 goal;
             private readonly Action callback;
             private readonly Exception failure;
+            private int disposeCount;
+
+            public int DisposeCount => Volatile.Read(ref disposeCount);
 
             public TestWork(Vector2 start, Vector2 goal, Action callback = null)
             {
@@ -162,7 +167,7 @@ namespace Aethiumian.AI.Navigation.Tests
                     new[] { new GroundRouteSegment(start, goal) }));
             }
 
-            public void Dispose() { }
+            public void Dispose() => Interlocked.Increment(ref disposeCount);
         }
     }
 }

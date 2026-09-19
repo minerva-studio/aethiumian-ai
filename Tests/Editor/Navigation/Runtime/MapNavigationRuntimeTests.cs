@@ -121,16 +121,30 @@ namespace Aethiumian.AI.Navigation.Tests
         public void PlanningWaitsForPublishedWorld()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
-            NavigationPlanningOperation operation = runtime.PlanFlyAsync(
+            NavigationPlanningOperation walk = runtime.PlanWalkAsync(
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkParameters.BodySize),
+                Goal(new Vector2(3.5f, 1f)), WalkParameters);
+            NavigationPlanningOperation jump = runtime.PlanJumpAsync(
+                AABB.FromLowerCenter(new Vector2(0.5f, 1f), JumpParameters.BodySize),
+                Goal(new Vector2(3.5f, 1f)), JumpParameters);
+            NavigationPlanningOperation fly = runtime.PlanFlyAsync(
                 AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), FlyParameters.BodySize),
                 Goal(new Vector2(3.5f, 2.5f)), FlyParameters);
-            Assert.That(operation.IsCompleted, Is.False);
-            Assert.That(operation.IsCompleted, Is.False);
+
+            Assert.That(walk.IsCompleted, Is.False);
+            Assert.That(jump.IsCompleted, Is.False);
+            Assert.That(fly.IsCompleted, Is.False);
 
             runtime.PublishWorld(CreateOpenWorld());
-            WaitForCompletion(operation);
-            Assert.That(operation.IsCompleted, Is.True);
-            Assert.That(operation.Result, Is.Not.Null);
+            WaitForCompletion(walk);
+            WaitForCompletion(jump);
+            WaitForCompletion(fly);
+            Assert.That(walk.IsCompleted, Is.True);
+            Assert.That(jump.IsCompleted, Is.True);
+            Assert.That(fly.IsCompleted, Is.True);
+            Assert.That(walk.Result, Is.Not.Null);
+            Assert.That(jump.Result, Is.Not.Null);
+            Assert.That(fly.Result, Is.Not.Null);
         }
 
         /// <summary>Verifies Retreat goals are not rejected merely because the target bounds are outside the finite world.</summary>
@@ -207,9 +221,9 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(operation.Result.Goal.TargetBounds.LowerCenter.y, Is.EqualTo(0.5f));
         }
 
-        /// <summary>Verifies an unresolved Smart Walk start is retried by the worker rather than memoized as a terminal failure.</summary>
+        /// <summary>Verifies unresolved Smart Walk support is queried by the planner once per request.</summary>
         [Test]
-        public void UnresolvedSmartWalkIsNotMemoizedAsExhaustedFailure()
+        public void UnresolvedSmartWalkSupportIsQueriedOnlyByPlanner()
         {
             CountingNavigationWorld world = new(new AABBInt(0, 0, 6, 5));
             using MapNavigationRuntime runtime = CreateRuntime();
@@ -225,16 +239,16 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(first);
             Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
             Assert.That(first.Result, Is.Null);
-            Assert.That(world.SupportQueryCount, Is.EqualTo(2),
-                "Prepared parameters are shared by the request boundary, failure key, and worker core.");
+            Assert.That(world.SupportQueryCount, Is.EqualTo(1),
+                "The runtime should not make a second support query outside the planner.");
 
             NavigationPlanningOperation second = runtime.PlanWalkAsync(
                 AABB.FromLowerCenter(start, parameters.BodySize), goal, parameters);
             WaitForCompletion(second);
             Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
             Assert.That(second.Result, Is.Null);
-            Assert.That(world.SupportQueryCount, Is.EqualTo(4),
-                "The second unresolved request must enter the worker instead of hitting failed-request memoization.");
+            Assert.That(world.SupportQueryCount, Is.EqualTo(2),
+                "Each request should perform only the planner's support query.");
         }
 
         /// <summary>Verifies planning support resolves the captured surface across an integer boundary.</summary>
@@ -372,48 +386,9 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(fly.PlanResult.Termination, Is.Not.EqualTo(NavigationPlanTermination.ResultProduced));
         }
 
-        /// <summary>Verifies failed-request memoization keeps the planning purpose distinct.</summary>
+        /// <summary>Verifies Fly planning honors the requested distance metric.</summary>
         [Test]
-        public void FailedRequestMemoizationSeparatesPlanningPurpose()
-        {
-            using MapNavigationRuntime runtime = new(4, 128, 64);
-            TestNavigationWorld world = new(new AABBInt(0, 0, 6, 5),
-                new[] { new Vector2Int(0, 0) }, Array.Empty<Vector2Int>());
-            runtime.PublishWorld(world);
-            WalkNavigationParameters groundedOnly = new(new Vector2(0.8f, 1f), 4f,
-                new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
-            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
-                AABB.Point(4.5f, 1f), 0f);
-            Vector2 start = new(0.5f, 1f);
-
-            NavigationPlanningOperation continuation = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(start, groundedOnly.BodySize), goal, groundedOnly,
-                NavigationPlanningExtent.Route, default, NavigationPlanningPurpose.EndpointContinuation);
-            WaitForCompletion(continuation);
-            Assert.That(continuation.Result, Is.Null, DescribeRoute(continuation.Result));
-            Assert.That(continuation.PlanResult.Termination,
-                Is.EqualTo(NavigationPlanTermination.SearchExhausted), DescribeRoute(continuation.Result));
-            runtime.ReleaseCompletedOperations();
-
-            NavigationPlanningOperation initialRoute = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(start, groundedOnly.BodySize), goal, groundedOnly,
-                NavigationPlanningExtent.Route, default, NavigationPlanningPurpose.InitialRoute);
-            Assert.That(initialRoute.IsCompleted, Is.False,
-                "Planning purpose is part of the failure identity, so another purpose must still run the planner.");
-            WaitForCompletion(initialRoute);
-            Assert.That(initialRoute.PlanResult.Termination,
-                Is.EqualTo(NavigationPlanTermination.SearchExhausted), DescribeRoute(initialRoute.Result));
-
-            NavigationPlanningOperation repeated = runtime.PlanWalkAsync(
-                AABB.FromLowerCenter(start, groundedOnly.BodySize), goal, groundedOnly,
-                NavigationPlanningExtent.Route, default, NavigationPlanningPurpose.EndpointContinuation);
-            Assert.That(repeated.IsCompleted, Is.True,
-                "The identical exhausted request must reuse its memoized failure.");
-        }
-
-        /// <summary>Verifies failed-request memoization keeps distance metrics distinct.</summary>
-        [Test]
-        public void FailedRequestMemoizationSeparatesDistanceMetric()
+        public void FlyPlanningHonorsDistanceMetric()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             TestNavigationWorld world = new(new AABBInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
@@ -437,9 +412,9 @@ namespace Aethiumian.AI.Navigation.Tests
                 "The Chebyshev goal is already complete even though the Manhattan goal failed.");
         }
 
-        /// <summary>Verifies a failed Retreat request with one budget cannot poison a later budget.</summary>
+        /// <summary>Verifies Fly retreat planning honors the available approach budget.</summary>
         [Test]
-        public void FailedRetreatRequestMemoizationSeparatesApproachBudget()
+        public void FlyRetreatPlanningHonorsApproachBudget()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             TestNavigationWorld world = CreateOpenWorld();
@@ -465,9 +440,9 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(relaxed.Result.Goal.IsRetreat, Is.True);
         }
 
-        /// <summary>Verifies failed-request memoization keeps line-of-sight requirements distinct.</summary>
+        /// <summary>Verifies Fly planning honors the goal's line-of-sight requirement.</summary>
         [Test]
-        public void FailedRequestMemoizationSeparatesLineOfSightRequirement()
+        public void FlyPlanningHonorsLineOfSightRequirement()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             TestNavigationWorld world = new(new AABBInt(0, 0, 1, 1), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
@@ -646,7 +621,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 + $"Route.Segments=[{segments}]";
         }
 
-        /// <summary>Counts immutable support queries for the unresolved-start failure-cache contract.</summary>
+        /// <summary>Counts immutable support queries made by planner requests.</summary>
         private sealed class CountingNavigationWorld : INavigationWorld
         {
             private readonly TestNavigationWorld world;

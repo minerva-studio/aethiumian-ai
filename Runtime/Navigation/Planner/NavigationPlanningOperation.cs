@@ -72,14 +72,6 @@ namespace Aethiumian.AI.Navigation
             return operation;
         }
 
-        /// <summary>Creates a completed exhausted no-route operation for a deduplicated request.</summary>
-        internal static NavigationPlanningOperation CreateSearchExhausted()
-        {
-            NavigationPlanningOperation operation = new();
-            operation.TryComplete(NavigationPlanResult.SearchExhausted());
-            return operation;
-        }
-
         /// <summary>Creates an operation already finalized with a world-build failure.</summary>
         internal static NavigationPlanningOperation CreateFailed(Exception failure)
         {

@@ -163,7 +163,7 @@ namespace Aethiumian.AI.Nodes
             NavigationRoute candidate = result.Route;
             if (candidate == null || candidate.Count == 0)
             {
-                // GoalKey is an exact cache identity. Runtime handoff uses the semantic
+                // A result belongs to its captured goal. Runtime handoff uses the semantic
                 // compatibility contract so harmless collider sampling noise cannot discard a
                 // completed result before it reaches the executor.
                 if (!primary.Goal.HasCompatibleSemantics(goal))

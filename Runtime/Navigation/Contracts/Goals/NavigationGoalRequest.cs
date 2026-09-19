@@ -272,7 +272,7 @@ namespace Aethiumian.AI.Navigation
         /// The position thresholds are applied to this geometry's target position, and the geometry,
         /// distance metric, and target extent must match exactly.
         /// 
-        /// This is the route-reuse relation and is deliberately looser than <see cref="Equals(NavigationGoalRequest)"/>, which stays exact for cache identity.
+        /// This is the route-reuse relation and is deliberately looser than exact value equality.
         /// </summary>
         /// <param name="latest"></param>
         /// <returns></returns>
@@ -285,8 +285,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Returns whether two requests describe the same goal semantics. Target positions may
         /// differ; only sampling noise in the target extent is tolerated. This is the route-reuse
-        /// relation and is deliberately looser than <see cref="Equals(NavigationGoalRequest)"/>,
-        /// which stays exact for cache identity.
+        /// relation and is deliberately looser than exact value equality.
         /// </summary>
         public bool HasCompatibleSemantics(NavigationGoalRequest other)
         {
@@ -356,8 +355,8 @@ namespace Aethiumian.AI.Navigation
 
 
         /// <summary>
-        /// Compares every immutable goal field exactly. This is the request identity used by
-        /// dictionary and failure-cache keys; route reuse uses <see cref="HasCompatibleSemantics"/>.
+        /// Compares every immutable goal field exactly. Route reuse uses
+        /// <see cref="HasCompatibleSemantics"/> instead.
         /// </summary>
         public bool Equals(NavigationGoalRequest other)
         {
