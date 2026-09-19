@@ -10,6 +10,24 @@
 - Wait for a referenced async task to complete before returning.
 - [Details](actions/await/index.md)
 
+<a id="fixedjump"></a>
+### [`FixedJump`](actions/fixed-jump/index.md)
+
+- Perform one direct or planner-provided ballistic jump.
+- [Details](actions/fixed-jump/index.md)
+
+<a id="fly"></a>
+### [`Fly`](actions/fly/index.md)
+
+- Move toward a configured goal through planned aerial waypoints.
+- [Details](actions/fly/index.md)
+
+<a id="jump"></a>
+### [`Jump`](actions/jump/index.md)
+
+- Move toward a configured goal through planned ballistic jumps.
+- [Details](actions/jump/index.md)
+
 <a id="functionaction"></a>
 ### [`FunctionAction`](actions/function-action/index.md)
 
@@ -40,6 +58,12 @@
 - Start a coroutine method on the AI script.
 - [Details](actions/script-start-coroutine/index.md)
 
+<a id="sprint"></a>
+### [`Sprint`](actions/sprint/index.md)
+
+- Apply force to the AI host for a configured duration.
+- [Details](actions/sprint/index.md)
+
 <a id="stop"></a>
 ### [`Stop`](actions/stop/index.md)
 
@@ -63,5 +87,11 @@
 
 - Keep waiting until a referenced Unity object is destroyed.
 - [Details](actions/wait-for-destroy/index.md)
+
+<a id="walk"></a>
+### [`Walk`](actions/walk/index.md)
+
+- Move toward a configured goal through planned ground traversal.
+- [Details](actions/walk/index.md)
 
 

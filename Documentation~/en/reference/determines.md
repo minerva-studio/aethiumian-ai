@@ -106,4 +106,10 @@
 - Measure distance to first raycast hit.
 - [Details](determines/raycast-distance/index.md)
 
+<a id="valuechanged"></a>
+### [`ValueChanged`](determines/value-changed/index.md)
+
+- Detect whether a referenced value changed since its previous observation.
+- [Details](determines/value-changed/index.md)
+
 

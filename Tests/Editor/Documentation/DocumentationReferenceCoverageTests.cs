@@ -96,16 +96,45 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
             var zhByPath = chineseNodePages[category];
             var runtimeByPath = runtimeNodePages[category];
 
-            AssertThatKeySetsMatch(runtimeByPath.Keys, enByPath.Keys, $"Runtime node set mismatch in '{category}' (runtime vs en).");
-            AssertThatKeySetsMatch(runtimeByPath.Keys, zhByPath.Keys, $"Runtime node set mismatch in '{category}' (runtime vs zh).");
+            var mismatches = new List<string>();
+            AddKeySetMismatch(
+                mismatches,
+                runtimeByPath.Keys,
+                enByPath.Keys,
+                $"Runtime node set mismatch in '{category}' (runtime vs en).");
+            AddKeySetMismatch(
+                mismatches,
+                runtimeByPath.Keys,
+                zhByPath.Keys,
+                $"Runtime node set mismatch in '{category}' (runtime vs zh).");
 
             foreach (KeyValuePair<string, string> pair in runtimeByPath)
             {
-                Assert.That(enByPath[pair.Key], Is.EqualTo(pair.Value),
-                    $"English node name mismatch for '{pair.Key}'.");
-                Assert.That(zhByPath[pair.Key], Is.EqualTo(pair.Value),
-                    $"Chinese node name mismatch for '{pair.Key}'.");
+                AddNodeNameMismatch(mismatches, enByPath, pair, "English");
+                AddNodeNameMismatch(mismatches, zhByPath, pair, "Chinese");
             }
+
+            Assert.That(mismatches, Is.Empty, string.Join(Environment.NewLine, mismatches));
+        }
+
+        /// <summary>
+        /// Verifies path diagnostics retain every missing and extra entry in one report.
+        /// </summary>
+        [Test]
+        public void DocumentationReferenceCoverageDiagnostics_ListAllPathDifferences()
+        {
+            var mismatches = new List<string>();
+
+            AddKeySetMismatch(
+                mismatches,
+                new[] { "node-c", "node-a", "node-b" },
+                new[] { "node-extra" },
+                "Test category mismatch");
+
+            Assert.That(mismatches, Is.EqualTo(new[]
+            {
+                "Test category mismatch Missing: node-a, node-b, node-c; Extra: node-extra",
+            }));
         }
 
         /// <summary>
@@ -451,6 +480,44 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
                 extra,
                 Is.Empty,
                 $"{context} Extra: {string.Join(", ", extra)}");
+        }
+
+        /// <summary>
+        /// Adds a complete key-set difference to the caller's diagnostics without stopping later comparisons.
+        /// </summary>
+        private static void AddKeySetMismatch(
+            ICollection<string> mismatches,
+            IEnumerable<string> expected,
+            IEnumerable<string> actual,
+            string context)
+        {
+            var expectedSet = new HashSet<string>(expected, StringComparer.Ordinal);
+            var actualSet = new HashSet<string>(actual, StringComparer.Ordinal);
+            string[] missing = expectedSet.Except(actualSet).OrderBy(value => value, StringComparer.Ordinal).ToArray();
+            string[] extra = actualSet.Except(expectedSet).OrderBy(value => value, StringComparer.Ordinal).ToArray();
+
+            if (missing.Length > 0 || extra.Length > 0)
+            {
+                mismatches.Add(
+                    $"{context} Missing: {string.Join(", ", missing)}; Extra: {string.Join(", ", extra)}");
+            }
+        }
+
+        /// <summary>
+        /// Adds a node-name mismatch when the corresponding localized page exists.
+        /// </summary>
+        private static void AddNodeNameMismatch(
+            ICollection<string> mismatches,
+            IReadOnlyDictionary<string, string> documentedNodes,
+            KeyValuePair<string, string> runtimeNode,
+            string language)
+        {
+            if (documentedNodes.TryGetValue(runtimeNode.Key, out string documentedName)
+                && !string.Equals(documentedName, runtimeNode.Value, StringComparison.Ordinal))
+            {
+                mismatches.Add(
+                    $"{language} node name mismatch for '{runtimeNode.Key}': expected '{runtimeNode.Value}', found '{documentedName}'.");
+            }
         }
 
         /// <summary>

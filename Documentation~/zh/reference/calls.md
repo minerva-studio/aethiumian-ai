@@ -59,6 +59,10 @@
 ### [`Instantiate`](calls/instantiate/index.md)
 - 用途：执行该节点定义的核心行为。
 
+<a id="motion-flip"></a>
+### [`MotionFlip`](calls/motion-flip/index.md)
+- 用途：根据刚体水平运动翻转本地精灵。
+
 <a id="object-call"></a>
 ### [`ObjectCall`](calls/object-call/index.md)
 - 用途：反射调用对象上的实例方法。

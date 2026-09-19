@@ -75,3 +75,7 @@
 ### [`RaycastDistance`](determines/raycast-distance/index.md)
 - 用途：执行 2D/3D 射线并返回命中距离。
 
+<a id="value-changed"></a>
+### [`ValueChanged`](determines/value-changed/index.md)
+- 用途：检测被引用值是否相较上一次观察发生变化。
+

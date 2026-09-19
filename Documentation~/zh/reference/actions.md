@@ -12,6 +12,18 @@
 ### [`Await`](actions/await/index.md)
 - 用途：执行该节点定义的核心行为。
 
+<a id="fixed-jump"></a>
+### [`FixedJump`](actions/fixed-jump/index.md)
+- 用途：直接或通过规划器执行一次抛物线跳跃。
+
+<a id="fly"></a>
+### [`Fly`](actions/fly/index.md)
+- 用途：通过规划的空中航点朝配置目标移动。
+
+<a id="jump"></a>
+### [`Jump`](actions/jump/index.md)
+- 用途：通过规划的抛物线跳跃朝配置目标移动。
+
 <a id="function-action"></a>
 ### [`FunctionAction`](actions/function-action/index.md)
 - 用途：执行该节点定义的核心行为。
@@ -32,6 +44,10 @@
 ### [`ScriptStartCoroutine`](actions/script-start-coroutine/index.md)
 - 用途：启动脚本协程。
 
+<a id="sprint"></a>
+### [`Sprint`](actions/sprint/index.md)
+- 用途：在配置的时长内向 AI 宿主施加力。
+
 <a id="stop"></a>
 ### [`Stop`](actions/stop/index.md)
 - 用途：按速度归零策略停止运动。
@@ -47,4 +63,8 @@
 <a id="wait-for-destroy"></a>
 ### [`WaitForDestroy`](actions/wait-for-destroy/index.md)
 - 用途：等待对象引用被销毁。
+
+<a id="walk"></a>
+### [`Walk`](actions/walk/index.md)
+- 用途：通过规划的地面移动步骤朝配置目标移动。
 

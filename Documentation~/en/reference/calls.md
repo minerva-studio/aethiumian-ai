@@ -82,6 +82,12 @@
 - Instantiate a prefab into scene.
 - [Details](calls/instantiate/index.md)
 
+<a id="motionflip"></a>
+### [`MotionFlip`](calls/motion-flip/index.md)
+
+- Flip a local sprite from horizontal rigidbody motion.
+- [Details](calls/motion-flip/index.md)
+
 <a id="objectcall"></a>
 ### [`ObjectCall`](calls/object-call/index.md)
 
