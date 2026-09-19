@@ -54,6 +54,56 @@ namespace Aethiumian.AI.Navigation.Tests
         }
 
         [UnityTest]
+        public IEnumerator ReplacingTraceVariableDoesNotRetargetCurrentExecution()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject firstTarget = CreateTraceTarget(new Vector2(56.5f, 1f));
+            GameObject replacementTarget = CreateTraceTarget(new Vector2(76.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(firstTarget));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequest();
+
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            TreeVariable targetVariable = new(new VariableData("TraceTarget", VariableType.UnityObject));
+            targetVariable.SetValue(replacementTarget);
+            movement.tracing.SetRuntimeReference(targetVariable);
+            yield return WaitForRequestCount(2);
+
+            Assert.That(ControlledWalk.Requests.All(request =>
+                Mathf.Abs(request.Goal.TargetBounds.CenterX - firstTarget.transform.position.x) <= 0.001f), Is.True,
+                DescribeRequests());
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator ReplacingRetreatVariableDoesNotFailCurrentExecution()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject firstTarget = CreateTraceTarget(new Vector2(34.5f, 1f));
+            GameObject replacementTarget = CreateTraceTarget(new Vector2(76.5f, 1f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkRetreat(firstTarget));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForRequest();
+
+            ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
+            TreeVariable targetVariable = new(new VariableData("RetreatTarget", VariableType.UnityObject));
+            targetVariable.SetValue(replacementTarget);
+            movement.tracing.SetRuntimeReference(targetVariable);
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
+            Assert.That(ControlledWalk.Requests.All(request =>
+                Mathf.Abs(request.Goal.TargetBounds.CenterX - firstTarget.transform.position.x) <= 0.001f), Is.True,
+                DescribeRequests());
+        }
+
+        [UnityTest]
         public IEnumerator MovingTargetLevelChangeDoesNotStopActiveGroundAction()
         {
             using MapNavigationRuntime runtime = CreateRuntime(1f);
@@ -715,6 +765,22 @@ namespace Aethiumian.AI.Navigation.Tests
                 goal = MovementGoal.Default,
                 tracing = new VariableField(target),
                 reachDistance = (VariableField<float>)ArrivalErrorBound,
+                accelerateRate = (VariableField<float>)1f,
+                speed = (VariableField<float>)5f,
+                speedModifier = (VariableField<float>)1f,
+                jumpHeight = (VariableField<float>)5f,
+                jumpLength = (VariableField<float>)10f,
+            };
+
+        private static ControlledWalk CreateControlledWalkRetreat(GameObject target)
+            => new()
+            {
+                uuid = UUID.NewUUID(),
+                path = Movement.PathMode.Smart,
+                type = Movement.Behaviour.Retreat,
+                tracing = new VariableField(target),
+                reachDistance = (VariableField<float>)10f,
+                maxApproachDistance = (VariableField<float>)0f,
                 accelerateRate = (VariableField<float>)1f,
                 speed = (VariableField<float>)5f,
                 speedModifier = (VariableField<float>)1f,

@@ -861,6 +861,45 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That(runtimeParent.receivedValue, Is.False);
         }
 
+        [UnityTest]
+        public IEnumerator InterruptService_UsesValueChangedRuntimeVariable()
+        {
+            var parent = TreeTestFixture.CreateNode<InlineReturnProbe>("Parent");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Child");
+            var interrupt = TreeTestFixture.CreateNode<Interrupt>("Interrupt");
+            interrupt.interval = 0;
+
+            var condition = TreeTestFixture.CreateNode<ValueChanged>("Value Changed");
+            var variable = new VariableData("ObservedValue", VariableType.Int);
+            variable.SetDefaultValue(0);
+            condition.value = new VariableReference();
+            condition.value.SetReference(variable);
+            interrupt.condition = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            parent.child = new NodeReference(child.uuid);
+            child.parent = new NodeReference(parent.uuid);
+            AddServiceReference(child, interrupt);
+
+            using var fixture = TreeTestFixture.Create(parent, new[] { variable }, parent, child, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeParent = fixture.GetRuntimeNode<InlineReturnProbe>(parent);
+            var runtimeCondition = fixture.GetRuntimeNode<ValueChanged>(condition);
+            fixture.Start();
+            Assert.That(runtimeCondition.value.HasValue, Is.True);
+            Assert.That(runtimeCondition.value.IntValue, Is.EqualTo(0));
+            fixture.Tick();
+            fixture.Tick();
+
+            runtimeCondition.value.RuntimeVariable.SetValue<int>(1);
+            Assert.That(runtimeCondition.value.IntValue, Is.EqualTo(1));
+            yield return fixture.WaitUntil(() => runtimeParent.receivedReturn);
+
+            Assert.That(runtimeParent.receivedReturn, Is.True);
+            Assert.That(runtimeParent.receivedValue, Is.False);
+        }
+
         private static void AddServiceReference(IServiceHostNode host, Service service)
         {
             if (host == null)

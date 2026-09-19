@@ -23,8 +23,7 @@ namespace Aethiumian.AI.Nodes
                 case Behaviour.Trace:
                 case Behaviour.Retreat:
                     {
-                        if (tracing == null || !tracing.HasValue) return false;
-                        targetObject = tracing.GameObjectValue;
+                        targetObject = capturedTarget;
                         if (!targetObject) return false;
                         Collider2D[] colliders = NavigationBodyGeometry.GetTargetColliders(targetObject);
                         Vector2 fallback = targetObject.transform.position;

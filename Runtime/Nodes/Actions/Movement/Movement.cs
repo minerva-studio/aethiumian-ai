@@ -86,6 +86,8 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private int retries;
         [NonSerialized] private float executionTime;
         [NonSerialized] private RetreatExecution retreat;
+        // Trace and Retreat bind object identity at execution start; their geometry remains live.
+        [NonSerialized] private GameObject capturedTarget;
 
 
 
@@ -121,8 +123,6 @@ namespace Aethiumian.AI.Nodes
 
         protected sealed override void InitializeAction()
         {
-            // No target is read here. The first permitted tick performs the same sampling
-            // path as every later tick, including choosing Wander's destination lazily.
             route = null;
             routeIndex = 0;
             request = null;
@@ -138,6 +138,11 @@ namespace Aethiumian.AI.Nodes
             executionTime = 0f;
             wanderDestination = null;
             retreat = null;
+            capturedTarget = null;
+            if ((type == Behaviour.Trace || type == Behaviour.Retreat) && tracing != null && tracing.HasValue)
+            {
+                capturedTarget = tracing.GameObjectValue;
+            }
         }
 
         protected sealed override void TickAction()
