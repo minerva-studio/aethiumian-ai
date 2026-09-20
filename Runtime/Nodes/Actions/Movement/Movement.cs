@@ -228,7 +228,7 @@ namespace Aethiumian.AI.Nodes
                     if (ActiveSegment == null)
                     {
                         ReportMovementState(MovementState.Idle);
-                        RigidBody.linearVelocity = Vector2.zero;
+                        RigidBody.linearVelocityX = 0;
                     }
                 }
                 // Planning can overlap execution, but a second physical action never ticks here.
