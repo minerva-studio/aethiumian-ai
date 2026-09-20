@@ -220,7 +220,7 @@ namespace Aethiumian.AI.Navigation
             if (!world.IsGoalComplete(goal, AABB.FromLowerCenter(end, bodySize)) || !TryValidateGroundConnection(world, AABB.FromLowerCenter(start, bodySize), AABB.FromLowerCenter(end, bodySize)))
                 return false;
 
-            route = NavigationRoute.Complete(goal, new NavigationRouteSegment[] { new GroundRouteSegment(start, end) });
+            route = NavigationRoute.CreateSingleSegment(goal, new GroundRouteSegment(start, end), true);
             return true;
         }
 
@@ -265,10 +265,11 @@ namespace Aethiumian.AI.Navigation
             }
 
             GroundJumpParameters jumpParameters = parameters.GetJumpParameters(bodySize);
-            foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, node.Position, node.Support, goal, jumpParameters, diagnostics, true, node.Identity.CandidateId))
+            foreach (GroundJumpSuccessor? work in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, node.Position, node.Support, goal, jumpParameters, diagnostics, true, node.Identity.CandidateId))
             {
                 yield return null;
-                if (jump == null) continue;
+                if (!work.HasValue) continue;
+                GroundJumpSuccessor jump = work.Value;
                 yield return NavigationTransition.JumpLanding(
                     NavigationNodeIdentity.Ground(jump.LandingCandidateId), jump.Trajectory.LandingPosition,
                     jump.LandingSupport, jump.CreateSegment(),
@@ -314,10 +315,11 @@ namespace Aethiumian.AI.Navigation
             }
 
             GroundJumpParameters jumpParameters = parameters.GetJumpParameters(bodySize);
-            foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, resolvedStart, startSupport, goal, jumpParameters, null, true, -1))
+            foreach (GroundJumpSuccessor? work in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, resolvedStart, startSupport, goal, jumpParameters, null, true, -1))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (jump == null) continue;
+                if (!work.HasValue) continue;
+                GroundJumpSuccessor jump = work.Value;
                 Successor candidate = CreateSuccessor(new NavigationSupportCandidate(jump.LandingCandidateId, jump.LandingSupport),
                     jump.CreateSegment(), Vector2.Distance(resolvedStart, jump.Trajectory.LandingPosition)
                         + jump.Trajectory.FlightDuration + 0.5f, goal, bodySize);
@@ -340,31 +342,36 @@ namespace Aethiumian.AI.Navigation
         private Successor ExtendSimpleGroundMove(INavigationWorld world, Vector2 start, Successor current,
             NavigationGoalRequest goal, Vector2 bodySize, CancellationToken cancellationToken)
         {
-            current = CreateSuccessor(current.Position, new GroundRouteSegment(start, current.Position), Mathf.Abs(current.Position.x - start.x), goal, bodySize);
-            float direction = Mathf.Sign(current.Position.x - start.x);
+            Vector2 endpoint = current.Position;
+            var score = EvaluateEndpoint(start, endpoint, true, goal, bodySize);
+            float cost = Mathf.Abs(endpoint.x - start.x);
+            float direction = Mathf.Sign(endpoint.x - start.x);
             float spacing = NavigationConstant.MaximumTraversalSampleSpacing;
-            while (!current.CompletesGoal && direction * (goal.TargetBounds.CenterX - current.Position.x) > Tolerance)
+            while (!score.CompletesGoal && direction * (goal.TargetBounds.CenterX - endpoint.x) > Tolerance)
             {
-                Vector2 next = new(Mathf.MoveTowards(current.Position.x, goal.TargetBounds.CenterX, spacing), current.Position.y);
-                NavigationRouteSegment validated = null;
-                foreach (NavigationRouteSegment step in EnumerateGroundMove(world, current.Position, next, bodySize))
+                Vector2 next = new(Mathf.MoveTowards(endpoint.x, goal.TargetBounds.CenterX, spacing), endpoint.y);
+                (Vector2 Start, Vector2 End)? validated = null;
+                foreach (var step in EnumerateGroundMove(world, endpoint, next, bodySize))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (step != null) validated = step;
+                    if (step.HasValue) validated = step;
                 }
 
-                if (validated == null || Mathf.Abs(validated.End.y - start.y) > GroundTraversalEndpointPolicy.VerticalSupportTolerance)
+                if (!validated.HasValue || Mathf.Abs(validated.Value.End.y - start.y) > GroundTraversalEndpointPolicy.VerticalSupportTolerance)
                     break;
-                Successor candidate = CreateSuccessor(validated.End,
-                    new GroundRouteSegment(start, validated.End), Mathf.Abs(validated.End.x - start.x),
-                    goal, bodySize);
-                if (!candidate.CompletesGoal
-                    && !HasStrictSingleStepProgress(candidate, current.CompletionDistance, current.GuidanceDistance))
+                Vector2 candidateEnd = validated.Value.End;
+                var candidateScore = EvaluateEndpoint(start, candidateEnd, true, goal, bodySize);
+                if (!candidateScore.CompletesGoal
+                    && !HasStrictSingleStepProgress(candidateScore.CompletionDistance, candidateScore.GuidanceDistance,
+                        score.CompletionDistance, score.GuidanceDistance))
                     break;
-                current = candidate;
+                endpoint = candidateEnd;
+                score = candidateScore;
+                cost = Mathf.Abs(endpoint.x - start.x);
             }
 
-            return current;
+            return new Successor(-1, default, endpoint, new GroundRouteSegment(start, endpoint), cost,
+                score.CompletionDistance, score.GuidanceDistance, score.CompletesGoal);
         }
 
         /// <summary>Enumerates nearby real support anchors without collapsing surfaces to cells.</summary>
@@ -382,10 +389,14 @@ namespace Aethiumian.AI.Navigation
                 NavigationSupportCandidate candidate = candidates[index];
                 if (candidate.Id == currentCandidateId) continue;
                 NavigationRouteSegment step = null;
-                foreach (NavigationRouteSegment groundStep in EnumerateGroundMove(World, snappedStart, candidate.Support.Position, bodySize))
+                foreach (var groundStep in EnumerateGroundMove(World, snappedStart, candidate.Support.Position, bodySize))
                 {
                     yield return default;
-                    if (groundStep != null) { step = groundStep; break; }
+                    if (groundStep.HasValue)
+                    {
+                        step = new GroundRouteSegment(groundStep.Value.Start, groundStep.Value.End);
+                        break;
+                    }
                 }
                 if (step != null && parameters.Speed > Tolerance)
                 {
@@ -419,7 +430,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Enumerates horizontal ground validation samples.</summary>
-        private static IEnumerable<NavigationRouteSegment> EnumerateGroundMove(INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize)
+        private static IEnumerable<(Vector2 Start, Vector2 End)?> EnumerateGroundMove(INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize)
         {
             if (!world.TryResolveGroundSupport(AABB.FromLowerCenter(start, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 snappedStart, out _)
                 || !world.TryResolveGroundSupport(AABB.FromLowerCenter(end, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 snappedEnd, out _)
@@ -446,7 +457,7 @@ namespace Aethiumian.AI.Navigation
                 }
             }
 
-            yield return new GroundRouteSegment(snappedStart, snappedEnd);
+            yield return (snappedStart, snappedEnd);
         }
 
         /// <summary>Validates continuous support and body clearance without imposing a route-length limit.</summary>
@@ -564,28 +575,37 @@ namespace Aethiumian.AI.Navigation
         private Successor CreateSuccessor(NavigationSupportCandidate candidate, NavigationRouteSegment step, float cost, NavigationGoalRequest goal, Vector2 bodySize)
             => CreateSuccessor(candidate.Id, candidate.Support, step, cost, goal, bodySize);
 
-        private Successor CreateSuccessor(Vector2 position, NavigationRouteSegment step, float cost, NavigationGoalRequest goal, Vector2 bodySize)
-            => CreateSuccessor(-1, default, step, cost, goal, bodySize);
-
         private Successor CreateSuccessor(int candidateId, NavigationSupport support, NavigationRouteSegment step, float cost, NavigationGoalRequest goal, Vector2 bodySize)
         {
-            Vector2 position = step.End;
-            AABB startBody = AABB.FromLowerCenter(step.Start, bodySize);
-            AABB endBody = AABB.FromLowerCenter(position, bodySize);
+            var score = EvaluateEndpoint(step.Start, step.End, step is GroundRouteSegment, goal, bodySize);
+            return new Successor(candidateId, support, step.End, step, cost, score.CompletionDistance,
+                score.GuidanceDistance, score.CompletesGoal);
+        }
+
+        private (float CompletionDistance, float GuidanceDistance, bool CompletesGoal) EvaluateEndpoint(
+            Vector2 start, Vector2 end, bool ground, NavigationGoalRequest goal, Vector2 bodySize)
+        {
+            AABB startBody = AABB.FromLowerCenter(start, bodySize);
+            AABB endBody = AABB.FromLowerCenter(end, bodySize);
             float endpointDistance = World.GetGoalCompletionDistance(goal, endBody);
             bool completesGoal = World.IsGoalComplete(goal, endBody)
-                || step is GroundRouteSegment && World.IsGoalCompleteAlong(goal, startBody, endBody);
-            return new Successor(candidateId, support, position, step, cost, endpointDistance,
-                goal.GuidanceDistance(endBody), completesGoal);
+                || ground && World.IsGoalCompleteAlong(goal, startBody, endBody);
+            return (endpointDistance, goal.GuidanceDistance(endBody), completesGoal);
         }
 
         /// <summary>Accepts a Simple Walk candidate only when completion or plateau guidance strictly improves.</summary>
         private static bool HasStrictSingleStepProgress(Successor candidate, float startCompletionDistance, float startGuidanceDistance)
-            => IsStrictlyLess(candidate.CompletionDistance, startCompletionDistance) || (IsEquivalent(candidate.CompletionDistance, startCompletionDistance) && IsStrictlyLess(candidate.GuidanceDistance, startGuidanceDistance));
+            => HasStrictSingleStepProgress(candidate.CompletionDistance, candidate.GuidanceDistance,
+                startCompletionDistance, startGuidanceDistance);
+
+        private static bool HasStrictSingleStepProgress(float completionDistance, float guidanceDistance,
+            float startCompletionDistance, float startGuidanceDistance)
+            => IsStrictlyLess(completionDistance, startCompletionDistance)
+                || (IsEquivalent(completionDistance, startCompletionDistance) && IsStrictlyLess(guidanceDistance, startGuidanceDistance));
 
         /// <summary>Builds a plan containing exactly one validated local traversal step.</summary>
         private NavigationRoute BuildSingleStepPlan(NavigationGoalRequest goal, Successor successor)
-            => NavigationRoute.Complete(goal, new[] { successor.Step });
+            => NavigationRoute.CreateSingleSegment(goal, successor.Step, true);
 
         /// <summary>Compares Simple Walk actions under the local completion and progress contract.</summary>
         private static bool IsBetterSingleStep(Successor candidate, Successor best)

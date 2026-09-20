@@ -99,7 +99,7 @@ namespace Aethiumian.AI.Navigation
             }
             if (!best.HasValue) return budgetReached ? NavigationPlanResult.BudgetReached() : NavigationPlanResult.NoResult;
             NavigationTransition selected = best.Value;
-            NavigationRoute route = NavigationRoute.Create(goal, new[] { selected.Segment }, selected.CompletesGoal);
+            NavigationRoute route = NavigationRoute.CreateSingleSegment(goal, selected.Segment, selected.CompletesGoal);
 
             route = jumpSolver.PrepareRouteForExecution(route, jumpParameters, cancellationToken);
             return NavigationPlanResult.ResultProduced(route);
@@ -145,11 +145,12 @@ namespace Aethiumian.AI.Navigation
                 yield return NavigationTransition.CompletedJump(nearestGoal.Position, nearestGoal.Step, nearestGoal.Cost);
             }
 
-            foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, node.Position,
+            foreach (GroundJumpSuccessor? work in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, node.Position,
                 node.Support, goal, jumpParameters, diagnostics, false, node.Identity.CandidateId))
             {
                 yield return null;
-                if (jump == null) continue;
+                if (!work.HasValue) continue;
+                GroundJumpSuccessor jump = work.Value;
                 AABB landingBody = AABB.FromLowerCenter(jump.Trajectory.LandingPosition, jumpParameters.BodySize);
                 bool completesGoal = World.IsGoalComplete(goal, landingBody);
                 if (completesGoal)

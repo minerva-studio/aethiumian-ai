@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Navigation
             bool directClear = IsCenteredSegmentClear(World, start, resolvedGoal, bodySize, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (directClear)
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, new[] { new FlyRouteSegment(start, resolvedGoal) }));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.CreateSingleSegment(goal, new FlyRouteSegment(start, resolvedGoal), true));
 
             if (!TryFindConnectorCell(World, start, bodySize, out Vector2Int startCell)
                 || !TryFindConnectorCell(World, resolvedGoal, bodySize, out Vector2Int goalCell))
@@ -86,7 +86,7 @@ namespace Aethiumian.AI.Navigation
                 direct = start + away.normalized * Mathf.Max(NavigationConstant.MinimumRetreatStep, goal.RetreatDistance + bodySize.magnitude);
             }
             if (World.IsGoalComplete(goal, CenteredBody(direct, bodySize)) && LocalStepAllowed(start, direct, goal, parameters, bodySize))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, new[] { new FlyRouteSegment(start, direct) }));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.CreateSingleSegment(goal, new FlyRouteSegment(start, direct), true));
             Vector2? best = null;
             float bestDistance = goal.GuidanceDistance(body);
             Vector2Int cell = ToLattice(World, start);
@@ -104,7 +104,7 @@ namespace Aethiumian.AI.Navigation
             }
             if (!best.HasValue) return NavigationPlanResult.NoResult;
             Vector2 endpoint = best.Value;
-            NavigationRoute route = NavigationRoute.Create(goal, new[] { new FlyRouteSegment(start, endpoint) }, World.IsGoalComplete(goal, CenteredBody(endpoint, bodySize)));
+            NavigationRoute route = NavigationRoute.CreateSingleSegment(goal, new FlyRouteSegment(start, endpoint), World.IsGoalComplete(goal, CenteredBody(endpoint, bodySize)));
             return NavigationPlanResult.ResultProduced(route);
         }
 

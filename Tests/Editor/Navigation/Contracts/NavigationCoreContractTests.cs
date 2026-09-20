@@ -365,6 +365,21 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Endpoint, Is.EqualTo(Vector2.right));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NavigationRouteKeepsIndependentCollectionSnapshot(bool useList)
+        {
+            NavigationRouteSegment original = new GroundRouteSegment(Vector2.zero, Vector2.right);
+            IList<NavigationRouteSegment> source = useList
+                ? new List<NavigationRouteSegment> { original }
+                : new NavigationRouteSegment[] { original };
+            NavigationRoute route = NavigationRoute.Create(PointGoal(Vector2.right, 0f), source, false);
+            source[0] = new GroundRouteSegment(Vector2.zero, Vector2.left);
+            Assert.That(route.Segments[0], Is.SameAs(original));
+            Assert.That(route.Endpoint, Is.EqualTo(Vector2.right));
+            Assert.That(route.ReachesGoal, Is.False);
+        }
+
         /// <summary>Verifies semantic route factories and segment replacement preserve route-owned state.</summary>
         [Test]
         public void NavigationRouteFactoriesDescribeCompletenessAndPreserveStateWhenReplacingSegments()

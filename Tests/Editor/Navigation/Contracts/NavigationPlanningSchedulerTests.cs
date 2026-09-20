@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -36,7 +37,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(operation);
             Assert.That(operation.IsCancelled, Is.True);
             Assert.That(invocationCount, Is.Zero);
-            Assert.That(work.DisposeCount, Is.EqualTo(1));
+            Assert.That(SpinWait.SpinUntil(() => work.DisposeCount == 1, TimeSpan.FromSeconds(5)), Is.True);
         }
 
         /// <summary>Verifies cancellation after publication cannot replace a successful result.</summary>
@@ -130,6 +131,198 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(() => new NavigationPlanningScheduler(0), Throws.InstanceOf<ArgumentException>());
         }
 
+        [Test]
+        public void SimpleRunsWhileEveryGeneralConsumerIsOccupied()
+        {
+            using NavigationPlanningScheduler scheduler = new(1024);
+            using CountdownEvent entered = new(scheduler.WorkerCount - 1);
+            using ManualResetEventSlim release = new(false);
+            List<NavigationPlanningOperation> running = new();
+            try
+            {
+                for (int i = 1; i < scheduler.WorkerCount; i++)
+                    running.Add(scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right, () =>
+                    {
+                        entered.Signal();
+                        if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+                    })));
+                scheduler.Start();
+                scheduler.Start();
+                Assert.That(entered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                NavigationPlanningOperation smart = scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right));
+                NavigationPlanningOperation simple = scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right),
+                    extent: NavigationPlanningExtent.NextAction);
+                WaitForCompletion(simple);
+                Assert.That(simple.Result, Is.Not.Null);
+                Assert.That(smart.IsCompleted, Is.False, "The reserved consumer must not take Smart work.");
+            }
+            finally
+            {
+                release.Set();
+                foreach (NavigationPlanningOperation operation in running) WaitForCompletion(operation);
+            }
+        }
+
+        [Test]
+        public void GeneralConsumersHelpSimpleWhenReservedConsumerIsOccupied()
+        {
+            using NavigationPlanningScheduler scheduler = new(16);
+            using CountdownEvent entered = new(2);
+            using ManualResetEventSlim release = new(false);
+            List<NavigationPlanningOperation> running = new();
+            try
+            {
+                for (int i = 0; i < 2; i++)
+                    running.Add(scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right, () =>
+                    {
+                        entered.Signal();
+                        if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+                    }), extent: NavigationPlanningExtent.NextAction));
+                scheduler.Start();
+                Assert.That(entered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+            }
+            finally
+            {
+                release.Set();
+                foreach (NavigationPlanningOperation operation in running) WaitForCompletion(operation);
+            }
+        }
+
+        [Test]
+        public void SmartCannotConsumeReservedWaitingCapacity()
+        {
+            using NavigationPlanningScheduler scheduler = new(4);
+            for (int i = 0; i < 3; i++) scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right));
+            TestWork rejected = new(Vector2.zero, Vector2.right);
+            Assert.Throws<InvalidOperationException>(() => scheduler.PlanWork(rejected));
+            Assert.That(rejected.DisposeCount, Is.EqualTo(1));
+            scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right), extent: NavigationPlanningExtent.NextAction);
+            Assert.Throws<InvalidOperationException>(() => scheduler.PlanWork(
+                new TestWork(Vector2.zero, Vector2.right), extent: NavigationPlanningExtent.NextAction));
+        }
+
+        [Test]
+        public void CancelledWaitingWorkReleasesCapacityBeforeStart()
+        {
+            using NavigationPlanningScheduler scheduler = new(1);
+            using CancellationTokenSource cancellation = new();
+            TestWork cancelled = new(Vector2.zero, Vector2.right);
+            scheduler.PlanWork(cancelled, cancellation.Token);
+            cancellation.Cancel();
+            NavigationPlanningOperation replacement = scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right));
+            Assert.That(cancelled.DisposeCount, Is.EqualTo(1));
+            scheduler.Start();
+            WaitForCompletion(replacement);
+            Assert.That(replacement.Result, Is.Not.Null);
+        }
+
+        [Test]
+        public void GeneralConsumerUsesThreeToOneOrderAndPreservesLaneOrder()
+        {
+            using NavigationPlanningScheduler scheduler = new(1024);
+            using CountdownEvent entered = new(scheduler.WorkerCount - 1);
+            using ManualResetEventSlim releaseOne = new(false);
+            using ManualResetEventSlim releaseOthers = new(false);
+            using ManualResetEventSlim simpleEntered = new(false);
+            List<NavigationPlanningOperation> blockers = new();
+            List<NavigationPlanningOperation> requests = new();
+            List<int> order = new();
+            try
+            {
+                for (int i = 1; i < scheduler.WorkerCount; i++)
+                {
+                    ManualResetEventSlim gate = i == 1 ? releaseOne : releaseOthers;
+                    blockers.Add(scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right, () =>
+                    {
+                        entered.Signal();
+                        if (!gate.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+                    })));
+                }
+                scheduler.Start();
+                Assert.That(entered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                blockers.Add(scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right, () =>
+                {
+                    simpleEntered.Set();
+                    if (!releaseOthers.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+                }), extent: NavigationPlanningExtent.NextAction));
+                Assert.That(simpleEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                for (int i = 0; i < 6; i++)
+                {
+                    int value = i;
+                    requests.Add(scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right, () => order.Add(value)),
+                        extent: NavigationPlanningExtent.NextAction));
+                }
+                for (int i = 0; i < 2; i++)
+                {
+                    int value = 10 + i;
+                    requests.Add(scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right, () => order.Add(value))));
+                }
+                releaseOne.Set();
+                foreach (NavigationPlanningOperation request in requests) WaitForCompletion(request);
+                CollectionAssert.AreEqual(new[] { 0, 1, 2, 10, 3, 4, 5, 11 }, order);
+            }
+            finally
+            {
+                releaseOne.Set();
+                releaseOthers.Set();
+                foreach (NavigationPlanningOperation request in blockers) WaitForCompletion(request);
+            }
+        }
+
+        [Test]
+        public void DisposeBeforeStartRetiresBothLanesAndRejectsSubmission()
+        {
+            NavigationPlanningScheduler scheduler = new(4);
+            TestWork simple = new(Vector2.zero, Vector2.right);
+            TestWork smart = new(Vector2.zero, Vector2.right);
+            NavigationPlanningOperation first = scheduler.PlanWork(simple, extent: NavigationPlanningExtent.NextAction);
+            NavigationPlanningOperation second = scheduler.PlanWork(smart);
+            scheduler.Dispose();
+            scheduler.Dispose();
+            Assert.That(first.IsCancelled && second.IsCancelled, Is.True);
+            Assert.That(simple.DisposeCount, Is.EqualTo(1));
+            Assert.That(smart.DisposeCount, Is.EqualTo(1));
+            Assert.Throws<ObjectDisposedException>(() => scheduler.Start());
+            using TestWork rejected = new(Vector2.zero, Vector2.right);
+            Assert.Throws<ObjectDisposedException>(() => scheduler.PlanWork(rejected));
+        }
+
+        [Test]
+        public void DisposeCancelsRunningWorkAndReleasesItOnce()
+        {
+            using ManualResetEventSlim entered = new(false);
+            using NavigationPlanningScheduler scheduler = new(4);
+            TestWork work = new(Vector2.zero, Vector2.right, tokenCallback: token =>
+            {
+                entered.Set();
+                if (!token.WaitHandle.WaitOne(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+                token.ThrowIfCancellationRequested();
+            });
+            NavigationPlanningOperation operation = scheduler.PlanWork(work);
+            scheduler.Start();
+            Assert.That(entered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+            scheduler.Dispose();
+            WaitForCompletion(operation);
+            Assert.That(operation.IsCancelled, Is.True);
+            Assert.That(SpinWait.SpinUntil(() => work.DisposeCount == 1, TimeSpan.FromSeconds(5)), Is.True);
+        }
+
+        [Test]
+        public void FailureDrainsBothWaitingLanes()
+        {
+            using NavigationPlanningScheduler scheduler = new(4);
+            TestWork simple = new(Vector2.zero, Vector2.right);
+            TestWork smart = new(Vector2.zero, Vector2.right);
+            NavigationPlanningOperation first = scheduler.PlanWork(simple, extent: NavigationPlanningExtent.NextAction);
+            NavigationPlanningOperation second = scheduler.PlanWork(smart);
+            InvalidOperationException failure = new("world failed");
+            Assert.That(scheduler.FailPending(failure), Is.EqualTo(2));
+            Assert.That(first.Exception, Is.SameAs(failure));
+            Assert.That(second.Exception, Is.SameAs(failure));
+            Assert.That(simple.DisposeCount, Is.EqualTo(1));
+            Assert.That(smart.DisposeCount, Is.EqualTo(1));
+        }
+
         private static NavigationGoalRequest PointGoal(Vector2 point)
             => NavigationGoalRequest.Proximity(AABB.Point(point), DistanceMetric.Euclidean, 0f);
 
@@ -144,16 +337,18 @@ namespace Aethiumian.AI.Navigation.Tests
             private readonly Vector2 start;
             private readonly Vector2 goal;
             private readonly Action callback;
+            private readonly Action<CancellationToken> tokenCallback;
             private readonly Exception failure;
             private int disposeCount;
 
             public int DisposeCount => Volatile.Read(ref disposeCount);
 
-            public TestWork(Vector2 start, Vector2 goal, Action callback = null)
+            public TestWork(Vector2 start, Vector2 goal, Action callback = null, Action<CancellationToken> tokenCallback = null)
             {
                 this.start = start;
                 this.goal = goal;
                 this.callback = callback;
+                this.tokenCallback = tokenCallback;
             }
 
             public TestWork(Exception failure) => this.failure = failure;
@@ -163,6 +358,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 cancellationToken.ThrowIfCancellationRequested();
                 if (failure != null) throw failure;
                 callback?.Invoke();
+                tokenCallback?.Invoke(cancellationToken);
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(PointGoal(goal),
                     new[] { new GroundRouteSegment(start, goal) }));
             }

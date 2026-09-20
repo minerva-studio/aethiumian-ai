@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>One locally validated jump edge.</summary>
-    internal sealed class GroundJumpSuccessor
+    internal readonly struct GroundJumpSuccessor
     {
         /// <summary>Gets the stable snapshot candidate ID of the landing support.</summary>
         public int LandingCandidateId { get; }
@@ -19,8 +19,7 @@ namespace Aethiumian.AI.Navigation
         public JumpTrajectorySolution Trajectory { get; }
 
         /// <summary>Creates one validated local jump successor.</summary>
-        public GroundJumpSuccessor(Vector2 sourcePosition, int landingCandidateId, NavigationSupport landingSupport,
-            JumpTrajectorySolution trajectory)
+        public GroundJumpSuccessor(Vector2 sourcePosition, int landingCandidateId, NavigationSupport landingSupport, JumpTrajectorySolution trajectory)
         {
             SourcePosition = sourcePosition;
             if (landingCandidateId < 0) throw new ArgumentOutOfRangeException(nameof(landingCandidateId));
@@ -51,7 +50,7 @@ namespace Aethiumian.AI.Navigation
         /// Enumerates the local jump envelope. Null yields represent bounded scheduler work;
         /// non-null values are complete, collision-validated jump edges.
         /// </summary>
-        public static IEnumerable<GroundJumpSuccessor> Enumerate(GroundJumpSolver jumpSolver,
+        public static IEnumerable<GroundJumpSuccessor?> Enumerate(GroundJumpSolver jumpSolver,
             Vector2 start,
             NavigationSupport support,
             NavigationGoalRequest goal,

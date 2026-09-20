@@ -220,11 +220,28 @@ namespace Aethiumian.AI.Navigation
             public override NavigationRouteCoordinateFrame CoordinateFrame => segments[0].CoordinateFrame;
         }
 
+        /// <summary>Creates a single-segment route without an intermediate caller-owned array.</summary>
+        internal static NavigationRoute CreateSingleSegment(NavigationGoalRequest goal, NavigationRouteSegment segment, bool reachesGoal)
+        {
+            if (segment == null)
+                throw new ArgumentException("Navigation routes cannot contain null segments.", nameof(segment));
+            return CreateInternal(goal, new[] { segment }, reachesGoal);
+        }
+
         private static NavigationRouteSegment[] CopySegments(IEnumerable<NavigationRouteSegment> segments)
         {
             if (segments == null) throw new ArgumentNullException(nameof(segments));
 
-            NavigationRouteSegment[] copiedSegments = new List<NavigationRouteSegment>(segments).ToArray();
+            NavigationRouteSegment[] copiedSegments;
+            if (segments is ICollection<NavigationRouteSegment> collection)
+            {
+                copiedSegments = new NavigationRouteSegment[collection.Count];
+                collection.CopyTo(copiedSegments, 0);
+            }
+            else
+            {
+                copiedSegments = new List<NavigationRouteSegment>(segments).ToArray();
+            }
             for (int i = 0; i < copiedSegments.Length; i++)
             {
                 if (copiedSegments[i] == null)
