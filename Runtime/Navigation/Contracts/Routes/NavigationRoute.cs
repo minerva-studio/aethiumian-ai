@@ -6,63 +6,79 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>
-    /// Immutable route result for one goal and an ordered segment chain. Every position this route
-    /// exposes - <see cref="Start"/>, <see cref="Endpoint"/>, and every segment position - is
-    /// expressed in its single <see cref="CoordinateFrame"/>.
-    /// Coordinators may replace uncommitted suffixes; this object never owns execution or world
-    /// queries. Empty and segmented routes use separate internal representations so a route never
-    /// stores both an empty-route position/frame and a segment chain.
+    /// Immutable route value over stable segment storage. Default means no route; a valid empty
+    /// route records its position and coordinate frame. Nonempty slices retain the entire backing
+    /// array until all copies release it. Execution state belongs to the movement owner.
     /// </summary>
-    public abstract class NavigationRoute
+    public readonly struct NavigationRoute : IReadOnlyList<NavigationRouteSegment>
     {
-        private static readonly IReadOnlyList<NavigationRouteSegment> EmptySegments = Array.Empty<NavigationRouteSegment>();
+        private readonly NavigationRouteSegment[] segments;
+        private readonly int offset;
+        private readonly Vector2 emptyPosition;
+        private readonly NavigationRouteCoordinateFrame emptyFrame;
 
-        /// <summary>
-        /// Gets the immutable goal this route was planned against.
-        /// </summary>
+        /// <summary>Distinguishes a produced route, including an empty route, from default.</summary>
+        public bool HasValue => segments != null;
+        /// <summary>Gets the stable goal captured by planning.</summary>
         public NavigationGoalRequest Goal { get; }
-
-        /// <summary>
-        /// Gets the number of route segments.
-        /// </summary>
-        public int Count => Segments.Count;
-
-        /// <summary>
-        /// Gets the read-only route segments in execution order.
-        /// </summary>
-        public abstract IReadOnlyList<NavigationRouteSegment> Segments { get; }
-
-        /// <summary>
-        /// Gets the world-space origin used by the planner, in <see cref="CoordinateFrame"/>: the
-        /// first segment's start, or the stored zero-length position of an empty route.
-        /// </summary>
-        public abstract Vector2 Start { get; }
-
-        /// <summary>
-        /// Gets the world-space endpoint selected by the planner, in <see cref="CoordinateFrame"/>:
-        /// the final segment's end, or the stored zero-length position of an empty route.
-        /// </summary>
-        public abstract Vector2 Endpoint { get; }
-
-        /// <summary>
-        /// Gets the coordinate frame shared by <see cref="Start"/>, <see cref="Endpoint"/>, and every
-        /// segment position. Segmented routes derive it from their segments; an empty route keeps
-        /// the frame its caller declared.
-        /// </summary>
-        public abstract NavigationRouteCoordinateFrame CoordinateFrame { get; }
-
-        /// <summary>
-        /// Gets whether this route reaches the goal captured when the route was created.
-        /// It does not mean the movement's current goal is already satisfied.
-        /// </summary>
+        /// <summary>Gets the number of segments in this range; default has zero segments.</summary>
+        public int Count { get; }
+        /// <summary>Gets whether planning reached its captured goal.</summary>
         public bool ReachesGoal { get; }
+        /// <summary>Gets a segment relative to this route's range.</summary>
+        public NavigationRouteSegment this[int index]
+        {
+            get
+            {
+                if ((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException(nameof(index));
+                return segments[offset + index];
+            }
+        }
+        /// <summary>Gets the first segment origin or the valid empty route position.</summary>
+        public Vector2 Start
+        {
+            get { RequireValue(); return Count == 0 ? emptyPosition : segments[offset].Start; }
+        }
+        /// <summary>Gets the final endpoint or the valid empty route position.</summary>
+        public Vector2 Endpoint
+        {
+            get { RequireValue(); return Count == 0 ? emptyPosition : segments[offset + Count - 1].End; }
+        }
+        /// <summary>Gets the coordinate frame; unavailable for default.</summary>
+        public NavigationRouteCoordinateFrame CoordinateFrame
+        {
+            get { RequireValue(); return Count == 0 ? emptyFrame : segments[offset].CoordinateFrame; }
+        }
 
-        private NavigationRoute(NavigationGoalRequest goal, bool reachesGoal)
+        private NavigationRoute(NavigationGoalRequest goal, bool reachesGoal, NavigationRouteSegment[] segments, int offset, int count, Vector2 emptyPosition = default, NavigationRouteCoordinateFrame emptyFrame = default)
         {
             Goal = goal;
             ReachesGoal = reachesGoal;
+            this.segments = segments;
+            this.offset = offset;
+            Count = count;
+            this.emptyPosition = emptyPosition;
+            this.emptyFrame = emptyFrame;
         }
 
+        private void RequireValue()
+        {
+            if (!HasValue) throw new InvalidOperationException("No navigation route is present.");
+        }
+
+        /// <summary>
+        /// Shares a suffix without copying segments. The end index produces a valid empty route
+        /// at this route's endpoint; default cannot be sliced.
+        /// </summary>
+        public NavigationRoute Slice(int first)
+        {
+            RequireValue();
+            if ((uint)first > (uint)Count) throw new ArgumentOutOfRangeException(nameof(first));
+            if (first == Count)
+                return new NavigationRoute(Goal, ReachesGoal, Array.Empty<NavigationRouteSegment>(),
+                    0, 0, Endpoint, CoordinateFrame);
+            return new NavigationRoute(Goal, ReachesGoal, segments, offset + first, Count - first);
+        }
 
         /// <summary>
         /// Gets the route segments starting at the specified index, in execution order.
@@ -74,7 +90,7 @@ namespace Aethiumian.AI.Navigation
             if (first < 0 || first > Count)
                 throw new ArgumentOutOfRangeException(nameof(first), first,
                     "A route segment suffix must start inside the route, or at its end for an empty suffix.");
-            return new(this, first);
+            return new(segments, offset + first, Count - first);
         }
 
         /// <summary>
@@ -107,13 +123,14 @@ namespace Aethiumian.AI.Navigation
         /// </summary>
         public NavigationRoute WithSegments(IEnumerable<NavigationRouteSegment> replacementSegments)
         {
+            RequireValue();
             NavigationRouteSegment[] copiedSegments = CopySegments(replacementSegments);
             if (copiedSegments.Length == 0)
             {
                 if (!Start.Equals(Endpoint))
                     throw new ArgumentException("An empty route is valid only when Start equals Endpoint.", nameof(replacementSegments));
 
-                return new EmptyRoute(Start, CoordinateFrame, Goal, ReachesGoal);
+                return new NavigationRoute(Goal, ReachesGoal, Array.Empty<NavigationRouteSegment>(), 0, 0, Start, CoordinateFrame);
             }
 
             // A replacement is not a new route: it must still span the positions it replaces.
@@ -156,7 +173,7 @@ namespace Aethiumian.AI.Navigation
             if (!Enum.IsDefined(typeof(NavigationRouteCoordinateFrame), frame))
                 throw new ArgumentOutOfRangeException(nameof(frame), frame, "Unknown route coordinate frame.");
 
-            return new EmptyRoute(position, frame, goal, reachesGoal);
+            return new NavigationRoute(goal, reachesGoal, Array.Empty<NavigationRouteSegment>(), 0, 0, position, frame);
         }
 
         private static NavigationRoute CreateInternal(NavigationGoalRequest goal, NavigationRouteSegment[] segments, bool reachesGoal)
@@ -181,43 +198,7 @@ namespace Aethiumian.AI.Navigation
                 }
             }
 
-            return new SegmentedRoute(goal, segments, reachesGoal);
-        }
-
-        private sealed class EmptyRoute : NavigationRoute
-        {
-            private readonly Vector2 position;
-            private readonly NavigationRouteCoordinateFrame frame;
-
-            public EmptyRoute(Vector2 position, NavigationRouteCoordinateFrame frame,
-                NavigationGoalRequest goal, bool reachesGoal)
-                : base(goal, reachesGoal)
-            {
-                this.position = position;
-                this.frame = frame;
-            }
-
-            public override IReadOnlyList<NavigationRouteSegment> Segments => EmptySegments;
-            public override Vector2 Start => position;
-            public override Vector2 Endpoint => position;
-            public override NavigationRouteCoordinateFrame CoordinateFrame => frame;
-        }
-
-        private sealed class SegmentedRoute : NavigationRoute
-        {
-            private readonly NavigationRouteSegment[] segments;
-
-            public SegmentedRoute(NavigationGoalRequest goal, NavigationRouteSegment[] segments,
-                bool reachesGoal)
-                : base(goal, reachesGoal)
-            {
-                this.segments = segments;
-            }
-
-            public override IReadOnlyList<NavigationRouteSegment> Segments => segments;
-            public override Vector2 Start => segments[0].Start;
-            public override Vector2 Endpoint => segments[^1].End;
-            public override NavigationRouteCoordinateFrame CoordinateFrame => segments[0].CoordinateFrame;
+            return new NavigationRoute(goal, reachesGoal, segments, 0, segments.Length);
         }
 
         /// <summary>Creates a single-segment route without an intermediate caller-owned array.</summary>
@@ -254,44 +235,38 @@ namespace Aethiumian.AI.Navigation
         }
 
 
-        public RouteSegmentEnumerator GetEnumerator() => new(this);
+        /// <summary>Enumerates this range without allocating when consumed by concrete type.</summary>
+        public RouteSegmentEnumerator GetEnumerator() => new(segments, offset, Count);
+        IEnumerator<NavigationRouteSegment> IEnumerable<NavigationRouteSegment>.GetEnumerator() => GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-
-        public struct RouteSegmentEnumerator : IEnumerator<NavigationRouteSegment>, IEnumerator, IEnumerable<NavigationRouteSegment>, IEnumerable
+        /// <summary>A segment-range cursor; it does not copy the route's goal data.</summary>
+        public struct RouteSegmentEnumerator : IEnumerator<NavigationRouteSegment>, IEnumerable<NavigationRouteSegment>
         {
-            private readonly NavigationRoute route;
+            private readonly NavigationRouteSegment[] segments;
             private readonly int beginningIndex;
+            private readonly int endIndex;
             private int index;
 
-            internal RouteSegmentEnumerator(NavigationRoute route) : this(route, 0) { }
-            internal RouteSegmentEnumerator(NavigationRoute route, int beginningIndex)
+            internal RouteSegmentEnumerator(NavigationRouteSegment[] segments, int offset, int count)
             {
-                this.route = route;
-                this.beginningIndex = beginningIndex;
-                this.index = beginningIndex - 1;
+                this.segments = segments;
+                beginningIndex = offset;
+                endIndex = offset + count;
+                index = offset - 1;
             }
 
-            public readonly NavigationRouteSegment Current => route.Segments[index];
-
+            public readonly NavigationRouteSegment Current => segments[index];
             readonly object IEnumerator.Current => Current;
-
             public bool MoveNext()
             {
-                if (index < route.Count) index++;
-                return index < route.Count;
+                if (index < endIndex) index++;
+                return index < endIndex;
             }
-
-            public void Reset()
-            {
-                index = beginningIndex - 1;
-            }
-
+            public void Reset() => index = beginningIndex - 1;
             public readonly void Dispose() { }
-
             public readonly RouteSegmentEnumerator GetEnumerator() => this;
-
             readonly IEnumerator<NavigationRouteSegment> IEnumerable<NavigationRouteSegment>.GetEnumerator() => this;
-
             readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
     }

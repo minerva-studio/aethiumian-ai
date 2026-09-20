@@ -37,11 +37,11 @@ namespace Aethiumian.AI.Nodes
 
         protected override bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected)
         {
-            connected = null;
+            connected = default;
             if (candidate.Count == 0) return false;
-            if (candidate.Segments[0] is GroundRouteSegment)
+            if (candidate[0] is GroundRouteSegment)
                 return TryReconnectNavigationRoute(candidate, body, out connected);
-            if (candidate.Segments[0] is JumpRouteSegment)
+            if (candidate[0] is JumpRouteSegment)
             {
                 // A plan speaks in support space, while the body anchor rests one contact gap above
                 // the surface it stands on; resolve the anchor before comparing the two positions.
@@ -171,8 +171,8 @@ namespace Aethiumian.AI.Nodes
 
         private bool TryReconnectNavigationRoute(NavigationRoute route, AABB body, out NavigationRoute reconnectedRoute)
         {
-            reconnectedRoute = null;
-            if (route == null || route.Count == 0 || route.Segments[0] is not GroundRouteSegment)
+            reconnectedRoute = default;
+            if (!route.HasValue || route.Count == 0 || route[0] is not GroundRouteSegment)
                 return false;
 
             MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));

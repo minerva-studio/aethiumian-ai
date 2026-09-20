@@ -145,9 +145,9 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(walk.IsCompleted, Is.True);
             Assert.That(jump.IsCompleted, Is.True);
             Assert.That(fly.IsCompleted, Is.True);
-            Assert.That(walk.Result, Is.Not.Null);
-            Assert.That(jump.Result, Is.Not.Null);
-            Assert.That(fly.Result, Is.Not.Null);
+            Assert.That(walk.Result.HasValue, Is.True);
+            Assert.That(jump.Result.HasValue, Is.True);
+            Assert.That(fly.Result.HasValue, Is.True);
         }
 
         /// <summary>Verifies Retreat goals are not rejected merely because the target bounds are outside the finite world.</summary>
@@ -164,7 +164,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(operation);
 
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
-            Assert.That(operation.Result, Is.Not.Null);
+            Assert.That(operation.Result.HasValue, Is.True);
             Assert.That(operation.Result.Count, Is.Zero);
         }
 
@@ -187,9 +187,9 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(walk.IsCompleted, Is.True);
             Assert.That(jump.IsCompleted, Is.True);
             Assert.That(fly.IsCompleted, Is.True);
-            Assert.That(walk.Result, Is.Not.Null);
-            Assert.That(jump.Result, Is.Not.Null);
-            Assert.That(fly.Result, Is.Not.Null);
+            Assert.That(walk.Result.HasValue, Is.True);
+            Assert.That(jump.Result.HasValue, Is.True);
+            Assert.That(fly.Result.HasValue, Is.True);
         }
 
         /// <summary>Verifies Smart Walk plans a pre-publication request against the published world.</summary>
@@ -219,7 +219,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(operation);
 
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
-            Assert.That(operation.Result, Is.Not.Null);
+            Assert.That(operation.Result.HasValue, Is.True);
             Assert.That(operation.Result.Goal, Is.EqualTo(captured));
             Assert.That(operation.Result.Goal.IsGroundWalk, Is.True);
             Assert.That(operation.Result.Goal.TargetBounds.LowerCenter.y, Is.EqualTo(0.5f));
@@ -242,7 +242,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 AABB.FromLowerCenter(start, new Vector2(0.8f, 1f)), goal, parameters);
             WaitForCompletion(first);
             Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
-            Assert.That(first.Result, Is.Null);
+            Assert.That(first.Result.HasValue, Is.False);
             Assert.That(world.SupportQueryCount, Is.EqualTo(1),
                 "The runtime should not make a second support query outside the planner.");
 
@@ -250,7 +250,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 AABB.FromLowerCenter(start, new Vector2(0.8f, 1f)), goal, parameters);
             WaitForCompletion(second);
             Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
-            Assert.That(second.Result, Is.Null);
+            Assert.That(second.Result.HasValue, Is.False);
             Assert.That(world.SupportQueryCount, Is.EqualTo(2),
                 "Each request should perform only the planner's support query.");
         }
@@ -333,11 +333,11 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Complete(runtime, operation);
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
-            Assert.That(operation.Result, Is.Not.Null);
-            Assert.That(operation.Result.Segments.Count, Is.EqualTo(1));
-            Assert.That(operation.Result.Segments[0], Is.TypeOf(expectedSegmentType));
-            Assert.That(operation.Result.Segments[0].Start.Equals(start), Is.True);
-            Assert.That(operation.Result.Segments[0].End.Equals(start), Is.False);
+            Assert.That(operation.Result.HasValue, Is.True);
+            Assert.That(operation.Result.Count, Is.EqualTo(1));
+            Assert.That(operation.Result[0], Is.TypeOf(expectedSegmentType));
+            Assert.That(operation.Result[0].Start.Equals(start), Is.True);
+            Assert.That(operation.Result[0].End.Equals(start), Is.False);
         }
 
         /// <summary>Verifies a complete Route request never publishes a partial route.</summary>
@@ -353,9 +353,9 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationPlanningOperation first = runtime.PlanWalkAsync(
                 AABB.FromLowerCenter(new Vector2(0.5f, 1f), WalkBodySize), goal, groundedOnly);
             Complete(runtime, first);
-            Assert.That(first.Result, Is.Not.Null, DescribeRoute(first.Result));
+            Assert.That(first.Result.HasValue, Is.True, DescribeRoute(first.Result));
             Assert.That(first.Result.ReachesGoal, Is.True, DescribeRoute(first.Result));
-            Assert.That(first.Result.Segments.Count, Is.GreaterThan(1), DescribeRoute(first.Result));
+            Assert.That(first.Result.Count, Is.GreaterThan(1), DescribeRoute(first.Result));
             Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
                 DescribeRoute(first.Result));
         }
@@ -382,9 +382,9 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(walk);
             WaitForCompletion(jump);
             WaitForCompletion(fly);
-            Assert.That(walk.Result, Is.Null, DescribeRoute(walk.Result));
-            Assert.That(jump.Result, Is.Null, DescribeRoute(jump.Result));
-            Assert.That(fly.Result, Is.Null, DescribeRoute(fly.Result));
+            Assert.That(walk.Result.HasValue, Is.False, DescribeRoute(walk.Result));
+            Assert.That(jump.Result.HasValue, Is.False, DescribeRoute(jump.Result));
+            Assert.That(fly.Result.HasValue, Is.False, DescribeRoute(fly.Result));
             Assert.That(walk.PlanResult.Termination, Is.Not.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(jump.PlanResult.Termination, Is.Not.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(fly.PlanResult.Termination, Is.Not.EqualTo(NavigationPlanTermination.ResultProduced));
@@ -404,15 +404,15 @@ namespace Aethiumian.AI.Navigation.Tests
                 AABB.FromCenterAndSize(start, FlyBodySize),
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Manhattan, 0.25f), FlyParameters);
             WaitForCompletion(manhattan);
-            Assert.That(manhattan.Result, Is.Null);
+            Assert.That(manhattan.Result.HasValue, Is.False);
             Assert.That(manhattan.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
 
             NavigationPlanningOperation chebyshev = runtime.PlanFlyAsync(
                 AABB.FromCenterAndSize(start, FlyBodySize),
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f), FlyParameters);
             WaitForCompletion(chebyshev);
-            Assert.That(chebyshev.Result, Is.Not.Null);
-            Assert.That(chebyshev.Result.Segments, Is.Empty,
+            Assert.That(chebyshev.Result.HasValue, Is.True);
+            Assert.That(chebyshev.Result, Is.Empty,
                 "The Chebyshev goal is already complete even though the Manhattan goal failed.");
         }
 
@@ -431,7 +431,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 AABB.FromCenterAndSize(start, new Vector2(0.8f, 0.8f)), goal,
                 new FlyNavigationParameters(0.1f));
             WaitForCompletion(constrained);
-            Assert.That(constrained.Result, Is.Null);
+            Assert.That(constrained.Result.HasValue, Is.False);
             Assert.That(constrained.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.SearchExhausted));
             runtime.ReleaseCompletedOperations();
 
@@ -439,7 +439,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 AABB.FromCenterAndSize(start, new Vector2(0.8f, 0.8f)), goal,
                 new FlyNavigationParameters(1f));
             WaitForCompletion(relaxed);
-            Assert.That(relaxed.Result, Is.Not.Null,
+            Assert.That(relaxed.Result.HasValue, Is.True,
                 "A larger approach budget must not hit the failed-request cache entry for the smaller budget.");
             Assert.That(relaxed.Result.Goal.IsRetreat, Is.True);
         }
@@ -458,15 +458,15 @@ namespace Aethiumian.AI.Navigation.Tests
                 AABB.FromCenterAndSize(start, FlyBodySize),
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f, true), FlyParameters);
             WaitForCompletion(requiresLineOfSight);
-            Assert.That(requiresLineOfSight.Result, Is.Null);
+            Assert.That(requiresLineOfSight.Result.HasValue, Is.False);
             Assert.That(requiresLineOfSight.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
 
             NavigationPlanningOperation noLineOfSight = runtime.PlanFlyAsync(
                 AABB.FromCenterAndSize(start, FlyBodySize),
                 NavigationGoalRequest.Proximity(target, DistanceMetric.Chebyshev, 0.25f), FlyParameters);
             WaitForCompletion(noLineOfSight);
-            Assert.That(noLineOfSight.Result, Is.Not.Null);
-            Assert.That(noLineOfSight.Result.Segments, Is.Empty,
+            Assert.That(noLineOfSight.Result.HasValue, Is.True);
+            Assert.That(noLineOfSight.Result, Is.Empty,
                 "The no-LOS goal is already complete even though the LOS goal failed.");
         }
 
@@ -631,11 +631,11 @@ namespace Aethiumian.AI.Navigation.Tests
 
         private static string DescribeRoute(NavigationRoute route)
         {
-            if (route == null) return "Route=null";
-            string segments = string.Join(", ", route.Segments.Select(segment =>
+            if (!route.HasValue) return "Route=null";
+            string segments = string.Join(", ", route.Select(segment =>
                 $"{segment.GetType().Name}:{segment.Start}->{segment.End}"));
             return $"Route.ReachesGoal={route.ReachesGoal}; Route.ResolvedGoal={route.Endpoint}; "
-                + $"Route.Segments=[{segments}]";
+                + $"Route=[{segments}]";
         }
 
         /// <summary>Counts immutable support queries made by planner requests.</summary>

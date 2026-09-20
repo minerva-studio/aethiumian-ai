@@ -99,7 +99,7 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         public AABB NavigationBodyAabb => NavigationBodyGeometry.GetMergedAabb(NavigationColliders);
         /// <summary>
-        /// Gets the current route, which may be null if no route has been acquired or if the last route was completed or cancelled?
+        /// Gets the current route, whose HasValue is false before acquisition and after completion or cancellation.
         /// </summary>
         public NavigationRoute Route => route;
         /// <summary>
@@ -109,11 +109,11 @@ namespace Aethiumian.AI.Nodes
         protected float ExecutionTime => executionTime;
         protected RetreatExecution RetreatExecution => retreat;
         protected NavigationPlanningExtent PlanningExtent => path == PathMode.Smart ? NavigationPlanningExtent.Route : NavigationPlanningExtent.NextAction;
-        public NavigationRouteSegment ActiveSegment => executor != null && executor.IsExecuting && route != null && routeIndex < route.Count ? route.Segments[routeIndex] : null;
+        public NavigationRouteSegment ActiveSegment => executor != null && executor.IsExecuting && route.HasValue && routeIndex < route.Count ? route[routeIndex] : null;
 
         protected sealed override void InitializeAction()
         {
-            route = null;
+            route = default;
             routeIndex = 0;
             request = null;
             fallbackRequest = null;
@@ -199,7 +199,7 @@ namespace Aethiumian.AI.Nodes
                 if (result.Status == ExecutionStatus.Failed)
                 {
                     CancelPlanningRequests();
-                    route = null;
+                    route = default;
                     routeIndex = 0;
                     if (!TryRecover(result.FailureReason, goal, body) || !AllowRetry())
                     {
@@ -362,7 +362,7 @@ namespace Aethiumian.AI.Nodes
                 finally
                 {
                     executor = null;
-                    route = null;
+                    route = default;
                     routeIndex = 0;
                     fallbackBackoffLevel = 0;
                     previousBody = null;

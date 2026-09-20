@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +19,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(operation.IsCompleted, Is.False);
             scheduler.Start();
             WaitForCompletion(operation);
-            Assert.That(operation.Result, Is.Not.Null);
+            Assert.That(operation.Result.HasValue, Is.True);
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
         }
 
@@ -52,7 +52,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationRoute route = operation.Result;
             cancellation.Cancel();
             Assert.That(operation.IsCancelled, Is.False);
-            Assert.That(operation.Result, Is.SameAs(route));
+            Assert.That(operation.Result, Is.EqualTo(route));
         }
 
         /// <summary>Verifies cancellation cannot block while a worker has claimed result publication.</summary>
@@ -77,7 +77,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             operation.ReleaseCancellationRegistration();
             operation.PublishPreparedCompletion();
-            Assert.That(operation.Result, Is.SameAs(route));
+            Assert.That(operation.Result, Is.EqualTo(route));
         }
 
         /// <summary>Verifies a callback-winning cancellation can be retired without self-disposing its registration.</summary>
@@ -105,7 +105,7 @@ namespace Aethiumian.AI.Navigation.Tests
             scheduler.Start();
             WaitForCompletion(operation);
             Assert.That(operation.Exception, Is.TypeOf<InvalidOperationException>());
-            Assert.That(operation.Result, Is.Null);
+            Assert.That(operation.Result.HasValue, Is.False);
         }
 
         /// <summary>Verifies an ordinary null completion is distinguished from cancellation and failure.</summary>
@@ -117,7 +117,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(operation.IsCompleted, Is.True);
             Assert.That(operation.IsCancelled, Is.False);
-            Assert.That(operation.Result, Is.Null);
+            Assert.That(operation.Result.HasValue, Is.False);
             Assert.That(operation.Exception, Is.Null);
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.SearchExhausted));
         }
@@ -153,7 +153,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 NavigationPlanningOperation simple = scheduler.PlanWork(new TestWork(Vector2.zero, Vector2.right),
                     extent: NavigationPlanningExtent.NextAction);
                 WaitForCompletion(simple);
-                Assert.That(simple.Result, Is.Not.Null);
+                Assert.That(simple.Result.HasValue, Is.True);
                 Assert.That(smart.IsCompleted, Is.False, "The reserved consumer must not take Smart work.");
             }
             finally
@@ -213,7 +213,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(cancelled.DisposeCount, Is.EqualTo(1));
             scheduler.Start();
             WaitForCompletion(replacement);
-            Assert.That(replacement.Result, Is.Not.Null);
+            Assert.That(replacement.Result.HasValue, Is.True);
         }
 
         [Test]

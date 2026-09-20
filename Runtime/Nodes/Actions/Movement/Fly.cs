@@ -1,4 +1,4 @@
-﻿using Aethiumian.AI.Attributes;
+using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Randomization;
 using Aethiumian.AI.Variables;
@@ -49,18 +49,18 @@ namespace Aethiumian.AI.Nodes
 
         protected override bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected)
         {
-            connected = null;
+            connected = default;
             int furthest = -1;
             for (int i = 0; i < candidate.Count; i++)
             {
-                if (candidate.Segments[i] is not FlyRouteSegment step) return false;
+                if (candidate[i] is not FlyRouteSegment step) return false;
                 if (!NavigationRuntime.IsBodyClearFlySegment(body, step.End - body.Center)) break;
                 furthest = i;
             }
             if (furthest < 0) return false;
             var segments = new System.Collections.Generic.List<NavigationRouteSegment>
-            { new FlyRouteSegment(body.Center, candidate.Segments[furthest].End) };
-            for (int i = furthest + 1; i < candidate.Count; i++) segments.Add(candidate.Segments[i]);
+            { new FlyRouteSegment(body.Center, candidate[furthest].End) };
+            for (int i = furthest + 1; i < candidate.Count; i++) segments.Add(candidate[i]);
             connected = NavigationRoute.Create(candidate.Goal, segments, candidate.ReachesGoal);
             return true;
         }

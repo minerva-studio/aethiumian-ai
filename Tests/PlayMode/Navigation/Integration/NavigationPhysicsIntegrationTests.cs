@@ -80,7 +80,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(targetBounds, DistanceMetric.Euclidean, 0.1f);
 
             NavigationRoute route = planner.Plan(AABB.FromLowerCenter(observedStart, collider.bounds.size), goal, parameters, CancellationToken.None, diagnostics).Route;
-            Assert.That(route, Is.Not.Null,
+            Assert.That(route.HasValue, Is.True,
                 $"Walk planning failed from observed contact anchor {observedStart}; "
                 + $"expansions={diagnostics.ExpansionCount}, terminals={diagnostics.TerminalCandidateCount}, "
                 + $"generatedJumps={diagnostics.JumpCandidateGeneratedCount}, validatedJumps={diagnostics.JumpCandidateValidatedCount}.");
@@ -91,7 +91,7 @@ namespace Aethiumian.AI.Navigation.Tests
             using var executor = new GroundTraversalExecutor(body, collider, CreateTerrainFilter(), parameters.Speed, 1f);
             for (int stepIndex = 0; stepIndex < route.Count; stepIndex++)
             {
-                NavigationRouteSegment segment = route.Segments[stepIndex];
+                NavigationRouteSegment segment = route[stepIndex];
                 switch (segment)
                 {
                     case GroundRouteSegment ground:
@@ -228,7 +228,7 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             for (int index = 0; index < route.Count; index++)
             {
-                if (route.Segments[index] is TSegment) return true;
+                if (route[index] is TSegment) return true;
             }
 
             return false;

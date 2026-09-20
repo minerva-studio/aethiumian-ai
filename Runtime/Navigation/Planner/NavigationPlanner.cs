@@ -48,7 +48,7 @@ namespace Aethiumian.AI.Navigation
         public bool TryPlan(AABB body, NavigationGoalRequest goal, TParameters parameters, out NavigationRoute route)
         {
             route = Plan(body, goal, parameters).Route;
-            return route != null;
+            return route.HasValue;
         }
 
         /// <summary>

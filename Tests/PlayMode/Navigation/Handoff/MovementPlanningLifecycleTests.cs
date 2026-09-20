@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System;
@@ -178,7 +178,7 @@ namespace Aethiumian.AI.Navigation.Tests
             MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
             yield return WaitForTreeCreated(harness);
             yield return WaitForRequest();
-            ControlledWalk.Complete(ControlledWalk.Requests[0], null);
+            ControlledWalk.Complete(ControlledWalk.Requests[0], default);
             yield return WaitForTerminal(harness, PlanningFrameLimit);
 
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
@@ -235,7 +235,7 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return WaitForRequest();
             target.transform.position = new Vector2(62.5f, 1f);
             Physics2D.SyncTransforms();
-            ControlledWalk.Complete(ControlledWalk.Requests[0], null);
+            ControlledWalk.Complete(ControlledWalk.Requests[0], default);
             for (int frame = 0; ControlledWalk.Requests.Count < 2 && frame < PlanningFrameLimit; frame++)
                 yield return new WaitForFixedUpdate();
 
@@ -337,7 +337,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             ControlledWalk.Request smart = ControlledWalk.Requests[0];
             ControlledWalk.Request fallback = ControlledWalk.Requests[1];
-            ControlledWalk.Complete(fallback, null);
+            ControlledWalk.Complete(fallback, default);
             yield return new WaitForFixedUpdate();
 
             Assert.That(fallback.Operation.IsCompleted, Is.True);
@@ -359,7 +359,7 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return WaitForRequestCount(2);
 
             ControlledWalk.Request smart = ControlledWalk.Requests[0];
-            ControlledWalk.Complete(ControlledWalk.Requests[1], null);
+            ControlledWalk.Complete(ControlledWalk.Requests[1], default);
             yield return WaitForRequestCount(3);
 
             Assert.That(ControlledWalk.Requests[2].Extent, Is.EqualTo(NavigationPlanningExtent.NextAction));
@@ -411,8 +411,8 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(smart.Operation.IsCancelled, Is.False);
             Assert.That(fallback.Operation.IsCompleted, Is.True);
-            Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(smart.Goal.TargetBounds.CenterX).Within(0.25f), "A fallback result published in the same fixed tick must not replace Smart.");
+            Assert.That(movement.Route.HasValue, Is.True, DescribeHarness(harness));
+            Assert.That(movement.Route[0].End.x, Is.EqualTo(smart.Goal.TargetBounds.CenterX).Within(0.25f), "A fallback result published in the same fixed tick must not replace Smart.");
             Assert.That(ControlledWalk.Requests.Count, Is.GreaterThanOrEqualTo(2), DescribeHarness(harness));
             if (ControlledWalk.Requests.Count >= 3)
             {
@@ -444,7 +444,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(smart.Operation.IsCancelled, Is.False);
             Assert.That(fallback.Operation.IsCancelled, Is.False);
             Assert.That(movement.ActiveSegment, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(fallbackEndpoint.x).Within(0.25f), DescribeHarness(harness));
+            Assert.That(movement.Route[0].End.x, Is.EqualTo(fallbackEndpoint.x).Within(0.25f), DescribeHarness(harness));
             Assert.That(harness.Source.WalkCount, Is.GreaterThan(0), DescribeHarness(harness));
 
             // Smart is allowed to interrupt a reversible Simple fallback before that action
@@ -452,8 +452,8 @@ namespace Aethiumian.AI.Navigation.Tests
             ControlledWalk.Complete(smart, CreateGroundRoute(smart, new Vector2(40.5f, 1f), false));
             yield return new WaitForFixedUpdate();
 
-            Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(40.5f).Within(0.25f), "A ready Smart result must replace a committed fallback once the route reconnects to the real body.");
+            Assert.That(movement.Route.HasValue, Is.True, DescribeHarness(harness));
+            Assert.That(movement.Route[0].End.x, Is.EqualTo(40.5f).Within(0.25f), "A ready Smart result must replace a committed fallback once the route reconnects to the real body.");
             Assert.That(harness.Source.WalkCount, Is.GreaterThan(0), DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
@@ -576,7 +576,7 @@ namespace Aethiumian.AI.Navigation.Tests
             }
 
             Assert.That(deferred, Is.Not.Null, DescribeRequests());
-            ControlledWalk.Complete(deferred, null);
+            ControlledWalk.Complete(deferred, default);
             target.transform.position = new Vector2(62.5f, 1f);
             Physics2D.SyncTransforms();
             for (int frame = 0; frame < PlanningFrameLimit; frame++)
@@ -611,7 +611,7 @@ namespace Aethiumian.AI.Navigation.Tests
 
             ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
             Assert.That(movement.ActiveSegment, Is.TypeOf<GroundRouteSegment>(), DescribeHarness(harness));
-            float oldEndpoint = movement.Route.Segments[0].End.x;
+            float oldEndpoint = movement.Route[0].End.x;
 
             target.transform.position = new Vector3(76.5f, 1f, 0f);
             Physics2D.SyncTransforms();
@@ -621,13 +621,13 @@ namespace Aethiumian.AI.Navigation.Tests
                 .First(request => request.Extent == NavigationPlanningExtent.NextAction);
             Assert.That(movement.ActiveSegment, Is.TypeOf<GroundRouteSegment>(),
                 "Simple must be able to replace a still-running reversible Ground action.");
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(oldEndpoint).Within(0.25f));
+            Assert.That(movement.Route[0].End.x, Is.EqualTo(oldEndpoint).Within(0.25f));
 
             ControlledWalk.Complete(fallback, CreateGroundRoute(fallback, new Vector2(48.5f, 1f), false));
             yield return new WaitForFixedUpdate();
 
             Assert.That(movement.ActiveSegment, Is.TypeOf<GroundRouteSegment>(), DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(48.5f).Within(0.25f),
+            Assert.That(movement.Route[0].End.x, Is.EqualTo(48.5f).Within(0.25f),
                 "The current Simple result must replace the stale Ground action before it ends.");
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
@@ -653,8 +653,8 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return new WaitForFixedUpdate();
 
             ControlledWalk movement = (ControlledWalk)harness.AI.BehaviourTree.Head;
-            Assert.That(movement.Route, Is.Not.Null, DescribeHarness(harness));
-            Assert.That(movement.Route.Segments[0].End.x, Is.EqualTo(48.5f).Within(0.25f),
+            Assert.That(movement.Route.HasValue, Is.True, DescribeHarness(harness));
+            Assert.That(movement.Route[0].End.x, Is.EqualTo(48.5f).Within(0.25f),
                 "A Simple result for the current target must not be masked by an executable old Smart receipt.");
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
@@ -841,7 +841,7 @@ namespace Aethiumian.AI.Navigation.Tests
             internal static void ResetTestState() => Requests.Clear();
 
             internal static void Complete(Request request, NavigationRoute route)
-                => Assert.That(request.Operation.TryComplete(route == null
+                => Assert.That(request.Operation.TryComplete(!route.HasValue
                     ? NavigationPlanResult.NoResult
                     : NavigationPlanResult.ResultProduced(route)), Is.True);
 

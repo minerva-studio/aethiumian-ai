@@ -51,7 +51,7 @@ namespace Aethiumian.AI.Navigation
                 }
             }
 
-            if (result.Route == null)
+            if (!result.Route.HasValue)
             {
                 return result;
             }

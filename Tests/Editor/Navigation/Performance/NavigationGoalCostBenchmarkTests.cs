@@ -200,7 +200,7 @@ namespace Aethiumian.AI.Navigation.Tests
             diagnostics = new NavigationPlanningDiagnostics();
             WalkNavigationPlanner planner = new(world, 256, new GroundJumpSolver(world));
             NavigationPlanResult result = planner.Plan(AABB.FromLowerCenter(PlanStart, BodySize), goal, parameters, default, diagnostics);
-            sink += result.Route == null ? 0f : result.Route.Count;
+            sink += !result.Route.HasValue ? 0f : result.Route.Count;
         }
 
         private static void LogRows(int operationsPerSample, string header, params string[] names)

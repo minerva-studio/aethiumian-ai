@@ -41,24 +41,24 @@ namespace Aethiumian.AI.Navigation
         /// </summary>
         public static bool TryReconnectGroundRoute(INavigationWorld world, NavigationRoute route, AABB observedBody, float executionHorizontalCompletionTolerance, out NavigationRoute reconnectedRoute)
         {
-            reconnectedRoute = null;
+            reconnectedRoute = default;
             float supportSnapDistance = NavigationWorldQueries.SupportSnapDistance;
             float groundContactTolerance = GroundTraversalEndpointPolicy.VerticalSupportTolerance;
-            if (world == null || route == null || route.Count == 0
+            if (world == null || !route.HasValue || route.Count == 0
                 || !NavigationNumeric.IsFinite(observedBody.Min) || !NavigationNumeric.IsFinite(observedBody.Max)
                 || observedBody.SizeX <= 0f || observedBody.SizeY <= 0f
                 || !NavigationNumeric.IsFinite(supportSnapDistance) || supportSnapDistance < 0f
                 || !NavigationNumeric.IsFinite(groundContactTolerance) || groundContactTolerance < 0f
                 || !NavigationNumeric.IsFinite(executionHorizontalCompletionTolerance)
                 || executionHorizontalCompletionTolerance < 0f
-                || route.Segments[0] is not GroundRouteSegment)
+                || route[0] is not GroundRouteSegment)
                 return false;
             Vector2 bodySize = observedBody.Size;
             if (!world.TryResolveGroundSupport(observedBody, supportSnapDistance, out Vector2 snappedStart, out _))
                 return false;
 
             int segmentIndex = 0;
-            while (segmentIndex < route.Count && route.Segments[segmentIndex] is GroundRouteSegment ground)
+            while (segmentIndex < route.Count && route[segmentIndex] is GroundRouteSegment ground)
             {
                 // Consume a validated straight run as one physical action. Never merge across
                 // a turn, level change, or an irreversible traversal boundary.
@@ -66,7 +66,7 @@ namespace Aethiumian.AI.Navigation
                 float direction = Mathf.Sign(end.x - ground.Start.x);
                 while (Mathf.Abs(end.y - ground.Start.y) <= NavigationWorldQueries.GeometryEpsilon
                     && segmentIndex + 1 < route.Count
-                    && route.Segments[segmentIndex + 1] is GroundRouteSegment followingGround
+                    && route[segmentIndex + 1] is GroundRouteSegment followingGround
                     && direction * (followingGround.End.x - followingGround.Start.x) > 0f
                     && Mathf.Abs(followingGround.End.y - ground.Start.y) <= NavigationWorldQueries.GeometryEpsilon)
                 {
@@ -106,7 +106,7 @@ namespace Aethiumian.AI.Navigation
             }
 
             if (segmentIndex >= route.Count) return false;
-            NavigationRouteSegment next = route.Segments[segmentIndex];
+            NavigationRouteSegment next = route[segmentIndex];
             if (next is GroundRouteSegment nextGround)
             {
                 if (!TryValidateGroundConnection(world, AABB.FromLowerCenter(snappedStart, bodySize), AABB.FromLowerCenter(nextGround.End, bodySize)))
@@ -123,7 +123,7 @@ namespace Aethiumian.AI.Navigation
         {
             List<NavigationRouteSegment> segments = new() { new GroundRouteSegment(start, end) };
             for (int index = segmentIndex + 1; index < route.Count; index++)
-                segments.Add(route.Segments[index]);
+                segments.Add(route[index]);
             reconnectedRoute = route.ReachesGoal
                 ? NavigationRoute.Complete(route.Goal, segments)
                 : NavigationRoute.Partial(route.Goal, segments);
@@ -132,12 +132,7 @@ namespace Aethiumian.AI.Navigation
 
         private static bool BuildRouteSuffix(NavigationRoute route, int segmentIndex, out NavigationRoute reconnectedRoute)
         {
-            List<NavigationRouteSegment> segments = new(route.Count - segmentIndex);
-            for (int index = segmentIndex; index < route.Count; index++)
-                segments.Add(route.Segments[index]);
-            reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(route.Goal, segments)
-                : NavigationRoute.Partial(route.Goal, segments);
+            reconnectedRoute = route.Slice(segmentIndex);
             return true;
         }
 
@@ -182,7 +177,7 @@ namespace Aethiumian.AI.Navigation
                 }
             }
 
-            if (result.Route == null)
+            if (!result.Route.HasValue)
             {
                 return result;
             }
@@ -212,7 +207,7 @@ namespace Aethiumian.AI.Navigation
         /// </summary>
         private bool TryCreateDirectGroundRoute(INavigationWorld world, Vector2 start, NavigationGoalRequest goal, Vector2 bodySize, out NavigationRoute route)
         {
-            route = null;
+            route = default;
             if (!goal.IsGroundWalk) return false;
             Vector2 end = new(goal.TargetBounds.CenterX, start.y);
             if (!world.TryResolveGroundSupport(AABB.FromLowerCenter(end, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 snappedEnd, out _)) return false;
@@ -282,7 +277,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Expands the current supported position once and returns its best valid action.</summary>
         private bool TryPlanSingleStep(AABB body, NavigationGoalRequest goal, WalkNavigationParameters parameters, Vector2 bodySize, CancellationToken cancellationToken, out NavigationRoute route)
         {
-            route = null;
+            route = default;
             if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
                 return false;
 

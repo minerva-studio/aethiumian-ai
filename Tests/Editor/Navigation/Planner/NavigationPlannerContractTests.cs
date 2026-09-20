@@ -21,8 +21,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 .Plan(AABB.FromLowerCenter(new Vector2(0.5f, 1f), bodySize), goal, WalkParameters());
 
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
-            Assert.That(result.Route, Is.Not.Null);
-            Assert.That(result.Route.Segments, Is.Not.Empty);
+            Assert.That(result.Route.HasValue, Is.True);
+            Assert.That(result.Route, Is.Not.Empty);
             Assert.That(world.IsGoalComplete(goal, result.Route.ResolveEndpointBody(AABB.FromLowerCenter(Vector2.zero, bodySize))), Is.True);
         }
 
@@ -38,7 +38,7 @@ namespace Aethiumian.AI.Navigation.Tests
             // An unreachable goal can be rejected before the search frontier is built;
             // both the no-result termination and a null route are the public no-path contract.
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
-            Assert.That(result.Route, Is.Null);
+            Assert.That(result.Route.HasValue, Is.False);
         }
 
         [Test]

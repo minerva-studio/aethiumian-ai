@@ -30,6 +30,19 @@ namespace Aethiumian.AI.Navigation
             Validate.Finite(targetCenter, nameof(targetCenter));
             if (segments == null) throw new ArgumentNullException(nameof(segments));
 
+            return RouteApproachDistanceCore(start, targetCenter, segments);
+        }
+
+        public static float RouteApproachDistance(Vector2 start, Vector2 targetCenter, NavigationRoute route)
+        {
+            Validate.Finite(start, nameof(start));
+            Validate.Finite(targetCenter, nameof(targetCenter));
+            return RouteApproachDistanceCore(start, targetCenter, route);
+        }
+
+        private static float RouteApproachDistanceCore<T>(Vector2 start, Vector2 targetCenter, T segments)
+            where T : IReadOnlyList<NavigationRouteSegment>
+        {
             float total = 0f;
             Vector2 previous = start;
             for (int index = 0; index < segments.Count; index++)

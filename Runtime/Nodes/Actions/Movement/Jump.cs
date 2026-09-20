@@ -38,8 +38,8 @@ namespace Aethiumian.AI.Nodes
 
         protected override bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected)
         {
-            connected = null;
-            if (candidate.Count == 0 || candidate.Segments[0] is not JumpRouteSegment jump) return false;
+            connected = default;
+            if (candidate.Count == 0 || candidate[0] is not JumpRouteSegment jump) return false;
             // Keep the receipt while contact is temporarily absent; preparation owns launch waiting.
             if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _))
             { connected = candidate; return true; }

@@ -103,13 +103,13 @@ namespace Aethiumian.AI.Navigation
         /// </summary>
         public NavigationRoute PrepareRouteForExecution(NavigationRoute route, GroundJumpParameters parameters, CancellationToken cancellationToken)
         {
-            if (route == null || route.Count == 0) return route;
+            if (!route.HasValue || route.Count == 0) return route;
 
             List<NavigationRouteSegment> prepared = null;
             for (int index = 0; index < route.Count; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                NavigationRouteSegment segment = route.Segments[index];
+                NavigationRouteSegment segment = route[index];
                 if (segment is not JumpRouteSegment jump)
                 {
                     prepared?.Add(segment);
@@ -124,7 +124,7 @@ namespace Aethiumian.AI.Navigation
                 if (prepared == null)
                 {
                     prepared = new List<NavigationRouteSegment>(route.Count);
-                    for (int copied = 0; copied < index; copied++) prepared.Add(route.Segments[copied]);
+                    for (int copied = 0; copied < index; copied++) prepared.Add(route[copied]);
                 }
                 prepared.Add(GroundJumpGeometry.CreateSegment(World, trajectory, parameters.BodySize, cancellationToken));
             }

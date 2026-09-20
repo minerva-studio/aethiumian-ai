@@ -175,7 +175,7 @@ namespace Aethiumian.AI.Nodes
                 }
 
                 NavigationRoute route = completed.Result;
-                if (route == null)
+                if (!route.HasValue)
                 {
                     CompleteAction(false);
                     return;
@@ -205,7 +205,7 @@ namespace Aethiumian.AI.Nodes
                     return;
                 }
 
-                if (route.Segments[0] is not JumpRouteSegment)
+                if (route[0] is not JumpRouteSegment)
                 {
                     CompleteActionException(new InvalidOperationException(
                         "FixedJump PlannedStep requires a Jump route segment."));
@@ -351,7 +351,7 @@ namespace Aethiumian.AI.Nodes
 
         private bool TryStartPlannedJump(NavigationRoute route)
         {
-            if (route.Segments[0] is not JumpRouteSegment jump) return false;
+            if (route[0] is not JumpRouteSegment jump) return false;
             INavigationWorld world = NavigationWorld;
 
             AABB body = NavigationBodyGeometry.GetMergedAabb(navigationColliders);

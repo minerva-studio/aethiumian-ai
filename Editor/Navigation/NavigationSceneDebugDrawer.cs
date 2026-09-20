@@ -57,10 +57,10 @@ namespace Aethiumian.AI.Navigation.Editor
         /// <summary>Draws one live route directly from its immutable segments.</summary>
         private static void DrawRoute(NavigationRoute route, NavigationRouteSegment committed, GroundTraversalExecutor executor, INavigationWorld world, Color fallback)
         {
-            if (route == null) return;
-            for (int index = 0; index < route.Segments.Count; index++)
+            if (!route.HasValue) return;
+            for (int index = 0; index < route.Count; index++)
             {
-                NavigationRouteSegment segment = route.Segments[index];
+                NavigationRouteSegment segment = route[index];
                 DrawSegment(segment, index, ReferenceEquals(segment, committed), executor, world, fallback);
             }
         }
@@ -153,7 +153,7 @@ namespace Aethiumian.AI.Navigation.Editor
         {
             Handles.color = Color.white;
             int revision = movement.NavigationRuntime?.SnapshotRevision ?? 0;
-            string routeStatus = route == null
+            string routeStatus = !route.HasValue
                 ? "Route None"
                 : $"Route {routeIndex}/{route.Count} / reaches-goal {route.ReachesGoal}";
             Handles.Label(labelPosition,

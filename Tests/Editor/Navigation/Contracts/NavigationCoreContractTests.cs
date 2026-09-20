@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -30,8 +30,8 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationSearchUpdate update = search.Advance(new NavigationWorkBudget(4, 1000d), default);
 
             Assert.That(update.Status, Is.EqualTo(NavigationSearchStatus.CompleteRoute));
-            Assert.That(update.Route, Is.Not.Null);
-            Assert.That(update.Route.Segments.Count, Is.EqualTo(1));
+            Assert.That(update.Route.HasValue, Is.True);
+            Assert.That(update.Route.Count, Is.EqualTo(1));
         }
 
         /// <summary>Verifies the node expansion limit does not truncate the active node's successor stream.</summary>
@@ -65,7 +65,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(first.Status, Is.EqualTo(NavigationSearchStatus.Pending));
             Assert.That(second.Status, Is.EqualTo(NavigationSearchStatus.Pending));
             Assert.That(third.Status, Is.EqualTo(NavigationSearchStatus.CompleteRoute));
-            Assert.That(third.Route.Segments.Count, Is.EqualTo(3));
+            Assert.That(third.Route.Count, Is.EqualTo(3));
         }
 
         /// <summary>Verifies a total search budget is terminal and never publishes a frontier route.</summary>
@@ -79,7 +79,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationSearchUpdate update = search.Advance(new NavigationWorkBudget(8, 1000d), default);
 
             Assert.That(update.Status, Is.EqualTo(NavigationSearchStatus.BudgetReached));
-            Assert.That(update.Route, Is.Null);
+            Assert.That(update.Route.HasValue, Is.False);
             Assert.That(search.Advance(new NavigationWorkBudget(8, 1000d), default).Status,
                 Is.EqualTo(NavigationSearchStatus.Pending));
         }
@@ -122,8 +122,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 world, route, AABB.FromLowerCenter(new Vector2(1.2f, 1f), new Vector2(0.8f, 0.8f)),
                 out NavigationRoute reconnected), Is.True);
             Assert.That(reconnected.Start, Is.EqualTo(new Vector2(1.2f, 1f)));
-            Assert.That(reconnected.Segments[0].End, Is.EqualTo(new Vector2(4f, 1f)));
-            Assert.That(reconnected.Segments[1], Is.SameAs(route.Segments[1]));
+            Assert.That(reconnected[0].End, Is.EqualTo(new Vector2(4f, 1f)));
+            Assert.That(reconnected[1], Is.SameAs(route[1]));
         }
 
         /// <summary>Verifies a small pre-segment drift uses the executor completion range without skipping support validation.</summary>
@@ -142,8 +142,8 @@ namespace Aethiumian.AI.Navigation.Tests
                 world, route, AABB.FromLowerCenter(new Vector2(2.81f, 1f), new Vector2(0.8f, 0.8f)),
                 0.2f, out NavigationRoute reconnected), Is.True);
             Assert.That(reconnected.Start.x, Is.EqualTo(2.81f).Within(0.0001f));
-            Assert.That(reconnected.Segments[0].Start.x, Is.EqualTo(2.81f).Within(0.0001f));
-            Assert.That(reconnected.Segments[0].End, Is.EqualTo(new Vector2(5f, 1f)));
+            Assert.That(reconnected[0].Start.x, Is.EqualTo(2.81f).Within(0.0001f));
+            Assert.That(reconnected[0].End, Is.EqualTo(new Vector2(5f, 1f)));
         }
 
         /// <summary>Verifies ground reconnection rejects a support gap instead of skipping an obstacle.</summary>
@@ -309,9 +309,9 @@ namespace Aethiumian.AI.Navigation.Tests
                 new[] { new FlyRouteSegment(Vector2.zero, Vector2.right) }, false);
             RetreatExecution execution = new(null, 0.5f);
 
-            Assert.That(execution.AllowsRoute(currentGoal, staleRoute.Start, staleRoute.Segments), Is.False,
+            Assert.That(execution.AllowsRoute(currentGoal, staleRoute.Start, staleRoute), Is.False,
                 "Route admission must use the current tick goal even when route metadata is stale.");
-            Assert.That(execution.AllowsRoute(staleGoal, staleRoute.Start, staleRoute.Segments), Is.True,
+            Assert.That(execution.AllowsRoute(staleGoal, staleRoute.Start, staleRoute), Is.True,
                 "Route admission must not substitute the current goal with route metadata.");
         }
 
@@ -350,8 +350,8 @@ namespace Aethiumian.AI.Navigation.Tests
             source.Add(new FlyRouteSegment(Vector2.right, new Vector2(2, 1)));
 
             Assert.That(route.Count, Is.EqualTo(1));
-            Assert.That(route.Segments.Count, Is.EqualTo(1));
-            Assert.That(route.Segments, Is.Not.SameAs(source));
+            Assert.That(route.Count, Is.EqualTo(1));
+            Assert.That(route, Is.Not.SameAs(source));
         }
 
         /// <summary>Verifies requested and resolved goals remain distinct route values.</summary>
@@ -365,6 +365,59 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Endpoint, Is.EqualTo(Vector2.right));
         }
 
+        [Test]
+        public void RouteDefaultAndEmptyHaveDistinctPresence()
+        {
+            NavigationRoute absent = default;
+            Assert.That(absent.HasValue, Is.False);
+            Assert.That(absent.Count, Is.Zero);
+            Assert.That(absent.GetEnumerator().MoveNext(), Is.False);
+            Assert.Throws<InvalidOperationException>(() => { _ = absent.Start; });
+            Assert.Throws<InvalidOperationException>(() => { _ = absent.Endpoint; });
+            Assert.Throws<InvalidOperationException>(() => { _ = absent.CoordinateFrame; });
+            Assert.Throws<InvalidOperationException>(() => absent.Slice(0));
+            Assert.Throws<InvalidOperationException>(() => absent.WithSegments(Array.Empty<NavigationRouteSegment>()));
+            Assert.Throws<ArgumentNullException>(() => NavigationPlanResult.ResultProduced(absent));
+            NavigationRoute empty = NavigationRoute.Empty(Vector2.right, PointGoal(Vector2.right, 0f),
+                NavigationRouteCoordinateFrame.GroundAnchor, true);
+            Assert.That(empty.HasValue, Is.True);
+            Assert.That(empty.Count, Is.Zero);
+            Assert.That(empty.Start, Is.EqualTo(Vector2.right));
+            Assert.That(NavigationPlanResult.ResultProduced(empty).Route.HasValue, Is.True);
+        }
+
+        [Test]
+        public void RouteSlicesShareSegmentsAndKeepRangeMetadata()
+        {
+            NavigationRouteSegment[] source = {
+                new GroundRouteSegment(Vector2.zero, Vector2.right),
+                new GroundRouteSegment(Vector2.right, Vector2.right * 2),
+                new GroundRouteSegment(Vector2.right * 2, Vector2.right * 3) };
+            NavigationRoute route = NavigationRoute.Partial(PointGoal(Vector2.right * 4, 0f), source);
+            NavigationRoute suffix = route.Slice(1);
+            NavigationRoute nested = suffix.Slice(1);
+            Assert.That(suffix.Count, Is.EqualTo(2));
+            Assert.That(suffix[0], Is.SameAs(source[1]));
+            Assert.That(nested[0], Is.SameAs(source[2]));
+            Assert.That(nested.Start, Is.EqualTo(Vector2.right * 2));
+            Assert.That(nested.Endpoint, Is.EqualTo(route.Endpoint));
+            Assert.That(nested.Goal, Is.EqualTo(route.Goal));
+            Assert.That(nested.ReachesGoal, Is.False);
+            int visited = 0;
+            foreach (NavigationRouteSegment segment in suffix)
+                Assert.That(segment, Is.SameAs(source[++visited]));
+            Assert.That(visited, Is.EqualTo(2));
+            NavigationRoute empty = nested.Slice(nested.Count);
+            Assert.That(empty.HasValue, Is.True);
+            Assert.That(empty.Count, Is.Zero);
+            Assert.That(empty.Start, Is.EqualTo(route.Endpoint));
+            Assert.That(empty.CoordinateFrame, Is.EqualTo(route.CoordinateFrame));
+            Assert.Throws<ArgumentOutOfRangeException>(() => route.Slice(-1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => route.Slice(4));
+            Assert.Throws<ArgumentOutOfRangeException>(() => { _ = suffix[2]; });
+            TestContext.WriteLine($"NavigationRoute managed size: {Unity.Collections.LowLevel.Unsafe.UnsafeUtility.SizeOf<NavigationRoute>()} bytes");
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void NavigationRouteKeepsIndependentCollectionSnapshot(bool useList)
@@ -375,7 +428,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 : new NavigationRouteSegment[] { original };
             NavigationRoute route = NavigationRoute.Create(PointGoal(Vector2.right, 0f), source, false);
             source[0] = new GroundRouteSegment(Vector2.zero, Vector2.left);
-            Assert.That(route.Segments[0], Is.SameAs(original));
+            Assert.That(route[0], Is.SameAs(original));
             Assert.That(route.Endpoint, Is.EqualTo(Vector2.right));
             Assert.That(route.ReachesGoal, Is.False);
         }
@@ -395,7 +448,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(replaced.Goal, Is.EqualTo(partial.Goal));
             Assert.That(replaced.Endpoint, Is.EqualTo(partial.Endpoint));
             Assert.That(replaced.ReachesGoal, Is.False);
-            Assert.That(replaced.Segments[0], Is.TypeOf<FlyRouteSegment>());
+            Assert.That(replaced[0], Is.TypeOf<FlyRouteSegment>());
         }
 
         /// <summary>Verifies named planning-result factories keep route availability separate from termination.</summary>
@@ -407,16 +460,16 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(NavigationPlanResult.ResultProduced(route).Termination,
                 Is.EqualTo(NavigationPlanTermination.ResultProduced));
-            Assert.That(NavigationPlanResult.ResultProduced(route).Route, Is.SameAs(route));
+            Assert.That(NavigationPlanResult.ResultProduced(route).Route, Is.EqualTo(route));
             Assert.That(NavigationPlanResult.SearchExhausted().Termination,
                 Is.EqualTo(NavigationPlanTermination.SearchExhausted));
-            Assert.That(NavigationPlanResult.SearchExhausted().Route, Is.Null);
+            Assert.That(NavigationPlanResult.SearchExhausted().Route.HasValue, Is.False);
             Assert.That(NavigationPlanResult.BudgetReached().Termination,
                 Is.EqualTo(NavigationPlanTermination.BudgetReached));
-            Assert.That(NavigationPlanResult.BudgetReached().Route, Is.Null);
+            Assert.That(NavigationPlanResult.BudgetReached().Route.HasValue, Is.False);
             Assert.That(NavigationPlanResult.NoResult.Termination,
                 Is.EqualTo(NavigationPlanTermination.NoResult));
-            Assert.That(NavigationPlanResult.NoResult.Route, Is.Null);
+            Assert.That(NavigationPlanResult.NoResult.Route.HasValue, Is.False);
             Assert.That(() => NavigationPlanResult.SearchExhausted().WithRoute(route),
                 Throws.InstanceOf<InvalidOperationException>());
             Assert.That(() => NavigationPlanResult.BudgetReached().WithRoute(route),
@@ -440,11 +493,11 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(pending.WorkUnits, Is.Zero);
             Assert.That(pending.ExpandedNodes, Is.EqualTo(3));
             Assert.That(completed.Status, Is.EqualTo(NavigationSearchStatus.CompleteRoute));
-            Assert.That(completed.Route, Is.SameAs(route));
+            Assert.That(completed.Route, Is.EqualTo(route));
             Assert.That(exhausted.Status, Is.EqualTo(NavigationSearchStatus.Exhausted));
-            Assert.That(exhausted.Route, Is.Null);
+            Assert.That(exhausted.Route.HasValue, Is.False);
             Assert.That(budget.Status, Is.EqualTo(NavigationSearchStatus.BudgetReached));
-            Assert.That(budget.Route, Is.Null);
+            Assert.That(budget.Route.HasValue, Is.False);
         }
 
         /// <summary>Verifies named transition factories preserve their graph identity and edge fields.</summary>

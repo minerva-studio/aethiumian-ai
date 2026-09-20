@@ -45,7 +45,7 @@ namespace Aethiumian.AI.Navigation
         public NavigationPlanResult PlanResult
             => IsCompleted && !IsCancelled && Exception == null ? planResult : NavigationPlanResult.NoResult;
 
-        /// <summary>Gets the completed route, or null while pending and for no-route, cancellation, or exception outcomes.</summary>
+        /// <summary>Gets the completed route, or default while pending and for no-route, cancellation, or exception outcomes.</summary>
         public NavigationRoute Result => PlanResult.Route;
 
         /// <summary>Gets the unexpected planner exception, or null for pending and ordinary terminal outcomes.</summary>

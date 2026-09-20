@@ -64,7 +64,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Checks a caller-selected route suffix against the remaining approach budget.
         /// </summary>
-        internal bool AllowsRoute(NavigationGoalRequest goal, Vector2 routeStart, IReadOnlyList<NavigationRouteSegment> suffix)
+        internal bool AllowsRoute(NavigationGoalRequest goal, Vector2 routeStart, NavigationRoute suffix)
         {
             if (!goal.IsRetreat || !maximumApproachDistance.HasValue) return true;
 

@@ -1,4 +1,4 @@
-﻿using Aethiumian.AI.Navigation;
+using Aethiumian.AI.Navigation;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using Aethiumian.AI.Navigation.Diagnostics;
 #endif
@@ -51,23 +51,23 @@ namespace Aethiumian.AI.Nodes
 
                 if (active is GroundRouteSegment)
                 {
-                    executor?.Cancel(); route = null; routeIndex = 0;
+                    executor?.Cancel(); route = default; routeIndex = 0;
                     if (RigidBody) RigidBody.linearVelocity = new Vector2(0f, RigidBody.linearVelocity.y);
                 }
                 else if (active is FlyRouteSegment)
                 {
-                    executor?.Cancel(); route = null; routeIndex = 0;
+                    executor?.Cancel(); route = default; routeIndex = 0;
                     if (RigidBody) RigidBody.linearVelocity = Vector2.zero;
                 }
                 else if (active != null)
                 {
                     // A historical action keeps its goal; an irreversible predecessor must never
                     // be re-labelled with the newest target.
-                    NavigationGoalRequest historicalGoal = route != null ? route.Goal : goal;
+                    NavigationGoalRequest historicalGoal = route.HasValue ? route.Goal : goal;
                     route = NavigationRoute.Partial(historicalGoal, new[] { active });
                     routeIndex = 0;
                 }
-                else { route = null; routeIndex = 0; }
+                else { route = default; routeIndex = 0; }
                 return true;
             }
 
@@ -100,11 +100,11 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         private bool RouteCoversGoal(NavigationRoute candidate, int first, AABB body, NavigationGoalRequest goal)
         {
-            if (candidate == null || first >= candidate.Count) return false;
+            if (!candidate.HasValue || first >= candidate.Count) return false;
             INavigationWorld world = NavigationWorld;
             for (int i = first; i < candidate.Count; i++)
             {
-                NavigationRouteSegment segment = candidate.Segments[i];
+                NavigationRouteSegment segment = candidate[i];
                 // The route owns the conversion from its own coordinate frame to a body AABB, so a
                 // ground-anchored segment and an aerial one are measured with their real body pose.
                 AABB startBody = candidate.ResolveBodyAt(segment.Start, body);
@@ -161,7 +161,7 @@ namespace Aethiumian.AI.Nodes
 
             NavigationPlanResult result = primary.Operation.PlanResult;
             NavigationRoute candidate = result.Route;
-            if (candidate == null || candidate.Count == 0)
+            if (!candidate.HasValue || candidate.Count == 0)
             {
                 // A result belongs to its captured goal. Runtime handoff uses the semantic
                 // compatibility contract so harmless collider sampling noise cannot discard a
@@ -199,7 +199,7 @@ namespace Aethiumian.AI.Nodes
                     EndMovement(RecordRetreatApproach(goal, body), goal);
                     return true;
                 }
-                if (route != null && routeIndex < route.Count) return false;
+                if (route.HasValue && routeIndex < route.Count) return false;
                 if (result.Termination == NavigationPlanTermination.BudgetReached)
                 {
                     if (!AllowRetry()) EndMovement(false, goal);
@@ -217,12 +217,12 @@ namespace Aethiumian.AI.Nodes
 
         private bool TryHandleExistingRoute(NavigationGoalRequest goal, AABB body)
         {
-            if (ActiveSegment != null || route == null || routeIndex >= route.Count) return false;
-            NavigationRoute remaining = routeIndex == 0 ? route : NavigationRoute.Create(route.Goal, route.GetRouteSegments(routeIndex), route.ReachesGoal);
+            if (ActiveSegment != null || !route.HasValue || routeIndex >= route.Count) return false;
+            NavigationRoute remaining = route.Slice(routeIndex);
             ActionPreparation preparation = TryAdoptRoute(remaining, CandidateSource.ExistingRoute, goal, body);
             if (preparation != ActionPreparation.Unavailable) return true;
 
-            route = null;
+            route = default;
             routeIndex = 0;
             CancelPrimaryRequest();
             if (fallbackRequest == null && !AllowRetry()) EndMovement(false, goal);
@@ -238,7 +238,7 @@ namespace Aethiumian.AI.Nodes
             if (local.Operation.Exception != null) throw local.Operation.Exception;
 
             NavigationRoute candidate = local.Operation.PlanResult.Route;
-            if (candidate == null || candidate.Count == 0)
+            if (!candidate.HasValue || candidate.Count == 0)
             {
                 // A local miss is never a global Smart terminal result.
                 CancelFallbackRequest();
@@ -267,7 +267,7 @@ namespace Aethiumian.AI.Nodes
                     ? ActionPreparation.Waiting
                     : ActionPreparation.Unavailable;
             }
-            if (connected == null || connected.Count == 0)
+            if (!connected.HasValue || connected.Count == 0)
             {
                 return ActionPreparation.Unavailable;
             }
@@ -279,7 +279,7 @@ namespace Aethiumian.AI.Nodes
             bool servesCurrentIntent = connected.Goal.HasCompatibleSemantics(goal)
                 && (connected.Goal.IsReusableFor(goal) || RouteCoversGoal(connected, 0, body, goal));
 
-            ActionPreparation preparation = PrepareExecutor(connected.Segments[0], body, executor, out MovementExecutor prepared);
+            ActionPreparation preparation = PrepareExecutor(connected[0], body, executor, out MovementExecutor prepared);
             if (preparation != ActionPreparation.Ready) return preparation;
             if (prepared == null || !prepared.IsExecuting)
                 throw new InvalidOperationException("Ready acquisition must supply an executing executor.");
@@ -304,7 +304,7 @@ namespace Aethiumian.AI.Nodes
                 && active != null
                 && ReferenceEquals(request.CommittedSegment, active)
                 && request.Goal.HasCompatibleSemantics(goal)
-                && candidate != null
+                && candidate.HasValue
                 && candidate.Goal.HasCompatibleSemantics(goal)
                 && RouteAllowed(request.Goal, candidate);
         }
@@ -359,7 +359,7 @@ namespace Aethiumian.AI.Nodes
             // target.  Do not stack another Simple request while that action is executing;
             // once it completes, the active-segment check above becomes false and the next
             // independent cooldown can request another action.
-            if (route != null && route.Goal.IsSamePlanningTarget(goal)) return false;
+            if (route.HasValue && route.Goal.IsSamePlanningTarget(goal)) return false;
             return !RouteCoversGoal(route, routeIndex, body, goal);
         }
 
@@ -388,11 +388,11 @@ namespace Aethiumian.AI.Nodes
         {
             if (request != null) return false;
             NavigationRouteSegment action = ActiveSegment;
-            bool changed = route != null && !route.Goal.IsSamePlanningTarget(goal);
-            if (action == null && route != null && routeIndex < route.Count) return false;
+            bool changed = route.HasValue && !route.Goal.IsSamePlanningTarget(goal);
+            if (action == null && route.HasValue && routeIndex < route.Count) return false;
             if (action != null && !changed && routeIndex + 1 < route.Count) return false;
 
-            if (action != null && !changed && route != null && routeIndex < route.Count)
+            if (action != null && !changed && route.HasValue && routeIndex < route.Count)
             {
                 AABB endpointBody = route.ResolveEndpointBody(body);
                 if (route.ReachesGoal && NavigationWorld.IsGoalComplete(goal, endpointBody)) return false;
@@ -403,12 +403,12 @@ namespace Aethiumian.AI.Nodes
             {
                 predecessor = action;
             }
-            else if (action == null && !changed && route != null && !route.ReachesGoal
+            else if (action == null && !changed && route.HasValue && !route.ReachesGoal
                 && route.Count > 0 && routeIndex == route.Count)
             {
                 // Any fully consumed partial action (including local Ground/Fly) continues
                 // from its endpoint. Complete routes do not need a continuation request.
-                predecessor = route.Segments[route.Count - 1];
+                predecessor = route[route.Count - 1];
             }
 
             // A continuation starts where its predecessor's own route frame ends, which is the
@@ -470,7 +470,7 @@ namespace Aethiumian.AI.Nodes
         /// describe its body pose as a route position before the route can be evaluated.
         /// </summary>
         private bool RouteAllowed(NavigationGoalRequest goal, NavigationRoute candidate)
-            => retreat == null || retreat.AllowsRoute(goal, candidate.Start, candidate.Segments);
+            => retreat == null || retreat.AllowsRoute(goal, candidate.Start, candidate);
 
         protected static bool IsWithinContinuationTolerance(Vector2 first, Vector2 second)
             => Vector2.Distance(first, second) <= NavigationWorldQueries.SupportSnapDistance + NavigationWorldQueries.GeometryEpsilon;

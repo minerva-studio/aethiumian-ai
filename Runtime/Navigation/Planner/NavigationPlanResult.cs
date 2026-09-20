@@ -27,7 +27,7 @@ namespace Aethiumian.AI.Navigation
 
         private NavigationPlanResult(NavigationRoute route, NavigationPlanTermination termination)
         {
-            if (termination != NavigationPlanTermination.ResultProduced && route != null)
+            if (termination != NavigationPlanTermination.ResultProduced && route.HasValue)
                 throw new ArgumentException("Only a produced result may carry a route.", nameof(route));
             Route = route;
             Termination = termination;
@@ -38,22 +38,22 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Creates a result that produced an executable route.</summary>
         public static NavigationPlanResult ResultProduced(NavigationRoute route)
         {
-            if (route == null) throw new ArgumentNullException(nameof(route));
+            if (!route.HasValue) throw new ArgumentNullException(nameof(route));
             return new NavigationPlanResult(route, NavigationPlanTermination.ResultProduced);
         }
 
         /// <summary>Creates a result after the search frontier was exhausted.</summary>
         public static NavigationPlanResult SearchExhausted()
-            => new(null, NavigationPlanTermination.SearchExhausted);
+            => new(default, NavigationPlanTermination.SearchExhausted);
 
         /// <summary>Creates a result after the request's total search budget was exhausted.</summary>
         public static NavigationPlanResult BudgetReached()
-            => new(null, NavigationPlanTermination.BudgetReached);
+            => new(default, NavigationPlanTermination.BudgetReached);
 
         /// <summary>Replaces the route while preserving this result's terminal condition.</summary>
         public NavigationPlanResult WithRoute(NavigationRoute route)
         {
-            if (route == null) throw new ArgumentNullException(nameof(route));
+            if (!route.HasValue) throw new ArgumentNullException(nameof(route));
             return Termination switch
             {
                 NavigationPlanTermination.ResultProduced => ResultProduced(route),

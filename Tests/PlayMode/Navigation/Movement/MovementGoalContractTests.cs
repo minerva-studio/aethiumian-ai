@@ -143,16 +143,16 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return WaitForTreeCreated(harness);
 
             var movement = (Fly)harness.AI.BehaviourTree.Head;
-            NavigationRoute route = null;
+            NavigationRoute route = default;
             for (int tick = 0; tick < RuntimeContractTickLimit && harness.AI.BehaviourTree.IsRunning; tick++)
             {
                 yield return new WaitForFixedUpdate();
-                if (movement.Route != null) route = movement.Route;
+                if (movement.Route.HasValue) route = movement.Route;
             }
 
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
-            Assert.That(route, Is.Not.Null, DescribeHarness(harness));
+            Assert.That(route.HasValue, Is.True, DescribeHarness(harness));
             Assert.That(route.CoordinateFrame, Is.EqualTo(NavigationRouteCoordinateFrame.BodyCenter));
 
             const float placementTolerance = 0.02f;

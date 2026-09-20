@@ -163,16 +163,16 @@ namespace Aethiumian.AI.Navigation
         }
 
         public static NavigationSearchUpdate Pending(int expandedNodes)
-            => new(NavigationSearchStatus.Pending, null, 0, expandedNodes);
+            => new(NavigationSearchStatus.Pending, default, 0, expandedNodes);
 
         public static NavigationSearchUpdate CompletedRoute(NavigationRoute route, int workUnits, int expandedNodes)
             => new(NavigationSearchStatus.CompleteRoute, route, workUnits, expandedNodes);
 
         public static NavigationSearchUpdate Exhausted(int workUnits, int expandedNodes)
-            => new(NavigationSearchStatus.Exhausted, null, workUnits, expandedNodes);
+            => new(NavigationSearchStatus.Exhausted, default, workUnits, expandedNodes);
 
         public static NavigationSearchUpdate BudgetReached(int workUnits, int expandedNodes)
-            => new(NavigationSearchStatus.BudgetReached, null, workUnits, expandedNodes);
+            => new(NavigationSearchStatus.BudgetReached, default, workUnits, expandedNodes);
     }
 
     /// <summary>Cooperatively advances one action-graph search without owning Unity objects.</summary>
