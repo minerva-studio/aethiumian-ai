@@ -32,8 +32,7 @@ namespace Aethiumian.AI.Navigation
         public float HorizontalDisplacement => LandingPosition.x - StartPosition.x;
 
         /// <summary>Creates immutable fixed-step trajectory inputs.</summary>
-        public JumpTrajectoryInput(Vector2 startPosition, Vector2 landingPosition, Vector2 gravity,
-            float gravityScale, float linearDamping, float jumpHeight, float simulationTimeStep)
+        public JumpTrajectoryInput(Vector2 startPosition, Vector2 landingPosition, Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float simulationTimeStep)
         {
             StartPosition = startPosition;
             LandingPosition = landingPosition;
@@ -46,12 +45,12 @@ namespace Aethiumian.AI.Navigation
     }
 
     /// <summary>Represents one immutable successful fixed-step jump solution.</summary>
-    public sealed class JumpTrajectorySolution
+    /// <remarks>Use only successful TrySolve outputs. Default is an absent result, not an executable trajectory.</remarks>
+    public readonly struct JumpTrajectorySolution
     {
         private readonly Vector2 gravity;
         private readonly float dampingFactor;
         private readonly float simulationTimeStep;
-        private readonly int flightTickCount;
 
         /// <summary>Gets the world-space launch position.</summary>
         public Vector2 StartPosition { get; }
@@ -74,8 +73,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the full fixed-step flight time to the requested landing position.</summary>
         public float FlightDuration { get; }
 
-        private JumpTrajectorySolution(JumpTrajectoryInput input, Vector2 apexPosition,
-            Vector2 initialVelocity, Vector2 landingVelocity, float apexTime, float flightDuration)
+        internal JumpTrajectorySolution(JumpTrajectoryInput input, Vector2 apexPosition, Vector2 initialVelocity, Vector2 landingVelocity, float apexTime, float flightDuration)
         {
             StartPosition = input.StartPosition;
             LandingPosition = input.LandingPosition;
@@ -87,7 +85,6 @@ namespace Aethiumian.AI.Navigation
             gravity = input.Gravity * input.GravityScale;
             dampingFactor = 1f + input.LinearDamping * input.SimulationTimeStep;
             simulationTimeStep = input.SimulationTimeStep;
-            flightTickCount = Mathf.Max(1, Mathf.RoundToInt(flightDuration / simulationTimeStep));
         }
 
         /// <summary>Evaluates a clamped world-space position using the same discrete damping model as the solver.</summary>
@@ -104,11 +101,6 @@ namespace Aethiumian.AI.Navigation
             return velocity;
         }
 
-        /// <summary>Creates a solution from validated solver values.</summary>
-        internal static JumpTrajectorySolution Create(JumpTrajectoryInput input, Vector2 apexPosition,
-            Vector2 initialVelocity, Vector2 landingVelocity, float apexTime, float flightDuration)
-            => new(input, apexPosition, initialVelocity, landingVelocity, apexTime, flightDuration);
-
         /// <summary>Evaluates the fixed-step recurrence followed by one optional partial tick.</summary>
         private void Simulate(float elapsedSeconds, out Vector2 position, out Vector2 velocity)
         {
@@ -120,6 +112,7 @@ namespace Aethiumian.AI.Navigation
             float time = Mathf.Min(elapsedSeconds, FlightDuration);
             int fullTicks = Mathf.FloorToInt((time + NavigationConstant.DegenerateAxis) / simulationTimeStep);
             float remainder = time - fullTicks * simulationTimeStep;
+            var flightTickCount = Mathf.Max(1, Mathf.RoundToInt(FlightDuration / simulationTimeStep));
             fullTicks = Mathf.Clamp(fullTicks, 0, flightTickCount);
             EvaluateFullTicks(fullTicks, out position, out velocity);
 
@@ -243,7 +236,7 @@ namespace Aethiumian.AI.Navigation
         public static bool TrySolve(JumpTrajectoryInput input, out JumpTrajectorySolution solution)
         {
             ValidateInput(input);
-            solution = null;
+            solution = default;
             if (!CanProduceTrajectory(input.JumpHeight, input.Gravity.y * input.GravityScale)) return false;
             return TrySolveCore(input, MaximumFlightTicks, CalculateDefaultMinimumApexHeight(input.JumpHeight),
                 CalculateMaximumApexHeight(input.JumpHeight), out solution);
@@ -254,7 +247,7 @@ namespace Aethiumian.AI.Navigation
         {
             ValidateInput(input);
             ValidateFlightTicks(maxFlightTicks);
-            solution = null;
+            solution = default;
             if (!CanProduceTrajectory(input.JumpHeight, input.Gravity.y * input.GravityScale)) return false;
             return TrySolveCore(input, maxFlightTicks, CalculateDefaultMinimumApexHeight(input.JumpHeight),
                 CalculateMaximumApexHeight(input.JumpHeight), out solution);
@@ -270,7 +263,7 @@ namespace Aethiumian.AI.Navigation
         {
             ValidateInput(input);
             ValidateFlightTicks(maxFlightTicks);
-            solution = null;
+            solution = default;
             if (!CanProduceTrajectory(input.JumpHeight, input.Gravity.y * input.GravityScale)) return false;
             float maximumAllowedApexHeight = CalculateMaximumApexHeight(input.JumpHeight);
             if (!NavigationNumeric.IsFinite(minimumApexHeight)
@@ -284,7 +277,7 @@ namespace Aethiumian.AI.Navigation
         // Public entry points establish input validity and feasibility before solving.
         private static bool TrySolveCore(JumpTrajectoryInput input, int maxFlightTicks, float minimumApexHeight, float maximumAllowedApexHeight, out JumpTrajectorySolution solution)
         {
-            solution = null;
+            solution = default;
             float gravityMagnitude = Mathf.Abs(input.Gravity.y * input.GravityScale);
             float verticalDirection = -Mathf.Sign(input.Gravity.y);
             float targetVerticalDisplacement = (input.LandingPosition.y - input.StartPosition.y) * verticalDirection;
@@ -364,7 +357,7 @@ namespace Aethiumian.AI.Navigation
                 Vector2 apexPosition = input.StartPosition + new Vector2(
                     apexHorizontalDisplacement, verticalDirection * best.ApexDisplacement);
 
-                solution = JumpTrajectorySolution.Create(input, apexPosition, initialVelocity, landingVelocity,
+                solution = new JumpTrajectorySolution(input, apexPosition, initialVelocity, landingVelocity,
                     best.ApexTick * input.SimulationTimeStep, best.FlightTick * input.SimulationTimeStep);
                 return true;
             }

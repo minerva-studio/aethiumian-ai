@@ -798,12 +798,12 @@ namespace Aethiumian.AI.Navigation.Tests
             bool reachesGoal = request.World.IsGoalComplete(request.Goal, AABB.FromCenterAndSize(bodyCenter, new Vector2(BodyWidth, BodyHeight)));
             if (completesGoal)
                 Assert.That(reachesGoal, Is.True, $"Fixture endpoint {resolvedGoal} does not satisfy the captured goal {request.Goal}.");
-            return NavigationRoute.Create(request.Goal, new[] { new GroundRouteSegment(logicalStart, resolvedGoal) }, reachesGoal);
+            return NavigationRoute.Create(new[] { new GroundRouteSegment(logicalStart, resolvedGoal) }, reachesGoal);
         }
 
         /// <summary>Builds a deterministic irreversible route for the package handoff owner.</summary>
         private static NavigationRoute CreateJumpRoute(ControlledWalk.Request request, Vector2 launchSupport, float travel = 6f)
-            => NavigationRoute.Create(request.Goal, new[] { new JumpRouteSegment(launchSupport, launchSupport + Vector2.right * travel, 0f) }, true);
+            => NavigationRoute.Create(new[] { new JumpRouteSegment(launchSupport, launchSupport + Vector2.right * travel, 0f) }, true);
 
         private static IEnumerator WaitForRequest()
         {

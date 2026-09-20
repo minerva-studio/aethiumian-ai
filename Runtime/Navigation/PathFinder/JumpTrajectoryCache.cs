@@ -20,8 +20,8 @@ namespace Aethiumian.AI.Navigation
             this.entryLimit = entryLimit;
         }
 
-        internal bool TryGet(Vector2 start, Vector2 landing, GroundJumpParameters parameters,
-            out JumpTrajectorySolution trajectory)
+        // A hit with no trajectory is a cached rejection; false means the key is absent.
+        internal bool TryGet(Vector2 start, Vector2 landing, GroundJumpParameters parameters, out JumpTrajectorySolution? trajectory)
         {
             Key key = new(start, landing, parameters);
             lock (sync)
@@ -39,8 +39,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Publishes one completed result and returns the race-winning cached value.</summary>
-        internal JumpTrajectorySolution Publish(Vector2 start, Vector2 landing, GroundJumpParameters parameters,
-            JumpTrajectorySolution trajectory)
+        internal JumpTrajectorySolution? Publish(Vector2 start, Vector2 landing, GroundJumpParameters parameters, JumpTrajectorySolution? trajectory)
         {
             if (entryLimit == 0) return trajectory;
 
@@ -74,10 +73,10 @@ namespace Aethiumian.AI.Navigation
 
         private readonly struct Entry
         {
-            internal readonly JumpTrajectorySolution Trajectory;
+            internal readonly JumpTrajectorySolution? Trajectory;
             internal readonly LinkedListNode<Key> Node;
 
-            internal Entry(JumpTrajectorySolution trajectory, LinkedListNode<Key> node)
+            internal Entry(JumpTrajectorySolution? trajectory, LinkedListNode<Key> node)
             {
                 Trajectory = trajectory;
                 Node = node;

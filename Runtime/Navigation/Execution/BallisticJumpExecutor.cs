@@ -35,14 +35,13 @@ namespace Aethiumian.AI.Navigation
         /// applies to monitored support/landing phases; zero preserves unmonitored FixedJump behavior.
         /// </summary>
         public BallisticJumpExecutor(Rigidbody2D body, Collider2D bodyCollider,
-            IReadOnlyList<Collider2D> navigationColliders, ContactFilter2D supportFilter, JumpTrajectorySolution trajectory,
+            IReadOnlyList<Collider2D> navigationColliders, ContactFilter2D supportFilter, in JumpTrajectorySolution trajectory,
             OneWayPlatformCollisionLease collisionLease, float maximumIdleDuration = 0f) : base(maximumIdleDuration)
         {
             if (!body) throw new ArgumentNullException(nameof(body));
             this.bodyCollider = bodyCollider ? bodyCollider : throw new ArgumentNullException(nameof(bodyCollider));
             this.navigationColliders = navigationColliders ?? throw new ArgumentNullException(nameof(navigationColliders));
             if (navigationColliders.Count == 0) throw new ArgumentException("Navigation colliders cannot be empty.", nameof(navigationColliders));
-            if (trajectory == null) throw new ArgumentNullException(nameof(trajectory));
             this.supportFilter = supportFilter;
             this.body = body;
             this.trajectory = trajectory;

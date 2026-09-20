@@ -17,15 +17,21 @@ namespace Aethiumian.AI.Navigation
         private readonly Vector2 emptyPosition;
         private readonly NavigationRouteCoordinateFrame emptyFrame;
 
-        /// <summary>Distinguishes a produced route, including an empty route, from default.</summary>
+        /// <summary>
+        /// Distinguishes a produced route, including an empty route, from default.
+        /// </summary>
         public bool HasValue => segments != null;
-        /// <summary>Gets the stable goal captured by planning.</summary>
-        public NavigationGoalRequest Goal { get; }
-        /// <summary>Gets the number of segments in this range; default has zero segments.</summary>
+        /// <summary>
+        /// Gets the number of segments in this range; default has zero segments.
+        /// </summary>
         public int Count { get; }
-        /// <summary>Gets whether planning reached its captured goal.</summary>
+        /// <summary>
+        /// Gets whether this route reached its original planning goal, not the current movement goal.
+        /// </summary>
         public bool ReachesGoal { get; }
-        /// <summary>Gets a segment relative to this route's range.</summary>
+        /// <summary>
+        /// Gets a segment relative to this route's range.
+        /// </summary>
         public NavigationRouteSegment this[int index]
         {
             get
@@ -34,25 +40,30 @@ namespace Aethiumian.AI.Navigation
                 return segments[offset + index];
             }
         }
-        /// <summary>Gets the first segment origin or the valid empty route position.</summary>
+        /// <summary>
+        /// Gets the first segment origin or the valid empty route position.
+        /// </summary>
         public Vector2 Start
         {
             get { RequireValue(); return Count == 0 ? emptyPosition : segments[offset].Start; }
         }
-        /// <summary>Gets the final endpoint or the valid empty route position.</summary>
+        /// <summary>
+        /// Gets the final endpoint or the valid empty route position.
+        /// </summary>
         public Vector2 Endpoint
         {
             get { RequireValue(); return Count == 0 ? emptyPosition : segments[offset + Count - 1].End; }
         }
-        /// <summary>Gets the coordinate frame; unavailable for default.</summary>
+        /// <summary>
+        /// Gets the coordinate frame; unavailable for default.
+        /// </summary>
         public NavigationRouteCoordinateFrame CoordinateFrame
         {
             get { RequireValue(); return Count == 0 ? emptyFrame : segments[offset].CoordinateFrame; }
         }
 
-        private NavigationRoute(NavigationGoalRequest goal, bool reachesGoal, NavigationRouteSegment[] segments, int offset, int count, Vector2 emptyPosition = default, NavigationRouteCoordinateFrame emptyFrame = default)
+        private NavigationRoute(bool reachesGoal, NavigationRouteSegment[] segments, int offset, int count, Vector2 emptyPosition = default, NavigationRouteCoordinateFrame emptyFrame = default)
         {
-            Goal = goal;
             ReachesGoal = reachesGoal;
             this.segments = segments;
             this.offset = offset;
@@ -75,9 +86,8 @@ namespace Aethiumian.AI.Navigation
             RequireValue();
             if ((uint)first > (uint)Count) throw new ArgumentOutOfRangeException(nameof(first));
             if (first == Count)
-                return new NavigationRoute(Goal, ReachesGoal, Array.Empty<NavigationRouteSegment>(),
-                    0, 0, Endpoint, CoordinateFrame);
-            return new NavigationRoute(Goal, ReachesGoal, segments, offset + first, Count - first);
+                return new NavigationRoute(ReachesGoal, Array.Empty<NavigationRouteSegment>(), 0, 0, Endpoint, CoordinateFrame);
+            return new NavigationRoute(ReachesGoal, segments, offset + first, Count - first);
         }
 
         /// <summary>
@@ -88,8 +98,7 @@ namespace Aethiumian.AI.Navigation
         public RouteSegmentEnumerator GetRouteSegments(int first)
         {
             if (first < 0 || first > Count)
-                throw new ArgumentOutOfRangeException(nameof(first), first,
-                    "A route segment suffix must start inside the route, or at its end for an empty suffix.");
+                throw new ArgumentOutOfRangeException(nameof(first), first, "A route segment suffix must start inside the route, or at its end for an empty suffix.");
             return new(segments, offset + first, Count - first);
         }
 
@@ -117,7 +126,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>
-        /// Replaces this route's segments while preserving its goal and completeness, and the
+        /// Replaces this route's segments while preserving its completeness, and the
         /// positions its replacement spans. An empty replacement is valid only for a zero-length
         /// route, and keeps that route's declared coordinate frame.
         /// </summary>
@@ -130,42 +139,42 @@ namespace Aethiumian.AI.Navigation
                 if (!Start.Equals(Endpoint))
                     throw new ArgumentException("An empty route is valid only when Start equals Endpoint.", nameof(replacementSegments));
 
-                return new NavigationRoute(Goal, ReachesGoal, Array.Empty<NavigationRouteSegment>(), 0, 0, Start, CoordinateFrame);
+                return new NavigationRoute(ReachesGoal, Array.Empty<NavigationRouteSegment>(), 0, 0, Start, CoordinateFrame);
             }
 
             // A replacement is not a new route: it must still span the positions it replaces.
             if (!copiedSegments[0].Start.Equals(Start) || !copiedSegments[^1].End.Equals(Endpoint))
                 throw new ArgumentException("A route replacement must span the positions it replaces.", nameof(replacementSegments));
 
-            return CreateInternal(Goal, copiedSegments, ReachesGoal);
+            return CreateInternal(copiedSegments, ReachesGoal);
         }
 
         /// <summary>
-        /// Creates a route against an immutable goal with an explicit goal-arrival fact. The route
+        /// Creates a route with an explicit planning-goal arrival fact. The route
         /// derives <see cref="Start"/> and <see cref="Endpoint"/> from its own segment chain, which must
         /// be continuous and declare one coordinate frame; a zero-length route uses <see cref="Empty"/>
         /// instead, because an empty segment collection cannot declare a frame.
         /// </summary>
-        public static NavigationRoute Create(NavigationGoalRequest goal, IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
-            => CreateInternal(goal, CopySegments(segments), reachesGoal);
+        public static NavigationRoute Create(IEnumerable<NavigationRouteSegment> segments, bool reachesGoal)
+            => CreateInternal(CopySegments(segments), reachesGoal);
 
         /// <summary>
         /// Creates a route that represents a complete search or direct result.
         /// </summary>
-        public static NavigationRoute Complete(NavigationGoalRequest goal, IEnumerable<NavigationRouteSegment> segments)
-            => CreateInternal(goal, CopySegments(segments), true);
+        public static NavigationRoute Complete(IEnumerable<NavigationRouteSegment> segments)
+            => CreateInternal(CopySegments(segments), true);
 
         /// <summary>
         /// Creates a produced route whose next action does not yet reach the planning goal.
         /// </summary>
-        public static NavigationRoute Partial(NavigationGoalRequest goal, IEnumerable<NavigationRouteSegment> segments)
-            => CreateInternal(goal, CopySegments(segments), false);
+        public static NavigationRoute Partial(IEnumerable<NavigationRouteSegment> segments)
+            => CreateInternal(CopySegments(segments), false);
 
         /// <summary>
         /// Creates the zero-length route of a plan that is already at its position. An empty route has
         /// no segment to declare its coordinate frame, so the caller states it explicitly.
         /// </summary>
-        public static NavigationRoute Empty(Vector2 position, NavigationGoalRequest goal, NavigationRouteCoordinateFrame frame, bool reachesGoal)
+        public static NavigationRoute Empty(Vector2 position, NavigationRouteCoordinateFrame frame, bool reachesGoal)
         {
             if (!NavigationNumeric.IsFinite(position))
                 throw new ArgumentException("Navigation plan coordinates must be finite world coordinates.", nameof(position));
@@ -173,10 +182,10 @@ namespace Aethiumian.AI.Navigation
             if (!Enum.IsDefined(typeof(NavigationRouteCoordinateFrame), frame))
                 throw new ArgumentOutOfRangeException(nameof(frame), frame, "Unknown route coordinate frame.");
 
-            return new NavigationRoute(goal, reachesGoal, Array.Empty<NavigationRouteSegment>(), 0, 0, position, frame);
+            return new NavigationRoute(reachesGoal, Array.Empty<NavigationRouteSegment>(), 0, 0, position, frame);
         }
 
-        private static NavigationRoute CreateInternal(NavigationGoalRequest goal, NavigationRouteSegment[] segments, bool reachesGoal)
+        private static NavigationRoute CreateInternal(NavigationRouteSegment[] segments, bool reachesGoal)
         {
             if (segments.Length == 0)
                 throw new ArgumentException("An empty route must declare its coordinate frame explicitly; use NavigationRoute.Empty.", nameof(segments));
@@ -198,15 +207,15 @@ namespace Aethiumian.AI.Navigation
                 }
             }
 
-            return new NavigationRoute(goal, reachesGoal, segments, 0, segments.Length);
+            return new NavigationRoute(reachesGoal, segments, 0, segments.Length);
         }
 
         /// <summary>Creates a single-segment route without an intermediate caller-owned array.</summary>
-        internal static NavigationRoute CreateSingleSegment(NavigationGoalRequest goal, NavigationRouteSegment segment, bool reachesGoal)
+        internal static NavigationRoute CreateSingleSegment(NavigationRouteSegment segment, bool reachesGoal)
         {
             if (segment == null)
                 throw new ArgumentException("Navigation routes cannot contain null segments.", nameof(segment));
-            return CreateInternal(goal, new[] { segment }, reachesGoal);
+            return CreateInternal(new[] { segment }, reachesGoal);
         }
 
         private static NavigationRouteSegment[] CopySegments(IEnumerable<NavigationRouteSegment> segments)
@@ -240,7 +249,7 @@ namespace Aethiumian.AI.Navigation
         IEnumerator<NavigationRouteSegment> IEnumerable<NavigationRouteSegment>.GetEnumerator() => GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        /// <summary>A segment-range cursor; it does not copy the route's goal data.</summary>
+        /// <summary>A cursor over the shared segment storage and the selected range.</summary>
         public struct RouteSegmentEnumerator : IEnumerator<NavigationRouteSegment>, IEnumerable<NavigationRouteSegment>
         {
             private readonly NavigationRouteSegment[] segments;

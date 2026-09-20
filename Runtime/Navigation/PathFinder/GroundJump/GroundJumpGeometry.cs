@@ -30,20 +30,19 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Creates one route segment and derives its directed OneWay crossings.</summary>
-        public static JumpRouteSegment CreateSegment(INavigationWorld world, JumpTrajectorySolution trajectory, Vector2 bodySize)
+        public static JumpRouteSegment CreateSegment(INavigationWorld world, in JumpTrajectorySolution trajectory, Vector2 bodySize)
             => CreateSegment(world, trajectory, bodySize, CancellationToken.None);
 
         /// <summary>Creates one execution-ready route segment while allowing planning cancellation.</summary>
-        public static JumpRouteSegment CreateSegment(INavigationWorld world, JumpTrajectorySolution trajectory, Vector2 bodySize, CancellationToken cancellationToken)
+        public static JumpRouteSegment CreateSegment(INavigationWorld world, in JumpTrajectorySolution trajectory, Vector2 bodySize, CancellationToken cancellationToken)
         {
             if (world == null) throw new ArgumentNullException(nameof(world));
-            if (trajectory == null) throw new ArgumentNullException(nameof(trajectory));
 
             IReadOnlyList<JumpSurfaceCrossing> crossings = CreateSurfaceCrossings(world, trajectory, bodySize, cancellationToken);
             return new JumpRouteSegment(trajectory.StartPosition, trajectory.LandingPosition, Mathf.Max(0f, trajectory.ApexPosition.y - trajectory.StartPosition.y), crossings);
         }
 
-        private static IReadOnlyList<JumpSurfaceCrossing> CreateSurfaceCrossings(INavigationWorld world, JumpTrajectorySolution trajectory, Vector2 bodySize, CancellationToken cancellationToken)
+        private static IReadOnlyList<JumpSurfaceCrossing> CreateSurfaceCrossings(INavigationWorld world, in JumpTrajectorySolution trajectory, Vector2 bodySize, CancellationToken cancellationToken)
         {
             List<JumpSurfaceCrossing> crossings = new();
             List<NavigationSurfaceCrossing> events = new();

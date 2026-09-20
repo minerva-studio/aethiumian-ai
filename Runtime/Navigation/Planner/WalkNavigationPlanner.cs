@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
@@ -125,8 +125,8 @@ namespace Aethiumian.AI.Navigation
             for (int index = segmentIndex + 1; index < route.Count; index++)
                 segments.Add(route[index]);
             reconnectedRoute = route.ReachesGoal
-                ? NavigationRoute.Complete(route.Goal, segments)
-                : NavigationRoute.Partial(route.Goal, segments);
+                ? NavigationRoute.Complete(segments)
+                : NavigationRoute.Partial(segments);
             return true;
         }
 
@@ -163,7 +163,7 @@ namespace Aethiumian.AI.Navigation
                 AABB resolvedStartBody = AABB.FromLowerCenter(resolvedStart, bodySize);
                 if (World.IsGoalComplete(goal, resolvedStartBody))
                 {
-                    NavigationRoute route = NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true);
+                    NavigationRoute route = NavigationRoute.Empty(resolvedStart, NavigationRouteCoordinateFrame.GroundAnchor, true);
                     result = NavigationPlanResult.ResultProduced(route);
                 }
                 else if (TryCreateDirectGroundRoute(World, resolvedStart, goal, bodySize, out NavigationRoute directRoute))
@@ -215,7 +215,7 @@ namespace Aethiumian.AI.Navigation
             if (!world.IsGoalComplete(goal, AABB.FromLowerCenter(end, bodySize)) || !TryValidateGroundConnection(world, AABB.FromLowerCenter(start, bodySize), AABB.FromLowerCenter(end, bodySize)))
                 return false;
 
-            route = NavigationRoute.CreateSingleSegment(goal, new GroundRouteSegment(start, end), true);
+            route = NavigationRoute.CreateSingleSegment(new GroundRouteSegment(start, end), true);
             return true;
         }
 
@@ -286,7 +286,7 @@ namespace Aethiumian.AI.Navigation
             float startGuidanceDistance = goal.GuidanceDistance(startBody);
             if (World.IsGoalComplete(goal, startBody))
             {
-                route = NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true);
+                route = NavigationRoute.Empty(resolvedStart, NavigationRouteCoordinateFrame.GroundAnchor, true);
                 return true;
             }
 
@@ -322,7 +322,7 @@ namespace Aethiumian.AI.Navigation
             }
 
             if (!best.HasValue) return false;
-            route = BuildSingleStepPlan(goal, best.Value);
+            route = BuildSingleStepPlan(best.Value);
             return true;
         }
 
@@ -599,8 +599,8 @@ namespace Aethiumian.AI.Navigation
                 || (IsEquivalent(completionDistance, startCompletionDistance) && IsStrictlyLess(guidanceDistance, startGuidanceDistance));
 
         /// <summary>Builds a plan containing exactly one validated local traversal step.</summary>
-        private NavigationRoute BuildSingleStepPlan(NavigationGoalRequest goal, Successor successor)
-            => NavigationRoute.CreateSingleSegment(goal, successor.Step, true);
+        private NavigationRoute BuildSingleStepPlan(Successor successor)
+            => NavigationRoute.CreateSingleSegment(successor.Step, true);
 
         /// <summary>Compares Simple Walk actions under the local completion and progress contract.</summary>
         private static bool IsBetterSingleStep(Successor candidate, Successor best)

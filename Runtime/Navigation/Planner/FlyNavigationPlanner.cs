@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using Unity.Profiling;
@@ -54,12 +54,12 @@ namespace Aethiumian.AI.Navigation
             if (!hasGoal)
                 return NavigationPlanResult.NoResult;
             if (start.Equals(resolvedGoal))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, NavigationRouteCoordinateFrame.BodyCenter, true));
 
             bool directClear = IsCenteredSegmentClear(World, start, resolvedGoal, bodySize, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (directClear)
-                return NavigationPlanResult.ResultProduced(NavigationRoute.CreateSingleSegment(goal, new FlyRouteSegment(start, resolvedGoal), true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.CreateSingleSegment(new FlyRouteSegment(start, resolvedGoal), true));
 
             if (!TryFindConnectorCell(World, start, bodySize, out Vector2Int startCell)
                 || !TryFindConnectorCell(World, resolvedGoal, bodySize, out Vector2Int goalCell))
@@ -78,7 +78,7 @@ namespace Aethiumian.AI.Navigation
             Vector2 start = body.Center;
             if (!IsFlyBodyClear(World, start, bodySize)) return NavigationPlanResult.NoResult;
             if (World.IsGoalComplete(goal, CenteredBody(start, bodySize)))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, NavigationRouteCoordinateFrame.BodyCenter, true));
             Vector2 direct = GetGoalCenter(goal, bodySize);
             if (goal.IsRetreat)
             {
@@ -86,7 +86,7 @@ namespace Aethiumian.AI.Navigation
                 direct = start + away.normalized * Mathf.Max(NavigationConstant.MinimumRetreatStep, goal.RetreatDistance + bodySize.magnitude);
             }
             if (World.IsGoalComplete(goal, CenteredBody(direct, bodySize)) && LocalStepAllowed(start, direct, goal, parameters, bodySize))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.CreateSingleSegment(goal, new FlyRouteSegment(start, direct), true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.CreateSingleSegment(new FlyRouteSegment(start, direct), true));
             Vector2? best = null;
             float bestDistance = goal.GuidanceDistance(body);
             Vector2Int cell = ToLattice(World, start);
@@ -104,7 +104,7 @@ namespace Aethiumian.AI.Navigation
             }
             if (!best.HasValue) return NavigationPlanResult.NoResult;
             Vector2 endpoint = best.Value;
-            NavigationRoute route = NavigationRoute.CreateSingleSegment(goal, new FlyRouteSegment(start, endpoint), World.IsGoalComplete(goal, CenteredBody(endpoint, bodySize)));
+            NavigationRoute route = NavigationRoute.CreateSingleSegment(new FlyRouteSegment(start, endpoint), World.IsGoalComplete(goal, CenteredBody(endpoint, bodySize)));
             return NavigationPlanResult.ResultProduced(route);
         }
 
@@ -224,7 +224,7 @@ namespace Aethiumian.AI.Navigation
         private NavigationPlanResult PlanRetreat(Vector2 start, NavigationGoalRequest goal, FlyNavigationParameters parameters, Vector2 bodySize, CancellationToken cancellationToken, NavigationPlanningDiagnostics diagnostics)
         {
             if (World.IsGoalComplete(goal, CenteredBody(start, bodySize)))
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, NavigationRouteCoordinateFrame.BodyCenter, true));
 
             if (!TryFindRetreatConnectorCell(World, start, goal.TargetBounds.Center, parameters, bodySize, out Vector2Int startCell))
                 return NavigationPlanResult.NoResult;
@@ -252,7 +252,7 @@ namespace Aethiumian.AI.Navigation
                 Vector2 currentPosition = LatticeCenter(World, currentLabel.Cell);
                 if (World.IsGoalComplete(goal, CenteredBody(currentPosition, bodySize)))
                 {
-                    return NavigationPlanResult.ResultProduced(BuildRetreatRoute(start, goal, World, labels, currentLabelId));
+                    return NavigationPlanResult.ResultProduced(BuildRetreatRoute(start, World, labels, currentLabelId));
                 }
 
                 expanded++;
@@ -286,7 +286,7 @@ namespace Aethiumian.AI.Navigation
             return NavigationPlanResult.BudgetReached();
         }
 
-        private static NavigationRoute BuildRetreatRoute(Vector2 start, NavigationGoalRequest goal, INavigationWorld snapshot, List<RetreatSearchLabel> labels, int labelId)
+        private static NavigationRoute BuildRetreatRoute(Vector2 start, INavigationWorld snapshot, List<RetreatSearchLabel> labels, int labelId)
         {
             List<int> chain = new();
             for (int current = labelId; current >= 0; current = labels[current].ParentId)
@@ -298,10 +298,10 @@ namespace Aethiumian.AI.Navigation
             List<Vector2Int> cells = new(chain.Count);
             for (int index = 0; index < chain.Count; index++)
                 cells.Add(labels[chain[index]].Cell);
-            return BuildFlyRoute(start, goal, snapshot, cells, null);
+            return BuildFlyRoute(start, snapshot, cells, null);
         }
 
-        private static NavigationRoute BuildFlyRoute(Vector2 start, NavigationGoalRequest goal, INavigationWorld snapshot, IReadOnlyList<Vector2Int> cells, Vector2? finalEndpoint)
+        private static NavigationRoute BuildFlyRoute(Vector2 start, INavigationWorld snapshot, IReadOnlyList<Vector2Int> cells, Vector2? finalEndpoint)
         {
             List<NavigationRouteSegment> segments = new();
             Vector2 previous = start;
@@ -320,7 +320,7 @@ namespace Aethiumian.AI.Navigation
                 previous = finalEndpoint.Value;
             }
 
-            return NavigationRoute.Complete(goal, segments);
+            return NavigationRoute.Complete(segments);
         }
 
         private static bool TryAddRetreatLabel(List<RetreatSearchLabel> labels, Dictionary<Vector2Int, List<int>> labelIdsByCell, RetreatSearchLabel candidate, out int candidateId)

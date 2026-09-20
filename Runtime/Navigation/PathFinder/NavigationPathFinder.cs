@@ -362,7 +362,7 @@ namespace Aethiumian.AI.Navigation
             // the chain begins at the origin it was asked to plan from.
             if (!reversed[0].Start.Equals(request.Start))
                 throw new InvalidOperationException("A navigation search route must begin at the request origin.");
-            return NavigationRoute.Complete(request.Goal, reversed);
+            return NavigationRoute.Complete(reversed);
         }
 
         private static void ValidateTransitionResult(NavigationTransition transition)

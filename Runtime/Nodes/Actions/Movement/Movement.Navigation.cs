@@ -51,23 +51,22 @@ namespace Aethiumian.AI.Nodes
 
                 if (active is GroundRouteSegment)
                 {
-                    executor?.Cancel(); route = default; routeIndex = 0;
+                    executor?.Cancel(); route = default; routeGoal = default; routeIndex = 0;
                     if (RigidBody) RigidBody.linearVelocity = new Vector2(0f, RigidBody.linearVelocity.y);
                 }
                 else if (active is FlyRouteSegment)
                 {
-                    executor?.Cancel(); route = default; routeIndex = 0;
+                    executor?.Cancel(); route = default; routeGoal = default; routeIndex = 0;
                     if (RigidBody) RigidBody.linearVelocity = Vector2.zero;
                 }
                 else if (active != null)
                 {
                     // A historical action keeps its goal; an irreversible predecessor must never
                     // be re-labelled with the newest target.
-                    NavigationGoalRequest historicalGoal = route.HasValue ? route.Goal : goal;
-                    route = NavigationRoute.Partial(historicalGoal, new[] { active });
+                    route = NavigationRoute.Partial(new[] { active });
                     routeIndex = 0;
                 }
-                else { route = default; routeIndex = 0; }
+                else { route = default; routeGoal = default; routeIndex = 0; }
                 return true;
             }
 
@@ -208,7 +207,7 @@ namespace Aethiumian.AI.Nodes
                 return true;
             }
 
-            ActionPreparation preparation = TryAdoptRoute(candidate, CandidateSource.PrimaryRequest, goal, body);
+            ActionPreparation preparation = TryAdoptRoute(candidate, primary.Goal, CandidateSource.PrimaryRequest, goal, body);
             if (preparation == ActionPreparation.Unavailable) RejectPrimaryCandidate(goal);
             // Ready and Waiting both consume this selection boundary. Waiting retains the
             // completed Smart candidate instead of letting a lower-priority local candidate win.
@@ -219,10 +218,10 @@ namespace Aethiumian.AI.Nodes
         {
             if (ActiveSegment != null || !route.HasValue || routeIndex >= route.Count) return false;
             NavigationRoute remaining = route.Slice(routeIndex);
-            ActionPreparation preparation = TryAdoptRoute(remaining, CandidateSource.ExistingRoute, goal, body);
+            ActionPreparation preparation = TryAdoptRoute(remaining, routeGoal, CandidateSource.ExistingRoute, goal, body);
             if (preparation != ActionPreparation.Unavailable) return true;
 
-            route = default;
+            route = default; routeGoal = default;
             routeIndex = 0;
             CancelPrimaryRequest();
             if (fallbackRequest == null && !AllowRetry()) EndMovement(false, goal);
@@ -245,7 +244,7 @@ namespace Aethiumian.AI.Nodes
                 return true;
             }
 
-            ActionPreparation preparation = TryAdoptRoute(candidate, CandidateSource.LocalFallback, goal, body);
+            ActionPreparation preparation = TryAdoptRoute(candidate, local.Goal, CandidateSource.LocalFallback, goal, body);
             if (preparation == ActionPreparation.Unavailable) CancelFallbackRequest();
             // Waiting retains this local candidate. A later Smart receipt still wins at the
             // next selection boundary because primary processing happens first.
@@ -253,17 +252,17 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>Reconnects, validates, prepares, and only then commits a route candidate.</summary>
-        private ActionPreparation TryAdoptRoute(NavigationRoute candidate, CandidateSource source, NavigationGoalRequest goal, AABB body)
+        private ActionPreparation TryAdoptRoute(NavigationRoute candidate, NavigationGoalRequest candidateGoal, CandidateSource source, NavigationGoalRequest goal, AABB body)
         {
             if (!CanReplaceActiveAction)
                 return source == CandidateSource.PrimaryRequest
-                    && CanWaitForPrimaryContinuation(candidate, goal)
+                    && CanWaitForPrimaryContinuation(candidate, candidateGoal, goal)
                     ? ActionPreparation.Waiting
                     : ActionPreparation.Unavailable;
             if (!TryConnectRoute(candidate, body, out NavigationRoute connected))
             {
                 return source == CandidateSource.PrimaryRequest
-                    && CanWaitForPrimaryContinuation(candidate, goal)
+                    && CanWaitForPrimaryContinuation(candidate, candidateGoal, goal)
                     ? ActionPreparation.Waiting
                     : ActionPreparation.Unavailable;
             }
@@ -276,8 +275,8 @@ namespace Aethiumian.AI.Nodes
                 return ActionPreparation.Unavailable;
             }
 
-            bool servesCurrentIntent = connected.Goal.HasCompatibleSemantics(goal)
-                && (connected.Goal.IsReusableFor(goal) || RouteCoversGoal(connected, 0, body, goal));
+            bool servesCurrentIntent = candidateGoal.HasCompatibleSemantics(goal)
+                && (candidateGoal.IsReusableFor(goal) || RouteCoversGoal(connected, 0, body, goal));
 
             ActionPreparation preparation = PrepareExecutor(connected[0], body, executor, out MovementExecutor prepared);
             if (preparation != ActionPreparation.Ready) return preparation;
@@ -287,6 +286,7 @@ namespace Aethiumian.AI.Nodes
             if (!ReferenceEquals(executor, prepared)) executor?.Dispose();
             executor = prepared;
             route = connected;
+            routeGoal = candidateGoal;
             routeIndex = 0;
             OnRouteAdopted(source, servesCurrentIntent);
             return ActionPreparation.Ready;
@@ -297,7 +297,7 @@ namespace Aethiumian.AI.Nodes
         /// physically irreversible. Waiting is intentionally limited to that request boundary;
         /// local candidates and unrelated predecessors must be rejected instead.
         /// </summary>
-        private bool CanWaitForPrimaryContinuation(NavigationRoute candidate, NavigationGoalRequest goal)
+        private bool CanWaitForPrimaryContinuation(NavigationRoute candidate, NavigationGoalRequest candidateGoal, NavigationGoalRequest goal)
         {
             NavigationRouteSegment active = ActiveSegment;
             return request != null
@@ -305,7 +305,7 @@ namespace Aethiumian.AI.Nodes
                 && ReferenceEquals(request.CommittedSegment, active)
                 && request.Goal.HasCompatibleSemantics(goal)
                 && candidate.HasValue
-                && candidate.Goal.HasCompatibleSemantics(goal)
+                && candidateGoal.HasCompatibleSemantics(goal)
                 && RouteAllowed(request.Goal, candidate);
         }
 
@@ -359,7 +359,7 @@ namespace Aethiumian.AI.Nodes
             // target.  Do not stack another Simple request while that action is executing;
             // once it completes, the active-segment check above becomes false and the next
             // independent cooldown can request another action.
-            if (route.HasValue && route.Goal.IsSamePlanningTarget(goal)) return false;
+            if (route.HasValue && routeGoal.IsSamePlanningTarget(goal)) return false;
             return !RouteCoversGoal(route, routeIndex, body, goal);
         }
 
@@ -388,7 +388,7 @@ namespace Aethiumian.AI.Nodes
         {
             if (request != null) return false;
             NavigationRouteSegment action = ActiveSegment;
-            bool changed = route.HasValue && !route.Goal.IsSamePlanningTarget(goal);
+            bool changed = route.HasValue && !routeGoal.IsSamePlanningTarget(goal);
             if (action == null && route.HasValue && routeIndex < route.Count) return false;
             if (action != null && !changed && routeIndex + 1 < route.Count) return false;
 

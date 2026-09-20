@@ -219,9 +219,8 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         public void RejectsExcessiveHeightAndLeavesHorizontalCapToPlanner()
         {
             Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 3), 2, 5), out JumpTrajectorySolution solution), Is.False);
-            Assert.That(solution, Is.Null);
+            Assert.That(solution, Is.EqualTo(default(JumpTrajectorySolution)));
             Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(100, 0), 2, 1), out solution), Is.True);
-            Assert.That(solution, Is.Not.Null);
         }
 
         [Test]
@@ -269,9 +268,9 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             JumpTrajectoryInput noGravity = new(Vector2.zero, Vector2.right, Vector2.zero, 1f, 0f, 2f, 0.02f);
 
             Assert.That(JumpTrajectory.TrySolve(noHeight, out JumpTrajectorySolution solution), Is.False);
-            Assert.That(solution, Is.Null);
+            Assert.That(solution, Is.EqualTo(default(JumpTrajectorySolution)));
             Assert.That(JumpTrajectory.TrySolve(noGravity, out solution), Is.False);
-            Assert.That(solution, Is.Null);
+            Assert.That(solution, Is.EqualTo(default(JumpTrajectorySolution)));
         }
 
         [Test]
@@ -282,12 +281,30 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Vector2 start = new(1f, 1f);
             Vector2 landing = new(3f, 1f);
             cache.Publish(start, landing, parameters, null);
-            Assert.That(cache.TryGet(start, landing, parameters, out JumpTrajectorySolution rejected), Is.True);
+            Assert.That(cache.TryGet(start, landing, parameters, out JumpTrajectorySolution? rejected), Is.True);
             Assert.That(rejected, Is.Null);
             cache.Publish(start, new Vector2(4f, 1f), parameters, null);
             Assert.That(cache.TryGet(start, landing, parameters, out _), Is.True);
             cache.Publish(start, new Vector2(5f, 1f), parameters, null);
             Assert.That(cache.TryGet(start, new Vector2(4f, 1f), parameters, out _), Is.False);
+        }
+
+        [Test]
+        public void CacheKeepsFirstPublishedSuccessfulValueAfterEviction()
+        {
+            JumpTrajectoryCache cache = new(1);
+            GroundJumpParameters parameters = new(new Vector2(0.8f, 1.5f), new Vector2(0f, -9.81f), 1f, 0f, 2f, 4f, 0.02f);
+            Vector2 start = new(1f, 1f);
+            Vector2 landing = new(3f, 1f);
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(start, landing, 2f, 0f), out JumpTrajectorySolution solved), Is.True);
+            cache.Publish(start, landing, parameters, solved);
+            JumpTrajectorySolution? retained = cache.Publish(start, landing, parameters, null);
+            Assert.That(retained.HasValue, Is.True);
+            Assert.That(cache.TryGet(start, landing, parameters, out JumpTrajectorySolution? hit), Is.True);
+            Assert.That(hit, Is.EqualTo(retained));
+            cache.Publish(start, Vector2.zero, parameters, null);
+            Assert.That(cache.TryGet(start, landing, parameters, out _), Is.False);
+            AssertVector(retained.Value.GetPosition(solved.FlightDuration), solved.LandingPosition);
         }
 
         private static JumpTrajectoryInput CreateInput(Vector2 start, Vector2 landing, float height, float unusedSpeed)

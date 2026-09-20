@@ -220,9 +220,8 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(operation.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced));
             Assert.That(operation.Result.HasValue, Is.True);
-            Assert.That(operation.Result.Goal, Is.EqualTo(captured));
-            Assert.That(operation.Result.Goal.IsGroundWalk, Is.True);
-            Assert.That(operation.Result.Goal.TargetBounds.LowerCenter.y, Is.EqualTo(0.5f));
+            Assert.That(world.IsGoalComplete(captured, operation.Result.ResolveEndpointBody(
+                AABB.FromLowerCenter(new Vector2(2.25f, 0.5f), bodySize))), Is.True);
         }
 
         /// <summary>Verifies unresolved Smart Walk support is queried by the planner once per request.</summary>
@@ -441,7 +440,7 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(relaxed);
             Assert.That(relaxed.Result.HasValue, Is.True,
                 "A larger approach budget must not hit the failed-request cache entry for the smaller budget.");
-            Assert.That(relaxed.Result.Goal.IsRetreat, Is.True);
+            Assert.That(world.IsGoalComplete(goal, relaxed.Result.ResolveEndpointBody(AABB.FromCenterAndSize(start, new Vector2(0.8f, 0.8f)))), Is.True);
         }
 
         /// <summary>Verifies Fly planning honors the goal's line-of-sight requirement.</summary>

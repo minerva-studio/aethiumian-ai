@@ -69,6 +69,7 @@ namespace Aethiumian.AI.Nodes
         [Readable] public VariableField<float> maxApproachDistance = 1f;
 
         [NonSerialized] private NavigationRoute route;
+        [NonSerialized] private NavigationGoalRequest routeGoal;
         [NonSerialized] private int routeIndex;
         [NonSerialized] private MovementExecutor executor;
         [NonSerialized] private NavigationPlanningRequest request;
@@ -114,6 +115,7 @@ namespace Aethiumian.AI.Nodes
         protected sealed override void InitializeAction()
         {
             route = default;
+            routeGoal = default;
             routeIndex = 0;
             request = null;
             fallbackRequest = null;
@@ -200,6 +202,7 @@ namespace Aethiumian.AI.Nodes
                 {
                     CancelPlanningRequests();
                     route = default;
+                    routeGoal = default;
                     routeIndex = 0;
                     if (!TryRecover(result.FailureReason, goal, body) || !AllowRetry())
                     {
@@ -363,6 +366,7 @@ namespace Aethiumian.AI.Nodes
                 {
                     executor = null;
                     route = default;
+                    routeGoal = default;
                     routeIndex = 0;
                     fallbackBackoffLevel = 0;
                     previousBody = null;

@@ -62,9 +62,7 @@ namespace Aethiumian.AI.Navigation.Tests
             using CancellationTokenSource cancellation = new();
             NavigationPlanningOperation operation = new();
             operation.RegisterCancellation(cancellation.Token);
-            NavigationRoute route = NavigationRoute.Complete(
-                PointGoal(Vector2.right),
-                new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
+            NavigationRoute route = NavigationRoute.Complete(new[] { new GroundRouteSegment(Vector2.zero, Vector2.right) });
 
             Assert.That(operation.TryPrepareCompletion(NavigationPlanResult.ResultProduced(route),
                 out bool wasCancelled), Is.True);
@@ -359,8 +357,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 if (failure != null) throw failure;
                 callback?.Invoke();
                 tokenCallback?.Invoke(cancellationToken);
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(PointGoal(goal),
-                    new[] { new GroundRouteSegment(start, goal) }));
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(new[] { new GroundRouteSegment(start, goal) }));
             }
 
             public void Dispose() => Interlocked.Increment(ref disposeCount);

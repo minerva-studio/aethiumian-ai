@@ -72,14 +72,11 @@ namespace Aethiumian.AI.Navigation.Editor
             float width = committed ? 4f : 2f;
             if (segment is JumpRouteSegment jump)
             {
-                JumpTrajectorySolution trajectory = executor != null
+                if (executor != null
                     && executor.CurrentAction == GroundTraversalExecutor.ActionKind.Jump
-                    && executor.CurrentJumpTrajectory != null
                     && executor.CurrentJumpTrajectory.StartPosition == jump.Start
-                    && executor.CurrentJumpTrajectory.LandingPosition == jump.End
-                        ? executor.CurrentJumpTrajectory
-                        : null;
-                if (trajectory != null) DrawTrajectory(trajectory, width);
+                    && executor.CurrentJumpTrajectory.LandingPosition == jump.End)
+                    DrawTrajectory(executor.CurrentJumpTrajectory, width);
                 else DrawPolyline(width, jump.Start,
                     jump.Start + Vector2.up * jump.MinimumApexHeight, jump.End);
                 DrawCrossings(jump.SurfaceCrossings, world);
@@ -99,8 +96,7 @@ namespace Aethiumian.AI.Navigation.Editor
         {
             if (executor == null || executor.CurrentAction == GroundTraversalExecutor.ActionKind.None) return;
             Handles.color = GetActionColor(executor.CurrentAction);
-            if (executor.CurrentAction == GroundTraversalExecutor.ActionKind.Jump
-                && executor.CurrentJumpTrajectory != null)
+            if (executor.CurrentAction == GroundTraversalExecutor.ActionKind.Jump)
                 DrawTrajectory(executor.CurrentJumpTrajectory, 3f);
             else if (executor.CurrentAction == GroundTraversalExecutor.ActionKind.Fall)
                 DrawPolyline(3f, executor.CurrentActionStart, executor.CurrentLedgeExit, executor.CurrentActionEnd);

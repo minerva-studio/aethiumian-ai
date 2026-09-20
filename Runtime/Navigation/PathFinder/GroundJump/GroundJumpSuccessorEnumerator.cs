@@ -12,6 +12,9 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the stable snapshot candidate ID of the landing support.</summary>
         public int LandingCandidateId { get; }
 
+        /// <summary>Gets the exact search-node position that owns this transition.</summary>
+        public Vector2 SourcePosition { get; }
+
         /// <summary>Gets the physical support represented by the landing candidate.</summary>
         public NavigationSupport LandingSupport { get; }
 
@@ -25,11 +28,8 @@ namespace Aethiumian.AI.Navigation
             if (landingCandidateId < 0) throw new ArgumentOutOfRangeException(nameof(landingCandidateId));
             LandingCandidateId = landingCandidateId;
             LandingSupport = landingSupport;
-            Trajectory = trajectory ?? throw new ArgumentNullException(nameof(trajectory));
+            Trajectory = trajectory;
         }
-
-        /// <summary>Gets the exact search-node position that owns this transition.</summary>
-        public Vector2 SourcePosition { get; }
 
         /// <summary>
         /// Creates the search-only jump segment represented by this successor.

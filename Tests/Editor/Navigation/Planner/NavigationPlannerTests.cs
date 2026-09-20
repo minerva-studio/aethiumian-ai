@@ -599,9 +599,7 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(
                 AABB.FromCenterAndSize(new Vector2(1.5f, 2.5f), bodySize), confrontRequest,
                 new FlyNavigationParameters(), out NavigationRoute route), Is.True);
-            Assert.That(route.Goal.IsGroundWalk, Is.True);
-            Assert.That(route.Goal.RequiresLineOfSight, Is.True);
-            Assert.That(world.IsGoalComplete(route.Goal, AABB.FromCenterAndSize(route.Endpoint, bodySize)), Is.True);
+            Assert.That(world.IsGoalComplete(confrontRequest, AABB.FromCenterAndSize(route.Endpoint, bodySize)), Is.True);
             Assert.That(route.Endpoint.y, Is.EqualTo(2.8f).Within(0.0001f));
         }
 
@@ -911,7 +909,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 out NavigationRoute route), Is.True);
 
             JumpRouteSegment segment = (JumpRouteSegment)route[0];
-            Assert.That(world.IsGoalComplete(route.Goal,
+            Assert.That(world.IsGoalComplete(Goal(new Vector2(1.5f, 4f), 0.1f),
                 AABB.FromCenterAndSize(segment.End + Vector2.up * 0.75f, new Vector2(0.8f, 1.5f))), Is.True);
             Assert.That(segment.SurfaceCrossings, Is.Not.Null);
             Assert.That(segment.MinimumApexHeight, Is.LessThanOrEqualTo(5.5f + 0.0001f));
@@ -1070,7 +1068,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 Assert.That(parameters, Is.EqualTo(17));
                 CoreCount++;
                 PrepareRouteCount++;
-                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(body.LowerCenter, goal,
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(body.LowerCenter,
                     NavigationRouteCoordinateFrame.GroundAnchor, true));
             }
         }

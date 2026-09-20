@@ -36,21 +36,23 @@ namespace Aethiumian.AI.Navigation
         public bool TrySolve(Vector2 start, Vector2 landing, GroundJumpParameters parameters, out JumpTrajectorySolution trajectory, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (trajectoryCache.TryGet(start, landing, parameters, out trajectory)) return trajectory != null;
-
-            TrySolveUncached(start, landing, parameters, cancellationToken, out trajectory);
-            trajectory = trajectoryCache.Publish(start, landing, parameters, trajectory);
-            return trajectory != null;
+            if (!trajectoryCache.TryGet(start, landing, parameters, out JumpTrajectorySolution? cached))
+            {
+                bool solved = TrySolveUncached(start, landing, parameters, cancellationToken, out trajectory);
+                cached = trajectoryCache.Publish(start, landing, parameters, solved ? trajectory : null);
+            }
+            trajectory = cached.GetValueOrDefault();
+            return cached.HasValue;
         }
 
-        private void TrySolveUncached(Vector2 start, Vector2 landing, GroundJumpParameters parameters, CancellationToken cancellationToken, out JumpTrajectorySolution trajectory)
+        private bool TrySolveUncached(Vector2 start, Vector2 landing, GroundJumpParameters parameters, CancellationToken cancellationToken, out JumpTrajectorySolution trajectory)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            trajectory = null;
+            trajectory = default;
             if (!World.TryResolveSupport(AABB.FromLowerCenter(start, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out NavigationSupport startSupport)
                 || !World.TryResolveSupport(AABB.FromLowerCenter(landing, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out NavigationSupport endSupport)
                 || Mathf.Abs(endSupport.Position.x - startSupport.Position.x) > parameters.JumpLength + Tolerance)
-                return;
+                return false;
 
             Vector2 snappedStart = startSupport.Position;
             Vector2 snappedEnd = endSupport.Position;
@@ -61,22 +63,22 @@ namespace Aethiumian.AI.Navigation
                 minimumApex = Mathf.Max(minimumApex, snappedEnd.y + NavigationConstant.LandingApexClearance - snappedStart.y);
             }
             if (!JumpTrajectory.IsApexHeightAllowed(parameters.JumpHeight, minimumApex) || minimumApex > maximumApex + Tolerance)
-                return;
+                return false;
 
             JumpTrajectoryInput input = new(snappedStart, snappedEnd, parameters.Gravity, parameters.GravityScale, parameters.LinearDamping, parameters.JumpHeight, parameters.SimulationTimeStep);
             for (int attempt = 0; attempt < 64 && minimumApex <= maximumApex + Tolerance; attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!JumpTrajectory.TrySolve(input, MaximumPlannerFlightTicks, minimumApex, out trajectory))
-                    return;
+                if (!JumpTrajectory.TrySolve(input, MaximumPlannerFlightTicks, minimumApex, out JumpTrajectorySolution candidate))
+                    return false;
 
                 bool clear = true;
-                Vector2 previous = trajectory.StartPosition;
-                int samples = Mathf.Clamp(Mathf.CeilToInt(trajectory.FlightDuration / 0.02f), 8, 256);
+                Vector2 previous = candidate.StartPosition;
+                int samples = Mathf.Clamp(Mathf.CeilToInt(candidate.FlightDuration / 0.02f), 8, 256);
                 for (int index = 1; index <= samples; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    Vector2 next = trajectory.GetPosition(trajectory.FlightDuration * index / samples);
+                    Vector2 next = candidate.GetPosition(candidate.FlightDuration * index / samples);
                     AABB body = AABB.FromLowerCenter(previous, parameters.BodySize);
                     if (!World.IsBodyPathClear(body, next - previous, GroundTraversalEndpointPolicy.VerticalSupportTolerance))
                     {
@@ -86,13 +88,16 @@ namespace Aethiumian.AI.Navigation
                     previous = next;
                 }
 
-                if (clear && trajectory.ApexPosition.y - trajectory.StartPosition.y + Tolerance >= minimumApex)
-                    return;
-                minimumApex = Mathf.Max(minimumApex, trajectory.ApexPosition.y - trajectory.StartPosition.y + Tolerance);
+                if (clear && candidate.ApexPosition.y - candidate.StartPosition.y + Tolerance >= minimumApex)
+                {
+                    trajectory = candidate;
+                    return true;
+                }
+                minimumApex = Mathf.Max(minimumApex, candidate.ApexPosition.y - candidate.StartPosition.y + Tolerance);
             }
 
-            trajectory = null;
-            return;
+            trajectory = default;
+            return false;
         }
 
 

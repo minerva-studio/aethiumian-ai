@@ -72,7 +72,7 @@ namespace Aethiumian.AI.Navigation
         /// </summary>
         public Vector2 CurrentLedgeExit => ledgeExit;
         /// <summary>
-        /// Gets the current jump solution, if the action is a jump.
+        /// Gets the current jump solution. Read only when CurrentAction is Jump.
         /// </summary>
         public JumpTrajectorySolution CurrentJumpTrajectory => jumpTrajectory;
         /// <summary>
@@ -133,13 +133,12 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Begins one ballistic jump action from its freshly solved trajectory.</summary>
-        public void BeginJump(JumpTrajectorySolution trajectory) => BeginJump(trajectory, null);
+        public void BeginJump(in JumpTrajectorySolution trajectory) => BeginJump(trajectory, null);
 
         /// <summary>Begins a ballistic jump with a planner-resolved, not-yet-enabled collision lease.</summary>
-        public void BeginJump(JumpTrajectorySolution trajectory, OneWayPlatformCollisionLease lease)
+        public void BeginJump(in JumpTrajectorySolution trajectory, OneWayPlatformCollisionLease lease)
         {
             ThrowIfDisposed();
-            if (trajectory == null) throw new ArgumentNullException(nameof(trajectory));
             BeginAction(ActionKind.Jump, trajectory.StartPosition, trajectory.LandingPosition);
             jumpTrajectory = trajectory;
             previousJumpAnchor = GetGroundAnchor();
@@ -492,7 +491,7 @@ namespace Aethiumian.AI.Navigation
             actionStart = default;
             actionEnd = default;
             ledgeExit = default;
-            jumpTrajectory = null;
+            jumpTrajectory = default;
             elapsedSeconds = 0f;
             jumpLaunched = false;
             fallReleased = false;
