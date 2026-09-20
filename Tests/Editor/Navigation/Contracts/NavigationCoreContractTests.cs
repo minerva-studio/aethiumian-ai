@@ -443,7 +443,7 @@ namespace Aethiumian.AI.Navigation.Tests
             NavigationTransition fly = NavigationTransition.FlyMove(new Vector2Int(3, 4), Vector2.right,
                 segment, 5f, true);
 
-            Assert.That(completedJump.Destination, Is.EqualTo(NavigationNodeIdentity.Jump(-1)));
+            Assert.That(completedJump.Destination, Is.EqualTo(NavigationNodeIdentity.Ground(-1)));
             Assert.That(completedJump.CompletesGoal, Is.True);
             Assert.That(landing.Destination, Is.EqualTo(NavigationNodeIdentity.Ground(7)));
             Assert.That(landing.Cost, Is.EqualTo(3f));
