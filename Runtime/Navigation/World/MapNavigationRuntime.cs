@@ -235,7 +235,7 @@ namespace Aethiumian.AI.Navigation
                 }
 
                 INavigationPlanningWork work = request.CreateWork(this);
-                scheduler.PlanWork(work, request.Cancellation.Token, request.Operation);
+                scheduler.PlanWork(work, request.Cancellation.Token, request.Operation, request.Extent);
             }
             catch (Exception exception)
             {
@@ -281,6 +281,7 @@ namespace Aethiumian.AI.Navigation
 
             public abstract AABB Body { get; }
             public abstract NavigationGoalRequest Goal { get; }
+            public abstract NavigationPlanningExtent Extent { get; }
 
             /// <summary>Creates detached planner work from this request's immutable value data.</summary>
             public abstract INavigationPlanningWork CreateWork(MapNavigationRuntime runtime);
@@ -310,6 +311,7 @@ namespace Aethiumian.AI.Navigation
 
             public sealed override AABB Body => requestData.Body;
             public sealed override NavigationGoalRequest Goal => requestData.Goal;
+            public sealed override NavigationPlanningExtent Extent => requestData.Extent;
 
             public sealed override INavigationPlanningWork CreateWork(MapNavigationRuntime runtime)
             {

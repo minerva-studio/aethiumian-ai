@@ -17,12 +17,16 @@ namespace Aethiumian.AI.Navigation
         private static readonly ProfilerMarker PathFindingMarker = new("Aethiumian.AI/PathFinding");
 #endif
         private readonly int capacity;
-        private readonly ConcurrentQueue<ScheduledWork> queue = new();
-        private readonly SemaphoreSlim signal = new(0);
+        private readonly object sync = new();
+        private readonly Queue<ScheduledWork> simpleQueue = new();
+        private readonly Queue<ScheduledWork> smartQueue = new();
+        private readonly SemaphoreSlim simpleSignal = new(0, 1);
+        private readonly SemaphoreSlim generalSignal = new(0, 1);
+        private readonly int smartCapacity;
+        private int consecutiveSimple;
         private readonly CancellationTokenSource shutdown = new();
         private readonly ConcurrentDictionary<NavigationPlanningOperation, ScheduledWork> active = new();
         private readonly Task[] consumers;
-        private int queuedCount;
         private int started;
         private int disposed;
 
@@ -36,20 +40,32 @@ namespace Aethiumian.AI.Navigation
         {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             this.capacity = capacity;
-            int count = Math.Max(1, Math.Min(4, Environment.ProcessorCount - 2));
+            // A single waiting slot cannot reserve capacity for both classes.
+            int reserved = capacity == 1 ? 0 : Math.Min(capacity - 1, (capacity - 1) / 4 + 1);
+            smartCapacity = capacity - reserved;
+            int count = Math.Max(2, Environment.ProcessorCount / 2);
             consumers = new Task[count];
         }
 
         /// <summary>Starts the fixed consumers after the immutable world snapshot has been published.</summary>
         public void Start()
         {
-            ThrowIfDisposed();
-            if (Interlocked.Exchange(ref started, 1) != 0) return;
-            for (int i = 0; i < consumers.Length; i++) consumers[i] = Task.Run(ConsumeLoopAsync);
+            lock (sync)
+            {
+                ThrowIfDisposed();
+                if (started != 0) return;
+                started = 1;
+                consumers[0] = Task.Run(() => ConsumeLoopAsync(true));
+                for (int i = 1; i < consumers.Length; i++)
+                    consumers[i] = Task.Run(() => ConsumeLoopAsync(false));
+            }
         }
 
-        /// <summary>Queues already-created pure planning work without retaining its Unity owner.</summary>
-        public NavigationPlanningOperation PlanWork(INavigationPlanningWork work, CancellationToken cancellationToken = default, NavigationPlanningOperation operation = null)
+        /// <summary>
+        /// Queues detached work. NextAction uses the Simple lane; Route uses the Smart lane.
+        /// Capacity counts waiting requests only. At capacity one, no queue slot is reserved.
+        /// </summary>
+        public NavigationPlanningOperation PlanWork(INavigationPlanningWork work, CancellationToken cancellationToken = default, NavigationPlanningOperation operation = null, NavigationPlanningExtent extent = NavigationPlanningExtent.Route)
         {
             if (work == null) throw new ArgumentNullException(nameof(work));
             ThrowIfDisposed();
@@ -58,80 +74,160 @@ namespace Aethiumian.AI.Navigation
                 work.Dispose();
                 return NavigationPlanningOperation.CreateCancelled();
             }
-            int count = Interlocked.Increment(ref queuedCount);
-            if (count > capacity)
-            {
-                Interlocked.Decrement(ref queuedCount);
-                work.Dispose();
-                throw new InvalidOperationException("The navigation planning queue is full.");
-            }
+            bool simple = extent == NavigationPlanningExtent.NextAction;
+            List<ScheduledWork> cancelled = null;
             NavigationPlanningOperation result = operation ?? new NavigationPlanningOperation();
             if (operation == null) result.RegisterCancellation(cancellationToken);
-            queue.Enqueue(new ScheduledWork(work, result, cancellationToken, shutdown.Token));
-            signal.Release();
-            return result;
+            bool accepted = false;
+            try
+            {
+                lock (sync)
+                {
+                    ThrowIfDisposed();
+                    if (!HasCapacity(simple))
+                    {
+                        RemoveCancelled(simpleQueue, ref cancelled);
+                        RemoveCancelled(smartQueue, ref cancelled);
+                        if (smartQueue.Count == 0) consecutiveSimple = 0;
+                    }
+                    if (!HasCapacity(simple))
+                        throw new InvalidOperationException("The navigation planning queue is full.");
+                    ScheduledWork scheduled = new(work, result, cancellationToken, shutdown.Token);
+                    (simple ? simpleQueue : smartQueue).Enqueue(scheduled);
+                    accepted = true;
+                    NotifyConsumers();
+                }
+                return result;
+            }
+            finally
+            {
+                if (cancelled != null)
+                    foreach (ScheduledWork item in cancelled) RetirePending(item, null);
+                if (!accepted)
+                {
+                    work.Dispose();
+                    if (operation == null) result.ReleaseCancellationRegistration();
+                }
+            }
+        }
+
+        private bool HasCapacity(bool simple)
+            => simpleQueue.Count + smartQueue.Count < capacity && (simple || smartQueue.Count < smartCapacity);
+
+        private static void RemoveCancelled(Queue<ScheduledWork> queue, ref List<ScheduledWork> removed)
+        {
+            int count = queue.Count;
+            for (int i = 0; i < count; i++)
+            {
+                ScheduledWork item = queue.Dequeue();
+                if (item.IsCancellationRequested) (removed ??= new()).Add(item);
+                else queue.Enqueue(item);
+            }
+        }
+
+        // Notifications are coalesced. Taking work chains another wakeup when work remains.
+        // All producers hold sync; consumers may consume a signal before acquiring sync.
+        private void NotifyConsumers()
+        {
+            if (simpleQueue.Count > 0 && simpleSignal.CurrentCount == 0) simpleSignal.Release();
+            if (simpleQueue.Count + smartQueue.Count > 0 && generalSignal.CurrentCount == 0) generalSignal.Release();
+        }
+
+        private List<ScheduledWork> DrainQueues()
+        {
+            List<ScheduledWork> pending = new(simpleQueue.Count + smartQueue.Count);
+            while (simpleQueue.Count > 0) pending.Add(simpleQueue.Dequeue());
+            while (smartQueue.Count > 0) pending.Add(smartQueue.Dequeue());
+            consecutiveSimple = 0;
+            return pending;
+        }
+
+        private static bool RetirePending(ScheduledWork item, Exception failure)
+        {
+            item.DisposePendingWork();
+            bool finalized = failure == null
+                ? item.Operation.TryFinalizeCancellation()
+                : item.Operation.TryFail(failure);
+            item.Operation.ReleaseCancellationRegistration();
+            return finalized;
         }
 
         /// <summary>Finalizes queued and active requests at a Map-owned failure boundary.</summary>
         public int FailPending(Exception failure)
         {
             if (failure == null) throw new ArgumentNullException(nameof(failure));
-            int finalized = 0;
-            while (queue.TryDequeue(out ScheduledWork queued))
+            List<ScheduledWork> pending;
+            ScheduledWork[] running;
+            lock (sync)
             {
-                Interlocked.Decrement(ref queuedCount);
-                queued.DisposePendingWork();
-                if (queued.Operation.TryFail(failure)) finalized++;
-                queued.Operation.ReleaseCancellationRegistration();
+                pending = DrainQueues();
+                running = new List<ScheduledWork>(active.Values).ToArray();
             }
-            foreach (KeyValuePair<NavigationPlanningOperation, ScheduledWork> pair in active)
+            int finalized = 0;
+            foreach (ScheduledWork item in pending)
+                if (RetirePending(item, failure)) finalized++;
+            foreach (ScheduledWork item in running)
             {
-                pair.Value.Cancel();
-                if (pair.Key.TryFail(failure)) finalized++;
-                pair.Key.ReleaseCancellationRegistration();
+                item.Cancel();
+                if (item.Operation.TryFail(failure)) finalized++;
+                item.Operation.ReleaseCancellationRegistration();
             }
             return finalized;
         }
 
-        /// <summary>Cancels work and schedules managed resource cleanup after every consumer exits.</summary>
+        /// <summary>Cancels work without blocking the caller on running planners.</summary>
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
-            shutdown.Cancel();
-            while (queue.TryDequeue(out ScheduledWork queued))
+            List<ScheduledWork> pending;
+            Task[] startedConsumers;
+            lock (sync)
             {
-                Interlocked.Decrement(ref queuedCount);
-                queued.DisposePendingWork();
-                queued.Operation.TryFinalizeCancellation();
-                queued.Operation.ReleaseCancellationRegistration();
+                if (disposed != 0) return;
+                Volatile.Write(ref disposed, 1);
+                pending = DrainQueues();
+                startedConsumers = Array.FindAll(consumers, static task => task != null);
             }
-            foreach (ScheduledWork running in active.Values) running.Cancel();
-            for (int i = 0; i < consumers.Length; i++) signal.Release();
-
-            Task[] startedConsumers = Array.FindAll(consumers, static task => task != null);
-            SemaphoreSlim ownedSignal = signal;
-            CancellationTokenSource ownedShutdown = shutdown;
-            _ = Task.WhenAll(startedConsumers).ContinueWith(static (_, state) =>
+            shutdown.Cancel();
+            foreach (ScheduledWork item in pending) RetirePending(item, null);
+            _ = Task.WhenAll(startedConsumers).ContinueWith(_ =>
             {
-                (SemaphoreSlim signal, CancellationTokenSource shutdown) resources =
-                    ((SemaphoreSlim, CancellationTokenSource))state;
-                resources.signal.Dispose();
-                resources.shutdown.Dispose();
-            }, (ownedSignal, ownedShutdown), CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                simpleSignal.Dispose();
+                generalSignal.Dispose();
+                shutdown.Dispose();
+            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
 
-        private async Task ConsumeLoopAsync()
+        private async Task ConsumeLoopAsync(bool simpleOnly)
         {
+            SemaphoreSlim signal = simpleOnly ? simpleSignal : generalSignal;
             try
             {
                 while (true)
                 {
                     await signal.WaitAsync(shutdown.Token).ConfigureAwait(false);
-                    if (shutdown.IsCancellationRequested) return;
-                    if (!queue.TryDequeue(out ScheduledWork scheduled)) continue;
-                    Interlocked.Decrement(ref queuedCount);
-                    Execute(scheduled);
+                    ScheduledWork scheduled;
+                    bool ownsOperation;
+                    lock (sync)
+                    {
+                        if (disposed != 0) return;
+                        if (smartQueue.Count == 0) consecutiveSimple = 0;
+                        if (simpleQueue.Count > 0 && (simpleOnly || smartQueue.Count == 0 || consecutiveSimple < 3))
+                        {
+                            scheduled = simpleQueue.Dequeue();
+                            if (!simpleOnly && smartQueue.Count > 0) consecutiveSimple++;
+                        }
+                        else if (!simpleOnly && smartQueue.Count > 0)
+                        {
+                            scheduled = smartQueue.Dequeue();
+                            consecutiveSimple = 0;
+                        }
+                        else continue;
+                        // Register before releasing queue ownership so failure/close cannot miss this request.
+                        ownsOperation = active.TryAdd(scheduled.Operation, scheduled);
+                        NotifyConsumers();
+                    }
+                    if (ownsOperation) Execute(scheduled);
+                    else scheduled.DisposePendingWork();
                 }
             }
             catch (OperationCanceledException) when (shutdown.IsCancellationRequested) { }
@@ -139,11 +235,6 @@ namespace Aethiumian.AI.Navigation
 
         private void Execute(ScheduledWork scheduled)
         {
-            if (!active.TryAdd(scheduled.Operation, scheduled))
-            {
-                scheduled.DisposePendingWork();
-                return;
-            }
             try
             {
                 if (scheduled.IsCancellationRequested)
