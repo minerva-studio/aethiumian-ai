@@ -247,34 +247,34 @@ namespace Aethiumian.AI.Navigation
                 this.diagnostics = diagnostics;
             }
 
-            public override IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node)
+            public override IEnumerable<NavigationTransition?> EnumerateTransitions(NavigationSearchNode node)
                 => planner.EnumerateSharedTransitions(node, parameters, bodySize, Goal, diagnostics);
 
             public override float EvaluateHeuristic(Vector2 position)
                 => Goal.IsGroundWalk ? Goal.DistanceToLowerCenterGoal(position, bodySize.x) : 0f;
         }
 
-        private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, WalkNavigationParameters parameters, Vector2 bodySize, NavigationGoalRequest goal, NavigationPlanningDiagnostics diagnostics)
+        private IEnumerable<NavigationTransition?> EnumerateSharedTransitions(NavigationSearchNode node, WalkNavigationParameters parameters, Vector2 bodySize, NavigationGoalRequest goal, NavigationPlanningDiagnostics diagnostics)
         {
             // Allocation risk in this shared iterator is still unmeasured. Preserve WorkUnit/Edge order because Smart search uses it for budget and cancellation boundaries.
             foreach (Successor successor in EnumerateLocalSuccessors(node.Position, node.Identity.CandidateId, node.Support, parameters, bodySize, goal))
             {
-                yield return NavigationTransitionWork.WorkUnit;
+                yield return null;
                 if (successor.Step == null) continue;
-                yield return NavigationTransitionWork.Edge(successor.ToTransition());
+                yield return successor.ToTransition();
             }
 
             GroundJumpParameters jumpParameters = parameters.GetJumpParameters(bodySize);
             foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, node.Position, node.Support, goal, jumpParameters, diagnostics, true, node.Identity.CandidateId))
             {
-                yield return NavigationTransitionWork.WorkUnit;
+                yield return null;
                 if (jump == null) continue;
-                yield return NavigationTransitionWork.Edge(NavigationTransition.JumpLanding(
+                yield return NavigationTransition.JumpLanding(
                     NavigationNodeIdentity.Ground(jump.LandingCandidateId), jump.Trajectory.LandingPosition,
                     jump.LandingSupport, jump.CreateSegment(),
                     Vector2.Distance(node.Position, jump.Trajectory.LandingPosition)
                         + jump.Trajectory.FlightDuration + 0.5f,
-                    World.IsGoalComplete(goal, AABB.FromLowerCenter(jump.Trajectory.LandingPosition, bodySize))));
+                    World.IsGoalComplete(goal, AABB.FromLowerCenter(jump.Trajectory.LandingPosition, bodySize)));
             }
         }
 

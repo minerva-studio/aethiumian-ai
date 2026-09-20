@@ -147,24 +147,6 @@ namespace Aethiumian.AI.Navigation
             => new(NavigationNodeIdentity.Fly(destinationCell), position, default, segment, cost, completesGoal);
     }
 
-    /// <summary>One resumable unit from an action generator; empty units account for geometry work.</summary>
-    public readonly struct NavigationTransitionWork
-    {
-        public NavigationTransition Transition { get; }
-        public bool HasTransition { get; }
-
-        private NavigationTransitionWork(NavigationTransition transition, bool hasTransition)
-        {
-            Transition = transition;
-            HasTransition = hasTransition;
-        }
-
-        public static NavigationTransitionWork WorkUnit => default;
-
-        public static NavigationTransitionWork Edge(NavigationTransition transition)
-            => new(transition, true);
-    }
-
     internal readonly struct NavigationSearchUpdate
     {
         public NavigationSearchStatus Status { get; }
@@ -201,7 +183,7 @@ namespace Aethiumian.AI.Navigation
         private readonly Dictionary<NavigationNodeIdentity, NavigationSearchNode> nodes = new();
         private readonly NavigationMinHeap<NavigationNodeIdentity> open = new();
         private NavigationSearchNode expandingNode;
-        private IEnumerator<NavigationTransitionWork> transitionEnumerator;
+        private IEnumerator<NavigationTransition?> transitionEnumerator;
         private bool terminal;
         private int expandedNodes;
         private int totalWorkUnits;
@@ -277,8 +259,8 @@ namespace Aethiumian.AI.Navigation
 
                 workUnits++;
                 totalWorkUnits++;
-                NavigationTransitionWork transitionWork = transitionEnumerator.Current;
-                if (!transitionWork.HasTransition)
+                NavigationTransition? transitionWork = transitionEnumerator.Current;
+                if (!transitionWork.HasValue)
                 {
                     if (totalWorkUnits >= request.MaxTotalWorkUnits)
                         return CreateBudgetUpdate(workUnits, true);
@@ -287,7 +269,7 @@ namespace Aethiumian.AI.Navigation
                     continue;
                 }
 
-                NavigationTransition transition = transitionWork.Transition;
+                NavigationTransition transition = transitionWork.Value;
                 ValidateTransitionResult(transition);
                 if (transition.CompletesGoal)
                 {

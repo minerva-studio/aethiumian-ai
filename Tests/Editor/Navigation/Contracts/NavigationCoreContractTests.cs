@@ -13,7 +13,7 @@ namespace Aethiumian.AI.Navigation.Tests
         public void NavigationSearchRejectsDefaultWorkBudget()
         {
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
-            ScriptedSearchRequest request = new(goal, 8, _ => Array.Empty<NavigationTransitionWork>());
+            ScriptedSearchRequest request = new(goal, 8, _ => Array.Empty<NavigationTransition?>());
             using NavigationSearch search = new NavigationSearch(request);
 
             Assert.That(() => search.Advance(default, default), Throws.InstanceOf<ArgumentException>());
@@ -86,11 +86,11 @@ namespace Aethiumian.AI.Navigation.Tests
 
         private sealed class ScriptedSearchRequest : NavigationSearchRequest
         {
-            private readonly Func<NavigationSearchNode, IEnumerable<NavigationTransitionWork>> transitions;
+            private readonly Func<NavigationSearchNode, IEnumerable<NavigationTransition?>> transitions;
 
             public ScriptedSearchRequest(
                 NavigationGoalRequest goal, int maxExpandedNodes,
-                Func<NavigationSearchNode, IEnumerable<NavigationTransitionWork>> transitions,
+                Func<NavigationSearchNode, IEnumerable<NavigationTransition?>> transitions,
                 int maxTotalWorkUnits = -1)
                 : base(Vector2.zero, default, goal, maxExpandedNodes,
                     NavigationNodeIdentity.Ground(-1), maxTotalWorkUnits)
@@ -98,7 +98,7 @@ namespace Aethiumian.AI.Navigation.Tests
                 this.transitions = transitions;
             }
 
-            public override IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node)
+            public override IEnumerable<NavigationTransition?> EnumerateTransitions(NavigationSearchNode node)
                 => transitions(node);
         }
 
@@ -1275,38 +1275,38 @@ namespace Aethiumian.AI.Navigation.Tests
         private static NavigationGoalRequest PointGoal(Vector2 point, float tolerance)
             => NavigationGoalRequest.Proximity(AABB.Point(point), DistanceMetric.Euclidean, tolerance);
 
-        private static IEnumerable<NavigationTransitionWork> ArtificialTransitions(NavigationSearchNode node)
+        private static IEnumerable<NavigationTransition?> ArtificialTransitions(NavigationSearchNode node)
         {
             if (!node.Identity.Equals(NavigationNodeIdentity.Ground(-1))) yield break;
-            yield return NavigationTransitionWork.WorkUnit;
-            yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
+            yield return null;
+            yield return NavigationTransition.GroundSuccessor(
                 1, Vector2.right, default, new GroundRouteSegment(Vector2.zero, Vector2.right),
-                1f, true));
+                1f, true);
         }
 
-        private static IEnumerable<NavigationTransitionWork> ArtificialTailTransitions(NavigationSearchNode node)
+        private static IEnumerable<NavigationTransition?> ArtificialTailTransitions(NavigationSearchNode node)
         {
             if (node.Identity.Equals(NavigationNodeIdentity.Ground(-1)))
             {
-                yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
+                yield return NavigationTransition.GroundSuccessor(
                     1, Vector2.right, default, new GroundRouteSegment(Vector2.zero, Vector2.right),
-                    1f, false));
+                    1f, false);
                 yield break;
             }
 
             if (node.Identity.Equals(NavigationNodeIdentity.Ground(1)))
             {
-                yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
+                yield return NavigationTransition.GroundSuccessor(
                     2, new Vector2(2f, 0f), default,
-                    new GroundRouteSegment(Vector2.right, new Vector2(2f, 0f)), 1f, false));
+                    new GroundRouteSegment(Vector2.right, new Vector2(2f, 0f)), 1f, false);
                 yield break;
             }
 
             if (node.Identity.Equals(NavigationNodeIdentity.Ground(2)))
-                yield return NavigationTransitionWork.Edge(NavigationTransition.GroundSuccessor(
+                yield return NavigationTransition.GroundSuccessor(
                     3, new Vector2(3f, 0f), default,
                     new GroundRouteSegment(new Vector2(2f, 0f), new Vector2(3f, 0f)),
-                    1f, true));
+                    1f, true);
         }
 
         /// <summary>Verifies a solid edge lying on a body box face is contact, while an edge inside the box blocks the body.</summary>

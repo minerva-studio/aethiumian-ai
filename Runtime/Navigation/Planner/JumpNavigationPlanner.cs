@@ -84,12 +84,12 @@ namespace Aethiumian.AI.Navigation
             float distance = goal.GuidanceDistance(startBody);
             int work = 0;
             bool budgetReached = false;
-            foreach (NavigationTransitionWork candidate in EnumerateSharedTransitions(node, goal, jumpParameters, null))
+            foreach (NavigationTransition? candidate in EnumerateSharedTransitions(node, goal, jumpParameters, null))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (++work > MaxExpandedNodes) { budgetReached = true; break; }
-                if (!candidate.HasTransition) continue;
-                NavigationTransition edge = candidate.Transition;
+                if (!candidate.HasValue) continue;
+                NavigationTransition edge = candidate.Value;
                 AABB landingBody = AABB.FromLowerCenter(edge.DestinationPosition, bodySize);
                 float nextDistance = goal.GuidanceDistance(landingBody);
                 if (!edge.CompletesGoal && !IsStrictlyLess(nextDistance, distance)) continue;
@@ -125,7 +125,7 @@ namespace Aethiumian.AI.Navigation
                 this.diagnostics = diagnostics;
             }
 
-            public override IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node)
+            public override IEnumerable<NavigationTransition?> EnumerateTransitions(NavigationSearchNode node)
                 => planner.EnumerateSharedTransitions(node, Goal, parameters, diagnostics);
 
             public override float EvaluateHeuristic(Vector2 position)
@@ -137,27 +137,27 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRequest goal, GroundJumpParameters jumpParameters, NavigationPlanningDiagnostics diagnostics)
+        private IEnumerable<NavigationTransition?> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRequest goal, GroundJumpParameters jumpParameters, NavigationPlanningDiagnostics diagnostics)
         {
             if (TryCreateDirectGoalSuccessor(jumpSolver, node.Position, goal, jumpParameters, out Successor nearestGoal))
             {
                 diagnostics?.RecordTerminalCandidate();
-                yield return NavigationTransitionWork.Edge(NavigationTransition.CompletedJump(nearestGoal.Position, nearestGoal.Step, nearestGoal.Cost));
+                yield return NavigationTransition.CompletedJump(nearestGoal.Position, nearestGoal.Step, nearestGoal.Cost);
             }
 
             foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, node.Position,
                 node.Support, goal, jumpParameters, diagnostics, false, node.Identity.CandidateId))
             {
-                yield return NavigationTransitionWork.WorkUnit;
+                yield return null;
                 if (jump == null) continue;
                 AABB landingBody = AABB.FromLowerCenter(jump.Trajectory.LandingPosition, jumpParameters.BodySize);
                 bool completesGoal = World.IsGoalComplete(goal, landingBody);
                 if (completesGoal)
                     diagnostics?.RecordTerminalCandidate();
-                yield return NavigationTransitionWork.Edge(NavigationTransition.JumpLanding(
+                yield return NavigationTransition.JumpLanding(
                     NavigationNodeIdentity.Ground(jump.LandingCandidateId), jump.Trajectory.LandingPosition,
                     jump.LandingSupport, jump.CreateSegment(),
-                    Vector2.Distance(node.Position, jump.Trajectory.LandingPosition) + jump.Trajectory.FlightDuration, completesGoal));
+                    Vector2.Distance(node.Position, jump.Trajectory.LandingPosition) + jump.Trajectory.FlightDuration, completesGoal);
             }
         }
 

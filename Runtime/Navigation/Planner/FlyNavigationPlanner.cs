@@ -148,11 +148,11 @@ namespace Aethiumian.AI.Navigation
                 this.goalCell = goalCell;
             }
 
-            public override IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node)
+            public override IEnumerable<NavigationTransition?> EnumerateTransitions(NavigationSearchNode node)
                 => planner.EnumerateFlyTransitions(node, Goal, resolvedGoal, goalCell, bodySize);
         }
 
-        private IEnumerable<NavigationTransitionWork> EnumerateFlyTransitions(NavigationSearchNode node, NavigationGoalRequest goal, Vector2 resolvedGoal, Vector2Int goalCell, Vector2 bodySize)
+        private IEnumerable<NavigationTransition?> EnumerateFlyTransitions(NavigationSearchNode node, NavigationGoalRequest goal, Vector2 resolvedGoal, Vector2Int goalCell, Vector2 bodySize)
         {
             Vector2 source = node.Position;
             Vector2Int currentCell = node.Identity.Cell;
@@ -163,7 +163,7 @@ namespace Aethiumian.AI.Navigation
 
             for (int index = 0; index < Directions.Length; index++)
             {
-                yield return NavigationTransitionWork.WorkUnit;
+                yield return null;
                 Vector2Int next = currentCell + Directions[index];
                 Vector2 center = LatticeCenter(World, next);
                 if (!IsInsideWorld(World, center)) continue;
@@ -171,7 +171,7 @@ namespace Aethiumian.AI.Navigation
                 if (!IsFlyBodyClear(World, destination, bodySize) || !IsFlyBodyPathClear(World, source, destination, bodySize))
                     continue;
                 bool completesGoal = next == goalCell && World.IsGoalComplete(goal, CenteredBody(destination, bodySize));
-                yield return NavigationTransitionWork.Edge(NavigationTransition.FlyMove(next, destination, new FlyRouteSegment(source, destination), Vector2.Distance(source, destination), completesGoal));
+                yield return NavigationTransition.FlyMove(next, destination, new FlyRouteSegment(source, destination), Vector2.Distance(source, destination), completesGoal);
             }
         }
 

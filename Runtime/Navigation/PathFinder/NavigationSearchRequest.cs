@@ -47,10 +47,10 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>
         /// Produces resumable expansion work in candidate order. Each yielded item consumes
-        /// one work unit; the search owns advancement, budget checks, and enumerator disposal.
+        /// one work unit, including null (work without a successor); the search owns advancement, budget checks, and enumerator disposal.
         /// Implementations must keep request inputs stable for the search lifetime.
         /// </summary>
-        public abstract IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node);
+        public abstract IEnumerable<NavigationTransition?> EnumerateTransitions(NavigationSearchNode node);
 
         /// <summary>Estimates remaining cost; searches without a heuristic use zero.</summary>
         public virtual float EvaluateHeuristic(Vector2 position) => 0f;
