@@ -200,17 +200,12 @@ namespace Aethiumian.AI.Navigation
             ValidatePlanInputs(body, cancellationToken);
             ValidateParameters(parameters);
             Vector2 bodySize = body.Size;
-            foreach (NavigationRoute route in PlanSingleStepIncremental(body, goal, parameters, bodySize))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (route != null)
-                {
-                    var newRoute = jumpSolver.PrepareRouteForExecution(route, parameters.GetJumpParameters(bodySize), cancellationToken);
-                    return NavigationPlanResult.ResultProduced(newRoute);
-                }
-            }
-
-            return NavigationPlanResult.NoResult;
+            bool hasRoute = TryPlanSingleStep(body, goal, parameters, bodySize, cancellationToken, out NavigationRoute route);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!hasRoute)
+                return NavigationPlanResult.NoResult;
+            NavigationRoute preparedRoute = jumpSolver.PrepareRouteForExecution(route, parameters.GetJumpParameters(bodySize), cancellationToken);
+            return NavigationPlanResult.ResultProduced(preparedRoute);
         }
 
         /// <summary>
@@ -233,6 +228,7 @@ namespace Aethiumian.AI.Navigation
 
         private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, WalkNavigationParameters parameters, Vector2 bodySize, NavigationGoalRequest goal, NavigationPlanningDiagnostics diagnostics)
         {
+            // Allocation risk in this shared iterator is still unmeasured. Preserve WorkUnit/Edge order because Smart search uses it for budget and cancellation boundaries.
             foreach (Successor successor in EnumerateLocalSuccessors(node.Position, node.Identity.CandidateId, node.Support, parameters, bodySize, goal))
             {
                 yield return NavigationTransitionWork.WorkUnit;
@@ -255,73 +251,66 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Expands the current supported position once and returns its best valid action.</summary>
-        private IEnumerable<NavigationRoute> PlanSingleStepIncremental(AABB body, NavigationGoalRequest goal, WalkNavigationParameters parameters, Vector2 bodySize)
+        private bool TryPlanSingleStep(AABB body, NavigationGoalRequest goal, WalkNavigationParameters parameters, Vector2 bodySize, CancellationToken cancellationToken, out NavigationRoute route)
         {
+            route = null;
             if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
-                yield break;
+                return false;
 
             AABB startBody = AABB.FromLowerCenter(resolvedStart, bodySize);
             float startDistance = World.GetGoalCompletionDistance(goal, startBody);
             float startGuidanceDistance = goal.GuidanceDistance(startBody);
             if (World.IsGoalComplete(goal, startBody))
             {
-                yield return NavigationRoute.Empty(resolvedStart, goal,
-                    NavigationRouteCoordinateFrame.GroundAnchor, true);
-                yield break;
+                route = NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true);
+                return true;
             }
 
             Successor? best = null;
-            foreach (Successor? item in EnumerateSingleStepCandidates(resolvedStart, startSupport, startDistance, startGuidanceDistance, goal, parameters, bodySize))
+            foreach (Successor local in EnumerateLocalSuccessors(resolvedStart, -1, startSupport, parameters, bodySize, goal))
             {
-                yield return null;
-                if (!item.HasValue)
-                    continue;
-                Successor candidate = item.Value;
-                if (!candidate.CompletesGoal && !HasStrictSingleStepProgress(candidate, startDistance, startGuidanceDistance))
-                    continue;
-                if (!best.HasValue || IsBetterSingleStep(candidate, best.Value)) best = candidate;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (local.Step == null) continue;
 
-            if (best.HasValue) yield return BuildSingleStepPlan(goal, best.Value);
-        }
-
-        /// <summary>Enumerates every valid Simple Walk action while retaining incremental work boundaries.</summary>
-        private IEnumerable<Successor?> EnumerateSingleStepCandidates(Vector2 start, NavigationSupport startSupport, float startCompletionDistance, float startGuidanceDistance, NavigationGoalRequest goal, WalkNavigationParameters parameters, Vector2 bodySize)
-        {
-            foreach (Successor local in EnumerateLocalSuccessors(start, -1, startSupport, parameters, bodySize, goal))
-            {
-                if (local.Step == null)
-                {
-                    yield return null;
-                    continue;
-                }
-
+                Successor candidate = local;
                 if (local.Step is GroundRouteSegment)
                 {
                     // Preserve initial eligibility before extending this one Ground action.
-                    if (!local.CompletesGoal && !HasStrictSingleStepProgress(local, startCompletionDistance, startGuidanceDistance))
+                    if (!local.CompletesGoal && !HasStrictSingleStepProgress(local, startDistance, startGuidanceDistance))
                         continue;
-                    foreach (Successor? ground in ExtendSimpleGroundMove(World, start, local, goal, bodySize))
-                        yield return ground;
-                    continue;
+                    candidate = ExtendSimpleGroundMove(World, resolvedStart, local, goal, bodySize, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
 
-                yield return local;
+                ConsiderSingleStepCandidate(ref best, candidate, startDistance, startGuidanceDistance);
             }
 
             GroundJumpParameters jumpParameters = parameters.GetJumpParameters(bodySize);
-            foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, start, startSupport, goal, jumpParameters, null, true, -1))
+            foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, resolvedStart, startSupport, goal, jumpParameters, null, true, -1))
             {
-                yield return null;
+                cancellationToken.ThrowIfCancellationRequested();
                 if (jump == null) continue;
-                yield return CreateSuccessor(new NavigationSupportCandidate(jump.LandingCandidateId, jump.LandingSupport),
-                    jump.CreateSegment(), Vector2.Distance(start, jump.Trajectory.LandingPosition)
+                Successor candidate = CreateSuccessor(new NavigationSupportCandidate(jump.LandingCandidateId, jump.LandingSupport),
+                    jump.CreateSegment(), Vector2.Distance(resolvedStart, jump.Trajectory.LandingPosition)
                         + jump.Trajectory.FlightDuration + 0.5f, goal, bodySize);
+                ConsiderSingleStepCandidate(ref best, candidate, startDistance, startGuidanceDistance);
             }
+
+            if (!best.HasValue) return false;
+            route = BuildSingleStepPlan(goal, best.Value);
+            return true;
         }
 
-        /// <summary>Extends a validated Ground action and yields its fully scored final successor.</summary>
-        private IEnumerable<Successor?> ExtendSimpleGroundMove(INavigationWorld world, Vector2 start, Successor current, NavigationGoalRequest goal, Vector2 bodySize)
+        private void ConsiderSingleStepCandidate(ref Successor? best, Successor candidate, float startCompletionDistance, float startGuidanceDistance)
+        {
+            if (!candidate.CompletesGoal && !HasStrictSingleStepProgress(candidate, startCompletionDistance, startGuidanceDistance))
+                return;
+            if (!best.HasValue || IsBetterSingleStep(candidate, best.Value)) best = candidate;
+        }
+
+        /// <summary>Extends a validated Ground action and returns its fully scored final successor.</summary>
+        private Successor ExtendSimpleGroundMove(INavigationWorld world, Vector2 start, Successor current,
+            NavigationGoalRequest goal, Vector2 bodySize, CancellationToken cancellationToken)
         {
             current = CreateSuccessor(current.Position, new GroundRouteSegment(start, current.Position), Mathf.Abs(current.Position.x - start.x), goal, bodySize);
             float direction = Mathf.Sign(current.Position.x - start.x);
@@ -332,7 +321,7 @@ namespace Aethiumian.AI.Navigation
                 NavigationRouteSegment validated = null;
                 foreach (NavigationRouteSegment step in EnumerateGroundMove(world, current.Position, next, bodySize))
                 {
-                    yield return null;
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (step != null) validated = step;
                 }
 
@@ -347,19 +336,19 @@ namespace Aethiumian.AI.Navigation
                 current = candidate;
             }
 
-            yield return current;
+            return current;
         }
 
         /// <summary>Enumerates nearby real support anchors without collapsing surfaces to cells.</summary>
         private IEnumerable<Successor> EnumerateLocalSuccessors(Vector2 start, int currentCandidateId, NavigationSupport currentSupport, WalkNavigationParameters parameters, Vector2 bodySize, NavigationGoalRequest goal)
         {
+            // Allocation risk in this shared successor iterator is still unmeasured. Keep its WorkUnit yields and candidate order aligned with Smart budget and cancellation handling.
             Vector2 snappedStart = start;
             AABB anchors = AABB.FromMinAndSize(
                 new Vector2(snappedStart.x - NavigationConstant.GroundHopReach, World.WorldBounds.MinY),
                 new Vector2(NavigationConstant.GroundHopReach * 2f,
                     snappedStart.y - World.WorldBounds.MinY + NavigationWorldQueries.SupportSnapDistance + NavigationWorldQueries.GeometryEpsilon));
-            List<NavigationSupportCandidate> candidates = new();
-            World.CollectSupportCandidates(anchors, bodySize, candidates);
+            IReadOnlyList<NavigationSupportCandidate> candidates = World.GetSupportCandidates(anchors, bodySize);
             for (int index = 0; index < candidates.Count; index++)
             {
                 NavigationSupportCandidate candidate = candidates[index];

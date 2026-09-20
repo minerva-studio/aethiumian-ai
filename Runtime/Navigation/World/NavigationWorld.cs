@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
@@ -57,8 +56,7 @@ namespace Aethiumian.AI.Navigation
             List<NavigationSupportCandidate> collected = new();
             CollectSupportCandidatesCore(anchorBounds, bodySize, collected);
             collected.Sort((left, right) => left.Id.CompareTo(right.Id));
-            IReadOnlyList<NavigationSupportCandidate> result = new ReadOnlyCollection<NavigationSupportCandidate>(collected.ToArray());
-            return supportCandidateCache.Publish(anchorBounds, bodySize, result);
+            return supportCandidateCache.Publish(anchorBounds, bodySize, collected);
         }
 
         /// <summary>Appends support candidates to the caller-owned collection without clearing it.</summary>
@@ -71,7 +69,8 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>
         /// Fills the supplied request-local list from immutable geometry without reentering the public query.
-        /// Calls may overlap; this base class sorts and publishes the detached read-only result.
+        /// Calls may overlap. Implementations must not retain the list for later mutation.
+        /// This base class sorts and publishes it; nobody may mutate or reuse it after publication.
         /// </summary>
         protected abstract void CollectSupportCandidatesCore(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results);
     }

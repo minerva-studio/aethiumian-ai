@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
@@ -50,7 +49,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the minimum apex displacement selected by collision-aware planning.</summary>
         public float MinimumApexHeight { get; }
 
-        /// <summary>Gets the immutable OneWay surface spans selected by the planner.</summary>
+        /// <summary>Gets the shared OneWay surface spans, which must remain unchanged for the route lifetime.</summary>
         public IReadOnlyList<JumpSurfaceCrossing> SurfaceCrossings { get; }
 
         /// <summary>Creates a route-only jump segment.</summary>
@@ -62,6 +61,8 @@ namespace Aethiumian.AI.Navigation
             : this(launchSupport, plannedLanding, minimumApexHeight, null) { }
 
         /// <summary>Creates a route-only jump segment with its selected apex and surface spans.</summary>
+        /// <remarks>The supplied collection is retained without copying. Its owner must not modify,
+        /// clear, pool, or reuse it while the route is alive. Snapshot reusable buffers before passing them.</remarks>
         public JumpRouteSegment(Vector2 launchSupport, Vector2 plannedLanding, float minimumApexHeight,
             IReadOnlyList<JumpSurfaceCrossing> surfaceCrossings)
             : base(launchSupport, plannedLanding)
@@ -69,8 +70,7 @@ namespace Aethiumian.AI.Navigation
             if (!NavigationNumeric.IsFinite(minimumApexHeight) || minimumApexHeight < 0f)
                 throw new ArgumentOutOfRangeException(nameof(minimumApexHeight));
             MinimumApexHeight = minimumApexHeight;
-            SurfaceCrossings = new ReadOnlyCollection<JumpSurfaceCrossing>(
-                surfaceCrossings == null ? Array.Empty<JumpSurfaceCrossing>() : new List<JumpSurfaceCrossing>(surfaceCrossings));
+            SurfaceCrossings = surfaceCrossings ?? Array.Empty<JumpSurfaceCrossing>();
         }
     }
 

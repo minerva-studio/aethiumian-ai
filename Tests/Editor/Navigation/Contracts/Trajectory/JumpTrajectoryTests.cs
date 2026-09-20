@@ -64,6 +64,20 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Assert.That(solution.ApexPosition.y, Is.LessThanOrEqualTo(2.0001f));
         }
 
+        /// <summary>Verifies explicit minimum apex validation retains its public exception contract.</summary>
+        [TestCase(-0.001f)]
+        [TestCase(2.251f)]
+        [TestCase(float.NaN)]
+        [TestCase(float.PositiveInfinity)]
+        public void TrySolve_RejectsInvalidMinimumApexHeight(float minimumApexHeight)
+        {
+            JumpTrajectoryInput input = new(Vector2.zero, new Vector2(2f, 0f),
+                new Vector2(0f, -9.81f), 1f, 0f, 2f, 0.02f);
+
+            Assert.That(() => JumpTrajectory.TrySolve(input, 4096, minimumApexHeight, out _),
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+        }
+
 
         /// <summary>Verifies damped positions and velocities follow the Unity fixed-step recurrence.</summary>
         [Test]

@@ -72,7 +72,7 @@ namespace Aethiumian.AI.Navigation
                 AddUnique(crossings, new JumpSurfaceCrossing(landingSupport.Surface, landingSupport.Position, landingSupport.Normal, 1f, JumpSurfaceCrossingKind.Landing));
             }
             crossings.Sort((left, right) => left.Fraction.CompareTo(right.Fraction));
-            return crossings.AsReadOnly();
+            return crossings;
         }
 
         private static void AddUnique(List<JumpSurfaceCrossing> crossings, JumpSurfaceCrossing candidate)

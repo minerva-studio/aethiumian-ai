@@ -8,7 +8,7 @@ namespace Aethiumian.AI.Navigation.Tests
     /// Small immutable geometry-backed contract fixture for planner tests. The double owns a
     /// cell-authored terrain model of its own; the world contract it implements is continuous.
     /// </summary>
-    internal sealed class TestNavigationWorld : NavigationWorld
+    internal class TestNavigationWorld : NavigationWorld
     {
         private readonly NavigationSurfaceKind?[] surfaces;
         private readonly IReadOnlyDictionary<Vector2Int, float> supportSurfaceHeights;

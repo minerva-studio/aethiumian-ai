@@ -50,6 +50,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Returns read-only support candidates for the requested anchor bounds and body size.
         /// Results remain valid after cache eviction and do not contain goal-specific filtering.
+        /// Producers and consumers must not mutate or reuse the published collection.
         /// </summary>
         IReadOnlyList<NavigationSupportCandidate> GetSupportCandidates(AABB anchorBounds, Vector2 bodySize);
 

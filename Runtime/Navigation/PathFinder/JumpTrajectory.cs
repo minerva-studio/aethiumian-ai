@@ -170,8 +170,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Evaluates one position component after complete fixed ticks.</summary>
-        private float EvaluatePosition(float startPosition, float initialVelocity, float acceleration,
-            int tickCount, double velocitySumFactor)
+        private float EvaluatePosition(float startPosition, float initialVelocity, float acceleration, int tickCount, double velocitySumFactor)
         {
             double gravityStep = acceleration * simulationTimeStep;
             double terminalOffset = gravityStep / (dampingFactor - 1d);
@@ -206,7 +205,7 @@ namespace Aethiumian.AI.Navigation
         public static float GetMaximumAllowedApexHeight(float jumpHeight)
         {
             ValidateAuthoredJumpHeight(jumpHeight);
-            return jumpHeight <= 0f ? 0f : jumpHeight + MaximumApexHeadroom;
+            return CalculateMaximumApexHeight(jumpHeight);
         }
 
         /// <summary>Returns whether a sampled apex is within the authored height policy.</summary>
@@ -214,13 +213,21 @@ namespace Aethiumian.AI.Navigation
         {
             ValidateAuthoredJumpHeight(jumpHeight);
             return NavigationNumeric.IsFinite(apexHeight) && apexHeight >= 0f
-                && apexHeight <= GetMaximumAllowedApexHeight(jumpHeight) + Tolerance;
+                && apexHeight <= CalculateMaximumApexHeight(jumpHeight) + Tolerance;
         }
 
         /// <summary>Gets the default visible jump floor without applying headroom.</summary>
         public static float GetDefaultMinimumApexHeight(float jumpHeight)
         {
             ValidateAuthoredJumpHeight(jumpHeight);
+            return CalculateDefaultMinimumApexHeight(jumpHeight);
+        }
+
+        private static float CalculateMaximumApexHeight(float jumpHeight)
+            => jumpHeight <= 0f ? 0f : jumpHeight + MaximumApexHeadroom;
+
+        private static float CalculateDefaultMinimumApexHeight(float jumpHeight)
+        {
             if (jumpHeight <= Tolerance) return jumpHeight;
             return Mathf.Min(jumpHeight,
                 Mathf.Min(jumpHeight * DefaultMinimumApexRatio, DefaultMaximumApexWorldHeight));
@@ -236,14 +243,21 @@ namespace Aethiumian.AI.Navigation
         public static bool TrySolve(JumpTrajectoryInput input, out JumpTrajectorySolution solution)
         {
             ValidateInput(input);
-            return TrySolve(input, MaximumFlightTicks, GetDefaultMinimumApexHeight(input.JumpHeight), out solution);
+            solution = null;
+            if (!CanProduceTrajectory(input.JumpHeight, input.Gravity.y * input.GravityScale)) return false;
+            return TrySolveCore(input, MaximumFlightTicks, CalculateDefaultMinimumApexHeight(input.JumpHeight),
+                CalculateMaximumApexHeight(input.JumpHeight), out solution);
         }
 
         /// <summary>Attempts to solve a trajectory within an explicit fixed-tick budget.</summary>
         public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, out JumpTrajectorySolution solution)
         {
             ValidateInput(input);
-            return TrySolve(input, maxFlightTicks, GetDefaultMinimumApexHeight(input.JumpHeight), out solution);
+            ValidateFlightTicks(maxFlightTicks);
+            solution = null;
+            if (!CanProduceTrajectory(input.JumpHeight, input.Gravity.y * input.GravityScale)) return false;
+            return TrySolveCore(input, maxFlightTicks, CalculateDefaultMinimumApexHeight(input.JumpHeight),
+                CalculateMaximumApexHeight(input.JumpHeight), out solution);
         }
 
         /// <summary>Attempts to solve the lowest trajectory whose sampled apex reaches the requested minimum height.</summary>
@@ -252,18 +266,25 @@ namespace Aethiumian.AI.Navigation
         /// <param name="minimumApexHeight">The minimum apex displacement above launch, in world units.</param>
         /// <param name="solution">The lowest valid solution, when one exists.</param>
         /// <returns>True when a trajectory exists between the requested minimum and effective maximum apex heights.</returns>
-        public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, float minimumApexHeight,
-            out JumpTrajectorySolution solution)
+        public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, float minimumApexHeight, out JumpTrajectorySolution solution)
         {
             ValidateInput(input);
-            if (maxFlightTicks <= 0 || maxFlightTicks > MaximumFlightTicks)
-                throw new ArgumentOutOfRangeException(nameof(maxFlightTicks),
-                    $"Flight ticks must be between 1 and {MaximumFlightTicks}.");
+            ValidateFlightTicks(maxFlightTicks);
             solution = null;
             if (!CanProduceTrajectory(input.JumpHeight, input.Gravity.y * input.GravityScale)) return false;
-            if (!IsApexHeightAllowed(input.JumpHeight, minimumApexHeight))
+            float maximumAllowedApexHeight = CalculateMaximumApexHeight(input.JumpHeight);
+            if (!NavigationNumeric.IsFinite(minimumApexHeight)
+                || minimumApexHeight < 0f
+                || minimumApexHeight > maximumAllowedApexHeight + Tolerance)
                 throw new ArgumentOutOfRangeException(nameof(minimumApexHeight));
 
+            return TrySolveCore(input, maxFlightTicks, minimumApexHeight, maximumAllowedApexHeight, out solution);
+        }
+
+        // Public entry points establish input validity and feasibility before solving.
+        private static bool TrySolveCore(JumpTrajectoryInput input, int maxFlightTicks, float minimumApexHeight, float maximumAllowedApexHeight, out JumpTrajectorySolution solution)
+        {
+            solution = null;
             float gravityMagnitude = Mathf.Abs(input.Gravity.y * input.GravityScale);
             float verticalDirection = -Mathf.Sign(input.Gravity.y);
             float targetVerticalDisplacement = (input.LandingPosition.y - input.StartPosition.y) * verticalDirection;
@@ -313,7 +334,9 @@ namespace Aethiumian.AI.Navigation
                     if (apexTick <= 0 || apexTick >= tick) continue;
 
                     float apexDisplacement = zeroDisplacements[apexTick] + unitDisplacements[apexTick] * initialVerticalSpeed;
-                    if (!IsApexHeightAllowed(input.JumpHeight, apexDisplacement)
+                    if (!NavigationNumeric.IsFinite(apexDisplacement)
+                        || apexDisplacement < 0f
+                        || apexDisplacement > maximumAllowedApexHeight + Tolerance
                         || apexDisplacement < minimumApexHeight - Tolerance) continue;
 
                     if (apexDisplacement > bestApex + Tolerance
@@ -363,6 +386,13 @@ namespace Aethiumian.AI.Navigation
         public static bool CanProduceTrajectory(float jumpHeight, float effectiveGravity)
             => jumpHeight > 0f && Mathf.Abs(effectiveGravity) > Tolerance;
 
+        private static void ValidateFlightTicks(int maxFlightTicks)
+        {
+            if (maxFlightTicks <= 0 || maxFlightTicks > MaximumFlightTicks)
+                throw new ArgumentOutOfRangeException(nameof(maxFlightTicks),
+                    $"Flight ticks must be between 1 and {MaximumFlightTicks}.");
+        }
+
         /// <summary>Validates the authored values the fixed-step recurrence cannot represent.</summary>
         private static void ValidateInput(JumpTrajectoryInput input)
         {
@@ -377,8 +407,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Finds the first sampled tick at or below zero vertical velocity.</summary>
-        private static int FindApexTick(float[] zeroVelocities, float[] unitVelocities,
-            float initialVerticalSpeed, int flightTick)
+        private static int FindApexTick(float[] zeroVelocities, float[] unitVelocities, float initialVerticalSpeed, int flightTick)
         {
             int low = 1;
             int high = flightTick - 1;

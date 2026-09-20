@@ -18,12 +18,14 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             AABB third = AABB.FromMinAndSize(2f, 0f, 1f, 1f);
 
             cache.Publish(first, body, Candidates(1));
-            cache.Publish(second, body, Candidates(2));
+            IReadOnlyList<NavigationSupportCandidate> retained = cache.Publish(second, body, Candidates(2));
             Assert.That(cache.TryGet(first, body, out _), Is.True);
             cache.Publish(third, body, Candidates(3));
 
             Assert.That(cache.TryGet(first, body, out _), Is.True);
             Assert.That(cache.TryGet(second, body, out _), Is.False);
+            Assert.That(retained.Count, Is.EqualTo(1));
+            Assert.That(retained[0].Id, Is.EqualTo(2));
             Assert.That(cache.TryGet(third, body, out _), Is.True);
             Assert.That(cache.TryGet(first, new Vector2(0.81f, 1.5f), out _), Is.False);
         }

@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+using Unity.Profiling;
+#endif
 using static Aethiumian.AI.Navigation.NavigationArithmetic;
 
 namespace Aethiumian.AI.Navigation
@@ -34,6 +37,9 @@ namespace Aethiumian.AI.Navigation
     public sealed class NavigationWorldSnapshot : NavigationWorld
     {
         private const float Epsilon = NavigationConstant.Epsilon;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly ProfilerMarker ShapeQueryCountMarker = new("Aethiumian.AI/Navigation/ShapeQuery.Begin");
+#endif
         private readonly AABB worldBounds;
         private readonly Shape[] shapes;
         private readonly Dictionary<Vector2Int, int[]> buckets;
@@ -65,8 +71,13 @@ namespace Aethiumian.AI.Navigation
         public static NavigationWorldSnapshot Create(AABB worldBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData)
             => Create(worldBounds, shapeData, regionData, NavigationConstant.SupportAnchorSpacing, SupportCandidateCache.DefaultEntryLimit, SupportCandidateCache.DefaultCandidateLimit);
 
-        /// <summary>Builds a snapshot with package-internal discretization and cache limits for focused cache validation.</summary>
-        internal static NavigationWorldSnapshot Create(AABB worldBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData, float supportAnchorSpacing, int supportCacheEntryLimit, int supportCacheCandidateLimit)
+        /// <summary>Builds a snapshot with package-internal seams for discretization and cache limits.</summary>
+        internal static NavigationWorldSnapshot Create(AABB worldBounds,
+            IReadOnlyList<NavigationShapeData> shapeData,
+            IReadOnlyList<NavigationRegionData> regionData,
+            float supportAnchorSpacing,
+            int supportCacheEntryLimit,
+            int supportCacheCandidateLimit)
         {
             if (!NavigationNumeric.IsFinite(worldBounds.Min) || !NavigationNumeric.IsFinite(worldBounds.Max)
                 || worldBounds.SizeX <= 0f || worldBounds.SizeY <= 0f) throw new ArgumentException("Navigation bounds must be positive and finite.", nameof(worldBounds));
@@ -81,6 +92,7 @@ namespace Aethiumian.AI.Navigation
             {
                 Shape shape = new(shapeData[index]);
                 shapes[index] = shape;
+                // First-bucket filtering relies on inserting the complete rectangular range.
                 AABBInt shapeRange = ClampIndexRange(GetIndexRange(shape.Bounds, worldBounds), indexBounds);
                 for (int y = shapeRange.MinY; y < shapeRange.MaxY; y++)
                     for (int x = shapeRange.MinX; x < shapeRange.MaxX; x++)
@@ -134,7 +146,8 @@ namespace Aethiumian.AI.Navigation
             foreach (KeyValuePair<Vector2Int, List<int>> pair in mutableCandidateBuckets)
                 supportCandidateBuckets.Add(pair.Key, pair.Value.ToArray());
 
-            return new NavigationWorldSnapshot(worldBounds, shapes, buckets, supportCandidates, supportCandidateBuckets, regions, supportCacheEntryLimit, supportCacheCandidateLimit);
+            return new NavigationWorldSnapshot(worldBounds, shapes, buckets, supportCandidates, supportCandidateBuckets,
+                regions, supportCacheEntryLimit, supportCacheCandidateLimit);
         }
 
         public override bool IsBodyClear(AABB body, float surfaceContactTolerance)
@@ -142,8 +155,20 @@ namespace Aethiumian.AI.Navigation
             if (!worldBounds.Contains(body.Min) || !worldBounds.Contains(body.Max)) return false;
             AABB tested = new(new Vector2(body.MinX, body.MinY + surfaceContactTolerance), body.Max);
             if (tested.SizeY <= Epsilon) return true;
-            foreach (int index in QueryShapeIndexes(tested))
-                if (shapes[index].Kind == NavigationSurfaceKind.Solid && shapes[index].IsShapeIntersection(tested)) return false;
+            AABBInt range = GetQueryBucketRange(tested);
+            for (int bucketY = range.MinY; bucketY < range.MaxY; bucketY++)
+            {
+                for (int bucketX = range.MinX; bucketX < range.MaxX; bucketX++)
+                {
+                    if (!buckets.TryGetValue(new Vector2Int(bucketX, bucketY), out int[] entries)) continue;
+                    foreach (int shapeIndex in entries)
+                    {
+                        Shape shape = shapes[shapeIndex];
+                        if (!IsFirstQueryBucket(shape, range, bucketX, bucketY)) continue;
+                        if (shape.Kind == NavigationSurfaceKind.Solid && shape.IsShapeIntersection(tested)) return false;
+                    }
+                }
+            }
             return true;
         }
 
@@ -166,8 +191,20 @@ namespace Aethiumian.AI.Navigation
             Vector2 min = Vector2.Min(start, end);
             Vector2 max = Vector2.Max(start, end);
             AABB query = new(min, max);
-            foreach (int index in QueryShapeIndexes(query))
-                if (shapes[index].Kind == NavigationSurfaceKind.Solid && shapes[index].IsShapeSegmentIntersection(start, end)) return false;
+            AABBInt range = GetQueryBucketRange(query);
+            for (int bucketY = range.MinY; bucketY < range.MaxY; bucketY++)
+            {
+                for (int bucketX = range.MinX; bucketX < range.MaxX; bucketX++)
+                {
+                    if (!buckets.TryGetValue(new Vector2Int(bucketX, bucketY), out int[] entries)) continue;
+                    foreach (int shapeIndex in entries)
+                    {
+                        Shape shape = shapes[shapeIndex];
+                        if (!IsFirstQueryBucket(shape, range, bucketX, bucketY)) continue;
+                        if (shape.Kind == NavigationSurfaceKind.Solid && shape.IsShapeSegmentIntersection(start, end)) return false;
+                    }
+                }
+            }
             return true;
         }
 
@@ -202,18 +239,27 @@ namespace Aethiumian.AI.Navigation
             AABB query = new(new Vector2(position.x - Epsilon, worldBounds.MinY - Epsilon),
                 new Vector2(position.x + Epsilon, Mathf.Min(position.y + Epsilon, worldBounds.MaxY)));
             bool found = false;
-            foreach (int index in QueryShapeIndexes(query))
+            AABBInt range = GetQueryBucketRange(query);
+            for (int bucketY = range.MinY; bucketY < range.MaxY; bucketY++)
             {
-                Shape shape = shapes[index];
-                if (!shape.HasSupport
-                    || !shape.TryGetSurfaceAtX(position.x, out float y, out Vector2 normal, Mathf.Min(position.y, worldBounds.MaxY), supportedOnly: true)
-                    || y < worldBounds.MinY - Epsilon) continue;
-
-                NavigationSupport candidate = new(shape.SurfaceId, shape.Kind, new Vector2(position.x, y), normal);
-                if (!found || y > support.Position.y + Epsilon || (Mathf.Abs(y - support.Position.y) <= Epsilon && candidate.CompareTo(support) < 0))
+                for (int bucketX = range.MinX; bucketX < range.MaxX; bucketX++)
                 {
-                    support = candidate;
-                    found = true;
+                    if (!buckets.TryGetValue(new Vector2Int(bucketX, bucketY), out int[] entries)) continue;
+                    foreach (int shapeIndex in entries)
+                    {
+                        Shape shape = shapes[shapeIndex];
+                        if (!IsFirstQueryBucket(shape, range, bucketX, bucketY)) continue;
+                        if (!shape.HasSupport
+                            || !shape.TryGetSurfaceAtX(position.x, out float y, out Vector2 normal, Mathf.Min(position.y, worldBounds.MaxY), supportedOnly: true)
+                            || y < worldBounds.MinY - Epsilon) continue;
+
+                        NavigationSupport candidate = new(shape.SurfaceId, shape.Kind, new Vector2(position.x, y), normal);
+                        if (!found || y > support.Position.y + Epsilon || (Mathf.Abs(y - support.Position.y) <= Epsilon && candidate.CompareTo(support) < 0))
+                        {
+                            support = candidate;
+                            found = true;
+                        }
+                    }
                 }
             }
             return found;
@@ -224,10 +270,19 @@ namespace Aethiumian.AI.Navigation
             NavigationSupport best = default;
             float bestDistance = float.PositiveInfinity;
             bool found = false;
-            foreach (int index in QueryShapeIndexes(query))
+            AABBInt range = GetQueryBucketRange(query);
+            for (int bucketY = range.MinY; bucketY < range.MaxY; bucketY++)
             {
-                Shape shape = shapes[index];
-                ConsiderSupportAtX(shape, feet.x, feet, bodySize, snapDistance, ref found, ref best, ref bestDistance);
+                for (int bucketX = range.MinX; bucketX < range.MaxX; bucketX++)
+                {
+                    if (!buckets.TryGetValue(new Vector2Int(bucketX, bucketY), out int[] entries)) continue;
+                    foreach (int shapeIndex in entries)
+                    {
+                        Shape shape = shapes[shapeIndex];
+                        if (!IsFirstQueryBucket(shape, range, bucketX, bucketY)) continue;
+                        ConsiderSupportAtX(shape, feet.x, feet, bodySize, snapDistance, ref found, ref best, ref bestDistance);
+                    }
+                }
             }
             support = best;
             return found;
@@ -240,27 +295,35 @@ namespace Aethiumian.AI.Navigation
             bool found = false;
             float footMinX = feet.x - bodySize.x * 0.5f;
             float footMaxX = feet.x + bodySize.x * 0.5f;
-            foreach (int index in QueryShapeIndexes(query))
+            AABBInt range = GetQueryBucketRange(query);
+            for (int bucketY = range.MinY; bucketY < range.MaxY; bucketY++)
             {
-                Shape shape = shapes[index];
-                if (!shape.HasSupport) continue;
-
-                if (shape.ShapeType == NavigationShapeType.Circle || shape.ShapeType == NavigationShapeType.Capsule)
+                for (int bucketX = range.MinX; bucketX < range.MaxX; bucketX++)
                 {
-                    ConsiderSupportOnInterval(shape, footMinX, footMaxX, feet, bodySize, snapDistance,
-                        ref found, ref best, ref bestDistance);
-                    continue;
-                }
+                    if (!buckets.TryGetValue(new Vector2Int(bucketX, bucketY), out int[] entries)) continue;
+                    foreach (int shapeIndex in entries)
+                    {
+                        Shape shape = shapes[shapeIndex];
+                        if (!IsFirstQueryBucket(shape, range, bucketX, bucketY)) continue;
+                        if (!shape.HasSupport) continue;
 
-                int edgeCount = shape.ShapeType == NavigationShapeType.Polygon ? shape.Vertices.Length : shape.Vertices.Length - 1;
-                for (int edge = 0; edge < edgeCount; edge++)
-                {
-                    Vector2 first = shape.Vertices[edge];
-                    Vector2 second = shape.Vertices[(edge + 1) % shape.Vertices.Length];
-                    if (Mathf.Abs(second.x - first.x) <= Epsilon) continue;
-                    ConsiderSupportOnInterval(shape, Mathf.Max(footMinX, Mathf.Min(first.x, second.x)),
-                        Mathf.Min(footMaxX, Mathf.Max(first.x, second.x)), feet, bodySize, snapDistance,
-                        ref found, ref best, ref bestDistance);
+                        if (shape.ShapeType == NavigationShapeType.Circle || shape.ShapeType == NavigationShapeType.Capsule)
+                        {
+                            ConsiderSupportOnInterval(shape, footMinX, footMaxX, feet, bodySize, snapDistance, ref found, ref best, ref bestDistance);
+                            continue;
+                        }
+
+                        int edgeCount = shape.ShapeType == NavigationShapeType.Polygon ? shape.Vertices.Length : shape.Vertices.Length - 1;
+                        for (int edge = 0; edge < edgeCount; edge++)
+                        {
+                            Vector2 first = shape.Vertices[edge];
+                            Vector2 second = shape.Vertices[(edge + 1) % shape.Vertices.Length];
+                            if (Mathf.Abs(second.x - first.x) <= Epsilon) continue;
+                            ConsiderSupportOnInterval(shape, Mathf.Max(footMinX, Mathf.Min(first.x, second.x)),
+                                Mathf.Min(footMaxX, Mathf.Max(first.x, second.x)), feet, bodySize, snapDistance,
+                                ref found, ref best, ref bestDistance);
+                        }
+                    }
                 }
             }
 
@@ -298,15 +361,22 @@ namespace Aethiumian.AI.Navigation
         protected override void CollectSupportCandidatesCore(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
-            foreach (int candidateId in QuerySupportCandidateIds(anchorBounds))
+            AABBInt range = GetQueryBucketRange(anchorBounds);
+            for (int y = range.MinY; y < range.MaxY; y++)
             {
-                NavigationSupportCandidate candidate = supportCandidates[candidateId];
-                NavigationSupport support = candidate.Support;
-                if (!anchorBounds.Contains(support.Position)) continue;
-                AABB body = AABB.FromLowerCenter(support.Position, bodySize);
-                if (IsBodyClear(body, Epsilon)) results.Add(candidate);
+                for (int x = range.MinX; x < range.MaxX; x++)
+                {
+                    if (!supportCandidateBuckets.TryGetValue(new Vector2Int(x, y), out int[] entries)) continue;
+                    foreach (int candidateId in entries)
+                    {
+                        NavigationSupportCandidate candidate = supportCandidates[candidateId];
+                        NavigationSupport support = candidate.Support;
+                        if (!anchorBounds.Contains(support.Position)) continue;
+                        AABB body = AABB.FromLowerCenter(support.Position, bodySize);
+                        if (IsBodyClear(body, Epsilon)) results.Add(candidate);
+                    }
+                }
             }
-            results.Sort((left, right) => left.Id.CompareTo(right.Id));
         }
 
         public override void CollectOneWayCrossings(AABB previousBody, Vector2 displacement, List<NavigationSurfaceCrossing> results)
@@ -330,39 +400,48 @@ namespace Aethiumian.AI.Navigation
                     Mathf.Min(previousFeet.y, currentFeet.y) - Epsilon),
                 new Vector2(Mathf.Max(previousFeet.x, currentFeet.x) + halfWidth + Epsilon,
                     Mathf.Max(previousFeet.y, currentFeet.y) + Epsilon));
-            foreach (int shapeIndex in QueryShapeIndexes(sweptBounds))
+            AABBInt range = GetQueryBucketRange(sweptBounds);
+            for (int bucketY = range.MinY; bucketY < range.MaxY; bucketY++)
             {
-                Shape shape = shapes[shapeIndex];
-                if (shape.Kind != NavigationSurfaceKind.OneWay
-                    || shape.Bounds.MaxX < sweptBounds.MinX - Epsilon || shape.Bounds.MinX > sweptBounds.MaxX + Epsilon
-                    || shape.Bounds.MaxY < sweptBounds.MinY - Epsilon || shape.Bounds.MinY > sweptBounds.MaxY + Epsilon)
-                    continue;
-                for (int offsetIndex = -1; offsetIndex <= 1; offsetIndex++)
+                for (int bucketX = range.MinX; bucketX < range.MaxX; bucketX++)
                 {
-                    float offset = offsetIndex * halfWidth;
-                    bool previousValid = shape.TryGetSurfaceAtX(previousFeet.x + offset, out _, out _);
-                    float previousDifference = previousValid && shape.TryGetSurfaceAtX(previousFeet.x + offset, out float firstY, out _)
-                        ? previousFeet.y - firstY : 0f;
-                    for (int stepIndex = 1; stepIndex <= steps; stepIndex++)
+                    if (!buckets.TryGetValue(new Vector2Int(bucketX, bucketY), out int[] entries)) continue;
+                    foreach (int shapeIndex in entries)
                     {
-                        float fraction = stepIndex / (float)steps;
-                        Vector2 feet = Vector2.Lerp(previousFeet, currentFeet, fraction);
-                        bool currentValid = shape.TryGetSurfaceAtX(feet.x + offset, out float currentY, out Vector2 currentNormal);
-                        float currentDifference = currentValid ? feet.y - currentY : 0f;
-                        bool crossedFromAbove = previousDifference >= -Epsilon && currentDifference < -Epsilon;
-                        bool crossedFromBelow = previousDifference < -Epsilon && currentDifference >= -Epsilon;
-                        if (previousValid && currentValid && shape.IsAllowedSupport(currentNormal)
-                            && (crossedFromAbove || crossedFromBelow))
+                        Shape shape = shapes[shapeIndex];
+                        if (!IsFirstQueryBucket(shape, range, bucketX, bucketY)) continue;
+                        if (shape.Kind != NavigationSurfaceKind.OneWay
+                            || shape.Bounds.MaxX < sweptBounds.MinX - Epsilon || shape.Bounds.MinX > sweptBounds.MaxX + Epsilon
+                            || shape.Bounds.MaxY < sweptBounds.MinY - Epsilon || shape.Bounds.MinY > sweptBounds.MaxY + Epsilon)
+                            continue;
+                        for (int offsetIndex = -1; offsetIndex <= 1; offsetIndex++)
                         {
-                            float denominator = previousDifference - currentDifference;
-                            float local = denominator <= Epsilon ? 1f : Mathf.Clamp01(previousDifference / denominator);
-                            float eventFraction = ((stepIndex - 1) + local) / steps;
-                            float crossingX = Mathf.Lerp(previousFeet.x, currentFeet.x, eventFraction) + offset;
-                            shape.TryGetSurfaceAtX(crossingX, out float crossingY, out Vector2 crossingNormal, float.PositiveInfinity);
-                            AddUnique(results, new NavigationSurfaceCrossing(shape.SurfaceId, new Vector2(crossingX, crossingY), crossingNormal, eventFraction));
+                            float offset = offsetIndex * halfWidth;
+                            bool previousValid = shape.TryGetSurfaceAtX(previousFeet.x + offset, out _, out _);
+                            float previousDifference = previousValid && shape.TryGetSurfaceAtX(previousFeet.x + offset, out float firstY, out _)
+                                ? previousFeet.y - firstY : 0f;
+                            for (int stepIndex = 1; stepIndex <= steps; stepIndex++)
+                            {
+                                float fraction = stepIndex / (float)steps;
+                                Vector2 feet = Vector2.Lerp(previousFeet, currentFeet, fraction);
+                                bool currentValid = shape.TryGetSurfaceAtX(feet.x + offset, out float currentY, out Vector2 currentNormal);
+                                float currentDifference = currentValid ? feet.y - currentY : 0f;
+                                bool crossedFromAbove = previousDifference >= -Epsilon && currentDifference < -Epsilon;
+                                bool crossedFromBelow = previousDifference < -Epsilon && currentDifference >= -Epsilon;
+                                if (previousValid && currentValid && shape.IsAllowedSupport(currentNormal)
+                                    && (crossedFromAbove || crossedFromBelow))
+                                {
+                                    float denominator = previousDifference - currentDifference;
+                                    float local = denominator <= Epsilon ? 1f : Mathf.Clamp01(previousDifference / denominator);
+                                    float eventFraction = ((stepIndex - 1) + local) / steps;
+                                    float crossingX = Mathf.Lerp(previousFeet.x, currentFeet.x, eventFraction) + offset;
+                                    shape.TryGetSurfaceAtX(crossingX, out float crossingY, out Vector2 crossingNormal, float.PositiveInfinity);
+                                    AddUnique(results, new NavigationSurfaceCrossing(shape.SurfaceId, new Vector2(crossingX, crossingY), crossingNormal, eventFraction));
+                                }
+                                previousValid = currentValid;
+                                previousDifference = currentDifference;
+                            }
                         }
-                        previousValid = currentValid;
-                        previousDifference = currentDifference;
                     }
                 }
             }
@@ -390,25 +469,22 @@ namespace Aethiumian.AI.Navigation
             return regions.TryGetValue(worldIndex, out region);
         }
 
-        private IEnumerable<int> QueryShapeIndexes(AABB bounds)
+        private AABBInt GetQueryBucketRange(AABB bounds)
         {
-            HashSet<int> seen = new();
-            AABBInt range = ClampIndexRange(GetIndexRange(bounds, worldBounds), GetIndexBounds(worldBounds));
-            for (int y = range.MinY; y < range.MaxY; y++)
-                for (int x = range.MinX; x < range.MaxX; x++)
-                    if (buckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
-                        for (int index = 0; index < entries.Length; index++)
-                            if (seen.Add(entries[index])) yield return entries[index];
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            using var marker = ShapeQueryCountMarker.Auto();
+#endif
+            return ClampIndexRange(GetIndexRange(bounds, worldBounds), GetIndexBounds(worldBounds));
         }
 
-        private IEnumerable<int> QuerySupportCandidateIds(AABB bounds)
+        private bool IsFirstQueryBucket(Shape shape, AABBInt queryRange, int x, int y)
         {
-            AABBInt range = ClampIndexRange(GetIndexRange(bounds, worldBounds), GetIndexBounds(worldBounds));
-            for (int y = range.MinY; y < range.MaxY; y++)
-                for (int x = range.MinX; x < range.MaxX; x++)
-                    if (supportCandidateBuckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
-                        for (int index = 0; index < entries.Length; index++)
-                            yield return entries[index];
+            // Each shape occupies a complete bucket rectangle. Its first overlap with the
+            // query is unique and preserves Y/X encounter order without a visited set.
+            float bucket = NavigationConstant.SpatialIndexBucketSize;
+            int minX = Mathf.FloorToInt((shape.Bounds.MinX - worldBounds.MinX - Epsilon) / bucket);
+            int minY = Mathf.FloorToInt((shape.Bounds.MinY - worldBounds.MinY - Epsilon) / bucket);
+            return x == Mathf.Max(queryRange.MinX, minX) && y == Mathf.Max(queryRange.MinY, minY);
         }
 
         private static void AddUnique(List<NavigationSupport> results, NavigationSupport candidate)

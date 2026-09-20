@@ -916,6 +916,14 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(segment.SurfaceCrossings, Is.Not.Null);
             Assert.That(segment.MinimumApexHeight, Is.LessThanOrEqualTo(5.5f + 0.0001f));
             Assert.That(segment.SurfaceCrossings, Has.Count.GreaterThan(0));
+
+            List<JumpSurfaceCrossing> firstCrossings = new(segment.SurfaceCrossings);
+            Assert.That(new JumpNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
+                AABB.FromLowerCenter(new Vector2(1.5f, 1f), new Vector2(0.8f, 1.5f)),
+                Goal(new Vector2(1.5f, 4f), 0.1f),
+                new JumpNavigationParameters(Gravity, 1f, 0f, 5.5f, 0f, 0.02f),
+                out _), Is.True);
+            CollectionAssert.AreEqual(firstCrossings, segment.SurfaceCrossings);
         }
 
         /// <summary>
@@ -970,6 +978,34 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
             Assert.That(result.Route, Is.Null);
+        }
+
+        [Test]
+        public void FlyGoalResolutionObservesCancellationAfterClearanceQuery()
+        {
+            using CancellationTokenSource cancellation = new();
+            TestNavigationWorld world = new CancellationTriggerWorld(
+                new AABBInt(0, 0, 4, 4), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>(), cancellation, 2);
+            NavigationGoalRequest goal = NavigationGoalRequest.Proximity(
+                AABB.Point(new Vector2(2.5f, 1.5f)), DistanceMetric.Euclidean, 0.1f);
+
+            Assert.Throws<OperationCanceledException>(() => new FlyNavigationPlanner(world, 32).Plan(
+                AABB.FromCenterAndSize(new Vector2(0.5f, 1.5f), new Vector2(0.6f, 0.6f)),
+                goal, new FlyNavigationParameters(), cancellation.Token));
+        }
+
+        [Test]
+        public void SimpleWalkObservesCancellationAtSuccessorWorkBoundary()
+        {
+            using CancellationTokenSource cancellation = new();
+            TestNavigationWorld world = new CancellationTriggerWorld(
+                new AABBInt(0, 0, 4, 6), Floor(0, 3), Array.Empty<Vector2Int>(), cancellation, 2);
+            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(AABB.Point(3.5f, 1f), 0f);
+
+            Assert.Throws<OperationCanceledException>(() => new WalkNavigationPlanner(world, 32,
+                    new GroundJumpSolver(world)).PlanSingleStep(
+                    AABB.FromLowerCenter(new Vector2(0.5f, 1f), GroundBodySize), goal,
+                    WalkParameters(jumpHeight: 0f, jumpLength: 0f), cancellation.Token));
         }
 
         /// <summary>Verifies direct planner entry rejects a body with a zero dimension.</summary>
@@ -1034,6 +1070,29 @@ namespace Aethiumian.AI.Navigation.Tests
                 PrepareRouteCount++;
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(body.LowerCenter, goal,
                     NavigationRouteCoordinateFrame.GroundAnchor, true));
+            }
+        }
+
+        private sealed class CancellationTriggerWorld : TestNavigationWorld
+        {
+            private readonly CancellationTokenSource cancellation;
+            private readonly int cancelOnBodyClearCall;
+            private int bodyClearCalls;
+
+            public CancellationTriggerWorld(AABBInt bounds, IEnumerable<Vector2Int> solidCells,
+                IEnumerable<Vector2Int> oneWayCells, CancellationTokenSource cancellation, int cancelOnBodyClearCall)
+                : base(bounds, solidCells, oneWayCells)
+            {
+                this.cancellation = cancellation;
+                this.cancelOnBodyClearCall = cancelOnBodyClearCall;
+            }
+
+            public override bool IsBodyClear(AABB bodyBounds, float tolerance)
+            {
+                bool clear = base.IsBodyClear(bodyBounds, tolerance);
+                if (++bodyClearCalls == cancelOnBodyClearCall)
+                    cancellation.Cancel();
+                return clear;
             }
         }
 

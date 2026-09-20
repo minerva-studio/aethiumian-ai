@@ -46,32 +46,15 @@ namespace Aethiumian.AI.Navigation
             if (goal.IsRetreat)
                 return PlanRetreat(start, goal, parameters, bodySize, cancellationToken, diagnostics);
 
-            Vector2 resolvedGoal = default;
-            bool hasGoal = false;
-            foreach (Vector2? candidate in EnumerateGoalResolution(goal, bodySize))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (candidate.HasValue)
-                {
-                    resolvedGoal = candidate.Value;
-                    hasGoal = true;
-                }
-            }
+            bool hasGoal = TryResolveGoal(goal, bodySize, cancellationToken, out Vector2 resolvedGoal);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!hasGoal)
                 return NavigationPlanResult.NoResult;
             if (start.Equals(resolvedGoal))
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(start, goal, NavigationRouteCoordinateFrame.BodyCenter, true));
 
-            bool directClear = false;
-            foreach (bool? segmentClear in EnumerateCenteredSegmentClear(World, start, resolvedGoal, bodySize))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (segmentClear.HasValue)
-                {
-                    directClear = segmentClear.Value;
-                    break;
-                }
-            }
+            bool directClear = IsCenteredSegmentClear(World, start, resolvedGoal, bodySize, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (directClear)
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(goal, new[] { new FlyRouteSegment(start, resolvedGoal) }));
 
@@ -165,17 +148,19 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        /// <summary>Scans goal cells with explicit cancellation boundaries and returns the nearest clear center.</summary>
-        private IEnumerable<Vector2?> EnumerateGoalResolution(NavigationGoalRequest goal, Vector2 bodySize)
+        /// <summary>
+        /// Scans goal cells and returns the nearest clear center without allocating an iterator.
+        /// </summary>
+        private bool TryResolveGoal(NavigationGoalRequest goal, Vector2 bodySize, CancellationToken cancellationToken, out Vector2 resolvedGoal)
         {
+            resolvedGoal = default;
             Vector2 requestedCenter = GetGoalCenter(goal, bodySize);
             if (World.IsGoalComplete(goal, CenteredBody(requestedCenter, bodySize)) && IsFlyBodyClear(World, requestedCenter, bodySize))
             {
-                yield return requestedCenter;
-                yield break;
+                resolvedGoal = requestedCenter;
+                return true;
             }
 
-            Vector2 resolvedGoal = default;
             float bestDistanceSquared = float.PositiveInfinity;
             AABB target = goal.TargetBounds;
             int xMin = Mathf.FloorToInt((target.MinX - bodySize.x * 0.5f - goal.ArrivalTolerance - World.WorldBounds.MinX) / FlightStep) - 1;
@@ -194,18 +179,18 @@ namespace Aethiumian.AI.Navigation
                         AABB candidateBody = CenteredBody(candidateCenter, bodySize);
                         float distance = World.GetGoalCompletionDistance(goal, candidateBody);
                         float distanceSquared = distance * distance;
-                        if (World.IsGoalComplete(goal, candidateBody) && distanceSquared + Tolerance < bestDistanceSquared && IsFlyBodyClear(World, candidateCenter, bodySize))
+                        if (distance <= goal.CompletionTolerance && distanceSquared + Tolerance < bestDistanceSquared && IsFlyBodyClear(World, candidateCenter, bodySize))
                         {
                             bestDistanceSquared = distanceSquared;
                             resolvedGoal = candidateCenter;
                         }
                     }
 
-                    yield return null;
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
             }
 
-            yield return float.IsPositiveInfinity(bestDistanceSquared) ? (Vector2?)null : resolvedGoal;
+            return !float.IsPositiveInfinity(bestDistanceSquared);
         }
 
         /// <summary>Searches the same aerial grid until any clear cell satisfies the Retreat predicate.</summary>
@@ -421,18 +406,18 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Checks center-anchored segment samples with explicit cancellation boundaries.
         /// </summary>
-        private static IEnumerable<bool?> EnumerateCenteredSegmentClear(INavigationWorld snapshot, Vector2 start, Vector2 end, Vector2 bodySize)
+        private static bool IsCenteredSegmentClear(INavigationWorld snapshot, Vector2 start, Vector2 end,
+            Vector2 bodySize, CancellationToken cancellationToken)
         {
             int samples = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(start, end) / NavigationConstant.MaximumTraversalSampleSpacing));
-            bool clear = true;
             for (int i = 0; i <= samples; i++)
             {
-                if (clear)
-                    clear = IsFlyBodyClear(snapshot, Vector2.Lerp(start, end, i / (float)samples), bodySize);
-                yield return null;
+                cancellationToken.ThrowIfCancellationRequested();
+                bool sampleClear = IsFlyBodyClear(snapshot, Vector2.Lerp(start, end, i / (float)samples), bodySize);
+                if (!sampleClear) return false;
             }
 
-            yield return clear;
+            return true;
         }
 
         /// <summary>Finds the nearest clear grid connector for a physical center position.</summary>

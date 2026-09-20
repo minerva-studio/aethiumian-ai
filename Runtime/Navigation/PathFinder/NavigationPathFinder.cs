@@ -392,9 +392,11 @@ namespace Aethiumian.AI.Navigation
                 nodes.Add(destination.Identity, destination);
             }
 
-            PathRecord candidatePath = new(parent.BestPath, transition.Segment, parent.BestPath.RouteCost + transition.Cost, parent.BestPath.StepCount + 1);
-            bool better = destination.BestPath == null || IsBetterPath(candidatePath, destination.BestPath);
-            if (!better) return;
+            float routeCost = parent.BestPath.RouteCost + transition.Cost;
+            int stepCount = parent.BestPath.StepCount + 1;
+            if (destination.BestPath != null && !IsBetterPath(routeCost, stepCount, destination.BestPath)) return;
+
+            PathRecord candidatePath = new(parent.BestPath, transition.Segment, routeCost, stepCount);
 
             destination.Heuristic = heuristic;
             destination.BestPath = candidatePath;
@@ -458,8 +460,8 @@ namespace Aethiumian.AI.Navigation
             return !NavigationNumeric.IsFinite(heuristic) || heuristic < 0f ? 0f : heuristic;
         }
 
-        private static bool IsBetterPath(PathRecord candidate, PathRecord best)
-            => candidate.RouteCost < best.RouteCost - Tolerance || (Mathf.Abs(candidate.RouteCost - best.RouteCost) <= Tolerance && candidate.StepCount < best.StepCount);
+        private static bool IsBetterPath(float routeCost, int stepCount, PathRecord best)
+            => routeCost < best.RouteCost - Tolerance || (Mathf.Abs(routeCost - best.RouteCost) <= Tolerance && stepCount < best.StepCount);
 
         private static bool WorkLimitReached(Stopwatch timer, int workUnits, NavigationWorkBudget budget)
             => workUnits >= budget.MaxWorkUnits || timer.Elapsed.TotalMilliseconds >= budget.Milliseconds;
