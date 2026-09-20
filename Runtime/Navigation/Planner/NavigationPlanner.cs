@@ -74,8 +74,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Advances the shared action-graph search with the planner's standard cooperative budget.
         /// A complete-route request publishes only a route that reaches its planning goal.
-        /// This remains assembly-scoped because <see cref="NavigationSearchRequest"/> is internal;
-        /// external planners implement their own <see cref="Plan"/> method instead.
+        /// Derived planners supply stable request data and their expansion strategy.
         /// </summary>
         protected static NavigationPlanResult RunSearch(NavigationSearchRequest request, NavigationPlanningDiagnostics diagnostics, CancellationToken cancellationToken)
         {

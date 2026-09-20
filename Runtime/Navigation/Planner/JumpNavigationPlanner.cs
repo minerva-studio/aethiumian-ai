@@ -43,11 +43,7 @@ namespace Aethiumian.AI.Navigation
                 }
                 else
                 {
-                    NavigationSearchRequest request = new(World, resolvedStart, startSupport, goal,
-                        bodySize, NavigationActions.Jump, MaxExpandedNodes,
-                        NavigationNodeIdentity.Jump(-1),
-                        node => EnumerateSharedTransitions(node, goal, jumpParameters, diagnostics),
-                        position => EvaluateGoalHeuristic(position, goal, bodySize));
+                    SearchRequest request = new(this, resolvedStart, startSupport, goal, jumpParameters, diagnostics);
                     result = RunSearch(request, diagnostics, cancellationToken);
                 }
             }
@@ -106,6 +102,38 @@ namespace Aethiumian.AI.Navigation
             return NavigationPlanResult.ResultProduced(route);
         }
 
+        private sealed class SearchRequest : NavigationSearchRequest
+        {
+            private readonly JumpNavigationPlanner planner;
+            private readonly GroundJumpParameters parameters;
+            private readonly NavigationPlanningDiagnostics diagnostics;
+
+            public SearchRequest(
+                JumpNavigationPlanner planner,
+                Vector2 start,
+                NavigationSupport startSupport,
+                NavigationGoalRequest goal,
+                GroundJumpParameters parameters,
+                NavigationPlanningDiagnostics diagnostics)
+                : base(start, startSupport, goal, planner.MaxExpandedNodes, NavigationNodeIdentity.Jump(-1))
+            {
+                this.planner = planner;
+                this.parameters = parameters;
+                this.diagnostics = diagnostics;
+            }
+
+            public override IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node)
+                => planner.EnumerateSharedTransitions(node, Goal, parameters, diagnostics);
+
+            public override float EvaluateHeuristic(Vector2 position)
+            {
+                if (Goal.IsRetreat || Goal.DistanceMetric != DistanceMetric.Euclidean) return 0f;
+                AABB body = AABB.FromLowerCenter(position, parameters.BodySize);
+                float completionDistance = planner.World.GetGoalCompletionDistance(Goal, body);
+                return Mathf.Max(0f, completionDistance - Goal.CompletionTolerance);
+            }
+        }
+
         private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRequest goal, GroundJumpParameters jumpParameters, NavigationPlanningDiagnostics diagnostics)
         {
             if (TryCreateDirectGoalSuccessor(jumpSolver, node.Position, goal, jumpParameters, out Successor nearestGoal))
@@ -128,19 +156,6 @@ namespace Aethiumian.AI.Navigation
                     jump.LandingSupport, jump.CreateSegment(),
                     Vector2.Distance(node.Position, jump.Trajectory.LandingPosition) + jump.Trajectory.FlightDuration, completesGoal));
             }
-        }
-
-        /// <summary>
-        /// Returns an admissible Euclidean lower bound for ordinary approach goals. Goals whose
-        /// metric or retreat semantics do not provide that bound retain zero guidance.
-        /// </summary>
-        private float EvaluateGoalHeuristic(Vector2 lowerCenter, NavigationGoalRequest goal, Vector2 bodySize)
-        {
-            if (goal.IsRetreat || goal.DistanceMetric != DistanceMetric.Euclidean) return 0f;
-
-            AABB body = AABB.FromLowerCenter(lowerCenter, bodySize);
-            float completionDistance = World.GetGoalCompletionDistance(goal, body);
-            return Mathf.Max(0f, completionDistance - goal.CompletionTolerance);
         }
 
         /// <summary>Targets the goal within jump range instead of landing on its completion boundary.</summary>

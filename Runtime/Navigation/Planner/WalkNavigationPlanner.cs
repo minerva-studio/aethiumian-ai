@@ -8,8 +8,6 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Plans bounded walking traversal with ordinary ground, jump, fall, and drop-through successors.</summary>
     public sealed class WalkNavigationPlanner : NavigationPlanner<WalkNavigationParameters>
     {
-        private const NavigationActions AllowedActions = NavigationActions.GroundMove | NavigationActions.Jump | NavigationActions.Fall | NavigationActions.DropThrough;
-
         private readonly GroundJumpSolver jumpSolver;
 
         /// <summary>Creates a planner that shares one immutable world's jump solver.</summary>
@@ -176,10 +174,7 @@ namespace Aethiumian.AI.Navigation
                 }
                 else
                 {
-                    NavigationSearchRequest request = new(World, resolvedStart, startSupport, goal, bodySize, AllowedActions,
-                        MaxExpandedNodes, NavigationNodeIdentity.Ground(-1),
-                        node => EnumerateSharedTransitions(node, parameters, bodySize, goal, diagnostics),
-                        position => goal.IsGroundWalk ? goal.DistanceToLowerCenterGoal(position, bodySize.x) : 0f);
+                    SearchRequest request = new(this, resolvedStart, startSupport, goal, parameters, bodySize, diagnostics);
                     result = RunSearch(request, diagnostics, cancellationToken);
                 }
             }
@@ -224,6 +219,36 @@ namespace Aethiumian.AI.Navigation
 
             route = NavigationRoute.Complete(goal, new NavigationRouteSegment[] { new GroundRouteSegment(start, end) });
             return true;
+        }
+
+        private sealed class SearchRequest : NavigationSearchRequest
+        {
+            private readonly WalkNavigationPlanner planner;
+            private readonly WalkNavigationParameters parameters;
+            private readonly Vector2 bodySize;
+            private readonly NavigationPlanningDiagnostics diagnostics;
+
+            public SearchRequest(
+                WalkNavigationPlanner planner,
+                Vector2 start,
+                NavigationSupport startSupport,
+                NavigationGoalRequest goal,
+                WalkNavigationParameters parameters,
+                Vector2 bodySize,
+                NavigationPlanningDiagnostics diagnostics)
+                : base(start, startSupport, goal, planner.MaxExpandedNodes, NavigationNodeIdentity.Ground(-1))
+            {
+                this.planner = planner;
+                this.parameters = parameters;
+                this.bodySize = bodySize;
+                this.diagnostics = diagnostics;
+            }
+
+            public override IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node)
+                => planner.EnumerateSharedTransitions(node, parameters, bodySize, Goal, diagnostics);
+
+            public override float EvaluateHeuristic(Vector2 position)
+                => Goal.IsGroundWalk ? Goal.DistanceToLowerCenterGoal(position, bodySize.x) : 0f;
         }
 
         private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, WalkNavigationParameters parameters, Vector2 bodySize, NavigationGoalRequest goal, NavigationPlanningDiagnostics diagnostics)

@@ -62,10 +62,7 @@ namespace Aethiumian.AI.Navigation
                 || !TryFindConnectorCell(World, resolvedGoal, bodySize, out Vector2Int goalCell))
                 return NavigationPlanResult.NoResult;
 
-            NavigationSearchRequest request = new(World, start, default, goal, bodySize,
-                NavigationActions.Fly, MaxExpandedNodes, NavigationNodeIdentity.Fly(startCell),
-                node => EnumerateFlyTransitions(node, goal, resolvedGoal, goalCell, bodySize),
-                _ => 0f);
+            SearchRequest request = new(this, start, goal, bodySize, resolvedGoal, startCell, goalCell);
             return RunSearch(request, diagnostics, cancellationToken);
         }
 
@@ -124,6 +121,33 @@ namespace Aethiumian.AI.Navigation
                 && IsFlyBodyPathClear(World, start, end, bodySize)
                 && (!goal.IsRetreat || parameters.RemainingApproachDistance is not float approachLimit
                     || RetreatNavigationGeometry.SegmentApproachDistance(start, end, goal.TargetBounds.Center) <= approachLimit);
+
+        private sealed class SearchRequest : NavigationSearchRequest
+        {
+            private readonly FlyNavigationPlanner planner;
+            private readonly Vector2 bodySize;
+            private readonly Vector2 resolvedGoal;
+            private readonly Vector2Int goalCell;
+
+            public SearchRequest(
+                FlyNavigationPlanner planner,
+                Vector2 start,
+                NavigationGoalRequest goal,
+                Vector2 bodySize,
+                Vector2 resolvedGoal,
+                Vector2Int startCell,
+                Vector2Int goalCell)
+                : base(start, default, goal, planner.MaxExpandedNodes, NavigationNodeIdentity.Fly(startCell))
+            {
+                this.planner = planner;
+                this.bodySize = bodySize;
+                this.resolvedGoal = resolvedGoal;
+                this.goalCell = goalCell;
+            }
+
+            public override IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node)
+                => planner.EnumerateFlyTransitions(node, Goal, resolvedGoal, goalCell, bodySize);
+        }
 
         private IEnumerable<NavigationTransitionWork> EnumerateFlyTransitions(NavigationSearchNode node, NavigationGoalRequest goal, Vector2 resolvedGoal, Vector2Int goalCell, Vector2 bodySize)
         {

@@ -12,11 +12,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSearchRejectsDefaultWorkBudget()
         {
-            TestNavigationWorld world = new(new AABBInt(-2, -2, 2, 2), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
-            NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
-                _ => Array.Empty<NavigationTransitionWork>());
+            ScriptedSearchRequest request = new(goal, 8, _ => Array.Empty<NavigationTransitionWork>());
             using NavigationSearch search = new NavigationSearch(request);
 
             Assert.That(() => search.Advance(default, default), Throws.InstanceOf<ArgumentException>());
@@ -26,11 +23,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSearchAdvancesArtificialTransition()
         {
-            TestNavigationWorld world = new(new AABBInt(-2, -2, 2, 2), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
-            NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1), node =>
-                    ArtificialTransitions(node));
+            ScriptedSearchRequest request = new(goal, 8, ArtificialTransitions);
             using NavigationSearch search = new NavigationSearch(request);
 
             NavigationSearchUpdate update = search.Advance(new NavigationWorkBudget(4, 1000d), default);
@@ -44,11 +38,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSearchCompletesActiveNodeAtExpansionLimit()
         {
-            TestNavigationWorld world = new(new AABBInt(-2, -2, 2, 2), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
-            NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 1, NavigationNodeIdentity.Ground(-1),
-                ArtificialTransitions);
+            ScriptedSearchRequest request = new(goal, 1, ArtificialTransitions);
             using NavigationSearch search = new NavigationSearch(request);
 
             NavigationSearchUpdate firstSlice = search.Advance(new NavigationWorkBudget(1, 1000d), default);
@@ -63,11 +54,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSearchContinuesAcrossWorkSlices()
         {
-            TestNavigationWorld world = new(new AABBInt(-2, -2, 6, 2), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(new Vector2(3f, 0f)), DistanceMetric.Euclidean, 0f);
-            NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
-                ArtificialTailTransitions);
+            ScriptedSearchRequest request = new(goal, 8, ArtificialTailTransitions);
             using NavigationSearch search = new NavigationSearch(request);
 
             NavigationSearchUpdate first = search.Advance(new NavigationWorkBudget(1, 1000d), default);
@@ -84,11 +72,8 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void NavigationSearchTotalBudgetIsTerminalWithoutRoute()
         {
-            TestNavigationWorld world = new(new AABBInt(-2, -2, 2, 2), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(AABB.Point(Vector2.right), DistanceMetric.Euclidean, 0f);
-            NavigationSearchRequest request = new(world, Vector2.zero, default, goal, Vector2.one,
-                NavigationActions.GroundMove, 8, NavigationNodeIdentity.Ground(-1),
-                ArtificialTransitions, maxTotalWorkUnits: 1);
+            ScriptedSearchRequest request = new(goal, 8, ArtificialTransitions, maxTotalWorkUnits: 1);
             using NavigationSearch search = new NavigationSearch(request);
 
             NavigationSearchUpdate update = search.Advance(new NavigationWorkBudget(8, 1000d), default);
@@ -97,6 +82,24 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(update.Route, Is.Null);
             Assert.That(search.Advance(new NavigationWorkBudget(8, 1000d), default).Status,
                 Is.EqualTo(NavigationSearchStatus.Pending));
+        }
+
+        private sealed class ScriptedSearchRequest : NavigationSearchRequest
+        {
+            private readonly Func<NavigationSearchNode, IEnumerable<NavigationTransitionWork>> transitions;
+
+            public ScriptedSearchRequest(
+                NavigationGoalRequest goal, int maxExpandedNodes,
+                Func<NavigationSearchNode, IEnumerable<NavigationTransitionWork>> transitions,
+                int maxTotalWorkUnits = -1)
+                : base(Vector2.zero, default, goal, maxExpandedNodes,
+                    NavigationNodeIdentity.Ground(-1), maxTotalWorkUnits)
+            {
+                this.transitions = transitions;
+            }
+
+            public override IEnumerable<NavigationTransitionWork> EnumerateTransitions(NavigationSearchNode node)
+                => transitions(node);
         }
 
         /// <summary>Verifies ground reconnection preserves a validated multi-segment tail.</summary>

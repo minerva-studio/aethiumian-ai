@@ -169,65 +169,6 @@ namespace Aethiumian.AI.Navigation
             => new(transition, true);
     }
 
-    public delegate IEnumerable<NavigationTransitionWork> NavigationTransitionProvider(NavigationSearchNode node);
-
-    /// <summary>Immutable request data consumed by the shared action-graph search.</summary>
-    public sealed class NavigationSearchRequest
-    {
-        public INavigationWorld World { get; }
-        public Vector2 Start { get; }
-        public NavigationSupport StartSupport { get; }
-        public NavigationGoalRequest Goal { get; }
-        public Vector2 BodySize { get; }
-        public NavigationActions AllowedActions { get; }
-        public int MaxExpandedNodes { get; }
-        public int MaxTotalWorkUnits { get; }
-        public NavigationNodeIdentity StartIdentity { get; }
-        public Func<Vector2, float> Heuristic { get; }
-        public NavigationTransitionProvider Transitions { get; }
-
-        public NavigationSearchRequest(INavigationWorld world,
-            Vector2 start,
-            NavigationSupport startSupport,
-            NavigationGoalRequest goal,
-            Vector2 bodySize,
-            NavigationActions allowedActions,
-            int maxExpandedNodes,
-            NavigationNodeIdentity startIdentity,
-            NavigationTransitionProvider transitions,
-            Func<Vector2, float> heuristic = null,
-            int maxTotalWorkUnits = -1)
-        {
-            World = world ?? throw new ArgumentNullException(nameof(world));
-            Goal = goal;
-            if (!NavigationNumeric.IsFinite(start) || !NavigationNumeric.IsFinite(bodySize) || bodySize.x <= 0f || bodySize.y <= 0f)
-                throw new ArgumentException("Navigation search coordinates and body size must be finite and positive.");
-            if (maxExpandedNodes <= 0) throw new ArgumentOutOfRangeException(nameof(maxExpandedNodes));
-            if (allowedActions == 0) throw new ArgumentOutOfRangeException(nameof(allowedActions));
-            if (maxTotalWorkUnits == 0 || maxTotalWorkUnits < -1)
-                throw new ArgumentOutOfRangeException(nameof(maxTotalWorkUnits));
-            Start = start;
-            StartSupport = startSupport;
-            BodySize = bodySize;
-            AllowedActions = allowedActions;
-            MaxExpandedNodes = maxExpandedNodes;
-            if (maxTotalWorkUnits > 0)
-            {
-                MaxTotalWorkUnits = maxTotalWorkUnits;
-            }
-            else
-            {
-                // Keep synchronous callers bounded even when every candidate needs geometry work.
-                int scaledLimit = maxExpandedNodes > 256 ? int.MaxValue : maxExpandedNodes * 16;
-                MaxTotalWorkUnits = Math.Min(4096, Math.Max(256, scaledLimit));
-            }
-            StartIdentity = startIdentity;
-            Transitions = transitions ?? throw new ArgumentNullException(nameof(transitions));
-            Heuristic = heuristic ?? (_ => 0f);
-        }
-
-    }
-
     internal readonly struct NavigationSearchUpdate
     {
         public NavigationSearchStatus Status { get; }
@@ -326,7 +267,7 @@ namespace Aethiumian.AI.Navigation
 
                     expandingNode.IsClosed = true;
                     expandedNodes++;
-                    transitionEnumerator = request.Transitions(expandingNode)?.GetEnumerator();
+                    transitionEnumerator = request.EnumerateTransitions(expandingNode)?.GetEnumerator();
                     if (transitionEnumerator == null) continue;
                 }
 
@@ -456,7 +397,7 @@ namespace Aethiumian.AI.Navigation
 
         private float SafeHeuristic(Vector2 position)
         {
-            float heuristic = request.Heuristic(position);
+            float heuristic = request.EvaluateHeuristic(position);
             return !NavigationNumeric.IsFinite(heuristic) || heuristic < 0f ? 0f : heuristic;
         }
 
