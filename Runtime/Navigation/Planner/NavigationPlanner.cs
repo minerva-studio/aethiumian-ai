@@ -22,6 +22,12 @@ namespace Aethiumian.AI.Navigation
             MaxExpandedNodes = maxExpandedNodes;
         }
 
+        /// <summary>
+        /// Gets the actions this planner can generate. Physical inputs and geometry determine
+        /// which are feasible; this declaration does not filter search transitions.
+        /// </summary>
+        public abstract NavigationActions SupportedActions { get; }
+
         /// <summary>Gets the immutable navigation world used by every request for this planner.</summary>
         protected INavigationWorld World { get; }
 

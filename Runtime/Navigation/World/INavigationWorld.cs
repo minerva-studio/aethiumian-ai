@@ -48,7 +48,7 @@ namespace Aethiumian.AI.Navigation
         bool TryGetSupportBelow(Vector2 position, out NavigationSupport support);
 
         /// <summary>
-        /// Returns read-only support candidates for the requested anchor bounds and body size.
+        /// Returns read-only support candidates with unique IDs in stable order for the requested anchor bounds and body size.
         /// Results remain valid after cache eviction and do not contain goal-specific filtering.
         /// Producers and consumers must not mutate or reuse the published collection.
         /// </summary>

@@ -28,6 +28,7 @@ namespace Aethiumian.AI.Navigation.Tests
         [Test]
         public void IdentityOrderingIsTotal()
         {
+            Assert.That(NavigationNodeIdentity.Ground(2).CompareTo(Lattice(0, 0)), Is.LessThan(0));
             NavigationNodeIdentity first = Lattice(0, 0);
             NavigationNodeIdentity second = Lattice(0, 0, 1);
             NavigationNodeIdentity third = Lattice(0, 1);

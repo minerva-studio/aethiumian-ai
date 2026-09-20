@@ -9,6 +9,9 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Performs deterministic bounded aerial planning around solid world geometry.</summary>
     public sealed class FlyNavigationPlanner : NavigationPlanner<FlyNavigationParameters>
     {
+        /// <inheritdoc />
+        public override NavigationActions SupportedActions => NavigationActions.Fly;
+
         private static readonly Vector2Int[] Directions = { Vector2Int.right, Vector2Int.up, Vector2Int.left, Vector2Int.down, };
         private static readonly ProfilerMarker SearchMarker = new("AethiumianAI.Navigation.FlySearch");
 

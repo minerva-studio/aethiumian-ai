@@ -6,16 +6,6 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
 {
-    [Flags]
-    public enum NavigationActions
-    {
-        GroundMove = 1,
-        Jump = 2,
-        Fall = 4,
-        DropThrough = 8,
-        Fly = 16,
-    }
-
     internal enum NavigationSearchStatus
     {
         Pending,
@@ -40,17 +30,26 @@ namespace Aethiumian.AI.Navigation
         }
     }
 
+    /// <summary>Distinguishes support-candidate nodes from flight-lattice nodes.</summary>
+    public enum NavigationNodeKind
+    {
+        Ground,
+        Fly,
+    }
+
+    /// <summary>Identifies a search state independently of the action used to reach it.</summary>
     public readonly struct NavigationNodeIdentity : IEquatable<NavigationNodeIdentity>, IComparable<NavigationNodeIdentity>
     {
-        public NavigationActions Action { get; }
+        /// <summary>Gets the state category, independently of planner mode or incoming action.</summary>
+        public NavigationNodeKind Kind { get; }
 
         /// <summary>
-        /// Gets the fly planner's own search-lattice coordinate; unused by other actions.
+        /// Gets the fly planner's own search-lattice coordinate; unused by grounded nodes.
         /// </summary>
         public Vector2Int Cell { get; }
 
         /// <summary>
-        /// Gets the stable support-candidate identity for grounded and jump nodes.
+        /// Gets the stable support-candidate identity shared by Walk and Jump searches.
         /// </summary>
         public int CandidateId { get; }
 
@@ -59,33 +58,30 @@ namespace Aethiumian.AI.Navigation
         /// </summary>
         public int LabelId { get; }
 
-        private NavigationNodeIdentity(NavigationActions action, int candidateId, Vector2Int cell, int labelId)
+        private NavigationNodeIdentity(NavigationNodeKind kind, int candidateId, Vector2Int cell, int labelId)
         {
-            Action = action;
+            Kind = kind;
             CandidateId = candidateId;
             Cell = cell;
             LabelId = labelId;
         }
 
         public static NavigationNodeIdentity Ground(int candidateId)
-            => new(NavigationActions.GroundMove, candidateId, default, 0);
-
-        public static NavigationNodeIdentity Jump(int candidateId)
-            => new(NavigationActions.Jump, candidateId, default, 0);
+            => new(NavigationNodeKind.Ground, candidateId, default, 0);
 
         public static NavigationNodeIdentity Fly(Vector2Int cell, int labelId = 0)
-            => new(NavigationActions.Fly, -1, cell, labelId);
+            => new(NavigationNodeKind.Fly, -1, cell, labelId);
 
         public bool Equals(NavigationNodeIdentity other)
-            => Action == other.Action && CandidateId == other.CandidateId && Cell == other.Cell && LabelId == other.LabelId;
+            => Kind == other.Kind && CandidateId == other.CandidateId && Cell == other.Cell && LabelId == other.LabelId;
 
         public override bool Equals(object obj) => obj is NavigationNodeIdentity other && Equals(other);
-        public override int GetHashCode() => HashCode.Combine((int)Action, CandidateId, Cell, LabelId);
+        public override int GetHashCode() => HashCode.Combine((int)Kind, CandidateId, Cell, LabelId);
 
         public int CompareTo(NavigationNodeIdentity other)
         {
-            int action = ((int)Action).CompareTo((int)other.Action);
-            if (action != 0) return action;
+            int kind = ((int)Kind).CompareTo((int)other.Kind);
+            if (kind != 0) return kind;
             int candidate = CandidateId.CompareTo(other.CandidateId);
             if (candidate != 0) return candidate;
             int y = Cell.y.CompareTo(other.Cell.y);
@@ -142,7 +138,7 @@ namespace Aethiumian.AI.Navigation
             => new(NavigationNodeIdentity.Ground(candidateId), position, support, segment, cost, completesGoal);
 
         public static NavigationTransition CompletedJump(Vector2 position, NavigationRouteSegment segment, float cost)
-            => new(NavigationNodeIdentity.Jump(-1), position, default, segment, cost, true);
+            => new(NavigationNodeIdentity.Ground(-1), position, default, segment, cost, true);
 
         public static NavigationTransition JumpLanding(NavigationNodeIdentity destination, Vector2 position, NavigationSupport support, NavigationRouteSegment segment, float cost, bool completesGoal)
             => new(destination, position, support, segment, cost, completesGoal);
@@ -238,12 +234,12 @@ namespace Aethiumian.AI.Navigation
             if (terminal)
                 return NavigationSearchUpdate.Pending(expandedNodes);
 
-            Stopwatch timer = Stopwatch.StartNew();
+            long startedAt = Stopwatch.GetTimestamp();
             int workUnits = 0;
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (WorkLimitReached(timer, workUnits, budget))
+                if (WorkLimitReached(startedAt, workUnits, budget))
                     return CreateBudgetUpdate(workUnits, false);
 
                 if (transitionEnumerator == null)
@@ -286,7 +282,7 @@ namespace Aethiumian.AI.Navigation
                 {
                     if (totalWorkUnits >= request.MaxTotalWorkUnits)
                         return CreateBudgetUpdate(workUnits, true);
-                    if (WorkLimitReached(timer, workUnits, budget))
+                    if (WorkLimitReached(startedAt, workUnits, budget))
                         return CreateBudgetUpdate(workUnits, false);
                     continue;
                 }
@@ -302,7 +298,7 @@ namespace Aethiumian.AI.Navigation
                 Relax(expandingNode, transition);
                 if (totalWorkUnits >= request.MaxTotalWorkUnits)
                     return CreateBudgetUpdate(workUnits, true);
-                if (WorkLimitReached(timer, workUnits, budget))
+                if (WorkLimitReached(startedAt, workUnits, budget))
                     return CreateBudgetUpdate(workUnits, false);
             }
 
@@ -404,8 +400,8 @@ namespace Aethiumian.AI.Navigation
         private static bool IsBetterPath(float routeCost, int stepCount, PathRecord best)
             => routeCost < best.RouteCost - Tolerance || (Mathf.Abs(routeCost - best.RouteCost) <= Tolerance && stepCount < best.StepCount);
 
-        private static bool WorkLimitReached(Stopwatch timer, int workUnits, NavigationWorkBudget budget)
-            => workUnits >= budget.MaxWorkUnits || timer.Elapsed.TotalMilliseconds >= budget.Milliseconds;
+        private static bool WorkLimitReached(long startedAt, int workUnits, NavigationWorkBudget budget)
+            => workUnits >= budget.MaxWorkUnits || (Stopwatch.GetTimestamp() - startedAt) * (1000d / Stopwatch.Frequency) >= budget.Milliseconds;
 
 
         private void ThrowIfDisposed()

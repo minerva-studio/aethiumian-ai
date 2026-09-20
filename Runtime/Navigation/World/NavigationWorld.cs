@@ -69,7 +69,8 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>
         /// Fills the supplied request-local list from immutable geometry without reentering the public query.
-        /// Calls may overlap. Implementations must not retain the list for later mutation.
+        /// Calls may overlap. Implementations must append each candidate ID at most once
+        /// and must not retain the list for later mutation.
         /// This base class sorts and publishes it; nobody may mutate or reuse it after publication.
         /// </summary>
         protected abstract void CollectSupportCandidatesCore(AABB anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results);

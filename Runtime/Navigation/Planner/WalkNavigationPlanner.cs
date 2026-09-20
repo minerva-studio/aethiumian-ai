@@ -8,6 +8,9 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Plans bounded walking traversal with ordinary ground, jump, fall, and drop-through successors.</summary>
     public sealed class WalkNavigationPlanner : NavigationPlanner<WalkNavigationParameters>
     {
+        /// <inheritdoc />
+        public override NavigationActions SupportedActions => NavigationActions.GroundMove | NavigationActions.Jump | NavigationActions.Fall | NavigationActions.DropThrough;
+
         private readonly GroundJumpSolver jumpSolver;
 
         /// <summary>Creates a planner that shares one immutable world's jump solver.</summary>

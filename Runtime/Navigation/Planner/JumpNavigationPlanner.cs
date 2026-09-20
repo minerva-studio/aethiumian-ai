@@ -8,6 +8,9 @@ namespace Aethiumian.AI.Navigation
     /// <summary>Plans bounded repeated ballistic jumps with locally generated landing successors.</summary>
     public sealed class JumpNavigationPlanner : NavigationPlanner<JumpNavigationParameters>
     {
+        /// <inheritdoc />
+        public override NavigationActions SupportedActions => NavigationActions.Jump;
+
         private readonly GroundJumpSolver jumpSolver;
 
         /// <summary>
@@ -76,7 +79,7 @@ namespace Aethiumian.AI.Navigation
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(resolvedStart, goal, NavigationRouteCoordinateFrame.GroundAnchor, true));
             }
 
-            var node = new NavigationSearchNode(NavigationNodeIdentity.Jump(-1), resolvedStart, support, 0f);
+            var node = new NavigationSearchNode(NavigationNodeIdentity.Ground(-1), resolvedStart, support, 0f);
             NavigationTransition? best = null;
             float distance = goal.GuidanceDistance(startBody);
             int work = 0;
@@ -115,7 +118,7 @@ namespace Aethiumian.AI.Navigation
                 NavigationGoalRequest goal,
                 GroundJumpParameters parameters,
                 NavigationPlanningDiagnostics diagnostics)
-                : base(start, startSupport, goal, planner.MaxExpandedNodes, NavigationNodeIdentity.Jump(-1))
+                : base(start, startSupport, goal, planner.MaxExpandedNodes, NavigationNodeIdentity.Ground(-1))
             {
                 this.planner = planner;
                 this.parameters = parameters;
@@ -152,7 +155,7 @@ namespace Aethiumian.AI.Navigation
                 if (completesGoal)
                     diagnostics?.RecordTerminalCandidate();
                 yield return NavigationTransitionWork.Edge(NavigationTransition.JumpLanding(
-                    NavigationNodeIdentity.Jump(jump.LandingCandidateId), jump.Trajectory.LandingPosition,
+                    NavigationNodeIdentity.Ground(jump.LandingCandidateId), jump.Trajectory.LandingPosition,
                     jump.LandingSupport, jump.CreateSegment(),
                     Vector2.Distance(node.Position, jump.Trajectory.LandingPosition) + jump.Trajectory.FlightDuration, completesGoal));
             }

@@ -70,7 +70,6 @@ namespace Aethiumian.AI.Navigation
                 yield break;
 
             float maximumApexHeight = JumpTrajectory.GetMaximumAllowedApexHeight(parameters.JumpHeight);
-            IReadOnlyList<NavigationSupportCandidate> landingSupports;
             AABB worldBounds = world.WorldBounds;
             float minimumY = worldBounds.MinY;
             float maximumY = Mathf.Min(worldBounds.MaxY, start.y + maximumApexHeight + Tolerance);
@@ -80,7 +79,6 @@ namespace Aethiumian.AI.Navigation
                 new Vector2(Mathf.Min(worldBounds.MaxX, start.x + horizontalReach + Tolerance), Mathf.Max(minimumY, maximumY)));
             IReadOnlyList<NavigationSupportCandidate> supportCandidates =
                 world.GetSupportCandidates(landingBounds, parameters.BodySize);
-            List<NavigationSupportCandidate> builtLandings = new();
             for (int index = 0; index < supportCandidates.Count; index++)
             {
                 NavigationSupportCandidate landingCandidate = supportCandidates[index];
@@ -89,20 +87,19 @@ namespace Aethiumian.AI.Navigation
                 if (landingCandidate.Id == launchCandidateId && launchCandidateId >= 0
                     || landingSupport.Surface == support.Surface && landingSupport.Position == support.Position)
                     diagnostics?.RecordJumpCandidatePruned();
-                else
-                    AddUnique(builtLandings, landingCandidate);
                 yield return null;
             }
-
-            landingSupports = builtLandings;
 
             JumpCandidateHeap candidates = new();
             AABB startBody = AABB.FromLowerCenter(start, parameters.BodySize);
             float startDistance = goal.DistanceToLowerCenterBody(startBody);
-            for (int i = 0; i < landingSupports.Count; i++)
+            for (int i = 0; i < supportCandidates.Count; i++)
             {
-                NavigationSupportCandidate landingCandidate = landingSupports[i];
+                NavigationSupportCandidate landingCandidate = supportCandidates[i];
                 NavigationSupport landingSupport = landingCandidate.Support;
+                if (landingCandidate.Id == launchCandidateId && launchCandidateId >= 0
+                    || landingSupport.Surface == support.Surface && landingSupport.Position == support.Position)
+                    continue;
                 if (excludeGroundAdjacent
                     && Mathf.Abs(landingSupport.Position.y - support.Position.y) <= GroundTraversalEndpointPolicy.VerticalSupportTolerance
                     && Mathf.Abs(landingSupport.Position.x - support.Position.x) <= NavigationConstant.AdjacentSupportReach)
@@ -157,13 +154,7 @@ namespace Aethiumian.AI.Navigation
             return envelope.Intersects(reachable);
         }
 
-        private static void AddUnique(List<NavigationSupportCandidate> supports, NavigationSupportCandidate candidate)
-        {
-            for (int index = 0; index < supports.Count; index++)
-                if (supports[index].Id == candidate.Id)
-                    return;
-            supports.Add(candidate);
-        }
+
     }
 
     internal readonly struct JumpCandidateDescriptor

@@ -1049,6 +1049,8 @@ namespace Aethiumian.AI.Navigation.Tests
         /// <summary>A test-only planner defined outside the runtime assembly.</summary>
         private sealed class ExternalPlanner : NavigationPlanner<int>
         {
+            public override NavigationActions SupportedActions => 0;
+
             public ExternalPlanner(INavigationWorld world) : base(world, 1)
             {
             }
