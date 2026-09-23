@@ -1,0 +1,52 @@
+name: Unity Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  checks: write
+  contents: read
+
+jobs:
+  test:
+    name: Aethiumian.AI ${{ matrix.testMode }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        testMode:
+          - EditMode
+          - PlayMode
+
+    steps:
+      - name: Checkout package into a subdirectory
+        uses: actions/checkout@v4
+        with:
+          path: aethiumian-ai
+
+      - name: Run ${{ matrix.testMode }} tests
+        id: tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          packageMode: true
+          projectPath: aethiumian-ai
+          unityVersion: 6000.3.9f1
+          testMode: ${{ matrix.testMode }}
+          coverageEnabled: true
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Aethiumian.AI ${{ matrix.testMode }}
+
+      - name: Upload ${{ matrix.testMode }} test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.testMode }}
+          path: ${{ steps.tests.outputs.artifactsPath }}
