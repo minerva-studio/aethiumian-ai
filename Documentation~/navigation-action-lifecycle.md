@@ -6,10 +6,7 @@ This document describes the current `Movement` contract in the Aethiumian.AI pac
 2. `Movement` coordinates planning and one fixed-step execution loop.
 3. `PrepareExecutor` and `MovementExecutor.Tick` return per-step outcomes; they do not define action states.
 
-The lifecycle and preparation boundaries below are established contracts. Smart
-fallback coordination follows those boundaries; the project
-[response decision](../../../Doc/Systems/AI/NavigationResponsePolicy.md) owns
-timing, backoff, and candidate-selection requirements.
+The lifecycle and preparation boundaries below are established contracts.
 
 ## NavigationAction lifecycle
 

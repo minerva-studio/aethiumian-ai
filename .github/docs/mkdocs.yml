@@ -223,7 +223,7 @@ nav:
           - Break: reference/service/break/index.md
           - Interrupt: reference/service/interrupt/index.md
           - Timeout: reference/service/timeout/index.md
-          - Timer: reference/service/timer/index.md
+          - Countdown: reference/service/countdown/index.md
           - Update: reference/service/update/index.md
       - Editor: reference/editor.md
   - GitHub: https://github.com/Minerva-Studio/aethiumian-ai
