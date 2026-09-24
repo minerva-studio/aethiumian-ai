@@ -26,7 +26,7 @@ jobs:
           - PlayMode
 
     steps:
-      - name: Checkout package into a subdirectory
+      - name: Checkout package repository
         uses: actions/checkout@v4
         with:
           path: aethiumian-ai
@@ -34,6 +34,11 @@ jobs:
       - name: Add optional test packages to the CI package copy
         run: |
           node -e "const fs = require('node:fs'); const path = 'aethiumian-ai/package.json'; const manifest = JSON.parse(fs.readFileSync(path, 'utf8')); manifest.dependencies ??= {}; Object.assign(manifest.dependencies, { 'com.unity.test-framework.performance': '3.2.1', 'com.unity.nuget.newtonsoft-json': '3.2.2' }); fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + '\\n');"
+
+      - name: Move package into a subdirectory for package-mode testing
+        run: |
+          mkdir -p aethiumian-ai/package
+          find aethiumian-ai -mindepth 1 -maxdepth 1 ! -name .git ! -name package -exec mv -t aethiumian-ai/package -- {} +
 
       - name: Run ${{ matrix.testMode }} tests on Unity ${{ matrix.unityVersion }}
         id: tests
@@ -44,7 +49,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           packageMode: true
-          projectPath: aethiumian-ai
+          projectPath: aethiumian-ai/package
           unityVersion: ${{ matrix.unityVersion }}
           testMode: ${{ matrix.testMode }}
           coverageEnabled: true
