@@ -27,7 +27,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             SampleUnit.Millisecond);
 
 
-        [UnityTest, Performance]
+        [UnityTest, Performance, Explicit("Performance diagnostic: run on demand")]
         public IEnumerator CreateBehaviourTreeInstance_ProductionGeneratedAccessors()
         {
             using RealTreeFixture fixture = RealTreeFixture.CreateMixedRuntimeTree(NodeCount);

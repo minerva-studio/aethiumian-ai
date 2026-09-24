@@ -1,25 +1,33 @@
 {
-    "name": "Aethiumian.AI.PlayMode.Tests",
+    "name": "Aethiumian.AI.Editor.Dom.Tests",
     "rootNamespace": "",
     "references": [
         "GUID:27619889b8ba8c24980f49ee34dbb44a",
         "GUID:0acc523941302664db1f4e527237feb3",
+        "GUID:19fcf5287c4398447b8b6bdbd50a5b36",
         "GUID:4feb1b5557e977e4f835355491cef199"
     ],
     "includePlatforms": [
-        "Editor",
-        "WindowsStandalone64"
+        "Editor"
     ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "nunit.framework.dll"
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [
-        "UNITY_INCLUDE_TESTS"
+        "UNITY_INCLUDE_TESTS",
+        "AETHIUMIAN_HAS_NEWTONSOFT_JSON"
     ],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "0.0.0",
+            "define": "AETHIUMIAN_HAS_NEWTONSOFT_JSON"
+        }
+    ],
     "noEngineReferences": false
 }

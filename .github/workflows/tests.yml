@@ -13,11 +13,14 @@ permissions:
 
 jobs:
   test:
-    name: Aethiumian.AI ${{ matrix.testMode }}
+    name: Aethiumian.AI ${{ matrix.unityVersion }} ${{ matrix.testMode }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        unityVersion:
+          - 2021.3.54f1
+          - 6000.3.9f1
         testMode:
           - EditMode
           - PlayMode
@@ -28,7 +31,11 @@ jobs:
         with:
           path: aethiumian-ai
 
-      - name: Run ${{ matrix.testMode }} tests
+      - name: Add optional test packages to the CI package copy
+        run: |
+          node -e "const fs = require('node:fs'); const path = 'aethiumian-ai/package.json'; const manifest = JSON.parse(fs.readFileSync(path, 'utf8')); manifest.dependencies ??= {}; Object.assign(manifest.dependencies, { 'com.unity.test-framework.performance': '3.2.1', 'com.unity.nuget.newtonsoft-json': '3.2.2' }); fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + '\\n');"
+
+      - name: Run ${{ matrix.testMode }} tests on Unity ${{ matrix.unityVersion }}
         id: tests
         uses: game-ci/unity-test-runner@v4
         env:
@@ -38,15 +45,15 @@ jobs:
         with:
           packageMode: true
           projectPath: aethiumian-ai
-          unityVersion: 6000.3.9f1
+          unityVersion: ${{ matrix.unityVersion }}
           testMode: ${{ matrix.testMode }}
           coverageEnabled: true
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: Aethiumian.AI ${{ matrix.testMode }}
+          checkName: Aethiumian.AI ${{ matrix.unityVersion }} ${{ matrix.testMode }}
 
-      - name: Upload ${{ matrix.testMode }} test results
+      - name: Upload ${{ matrix.unityVersion }} ${{ matrix.testMode }} test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.testMode }}
+          name: test-results-${{ matrix.unityVersion }}-${{ matrix.testMode }}
           path: ${{ steps.tests.outputs.artifactsPath }}

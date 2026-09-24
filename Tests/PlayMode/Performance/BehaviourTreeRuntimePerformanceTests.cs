@@ -35,7 +35,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         /// <summary>
         /// Measures the current synchronous decision throughput through the tree update path.
         /// </summary>
-        [UnityTest, Performance]
+        [UnityTest, Performance, Explicit("Performance diagnostic: run on demand")]
         public IEnumerator SynchronousDecisionThroughput_Baseline()
         {
             BehaviourTreeData data = CreateSynchronousDecisionData(64);
@@ -79,7 +79,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         /// <summary>
         /// Measures steady-state cost and managed allocation as the number of active trees grows.
         /// </summary>
-        [UnityTest, Performance]
+        [UnityTest, Performance, Explicit("Performance diagnostic: run on demand")]
         public IEnumerator PersistentRepresentativeTrees_ScaleBaseline()
         {
             foreach (int populationSize in PopulationSizes)
