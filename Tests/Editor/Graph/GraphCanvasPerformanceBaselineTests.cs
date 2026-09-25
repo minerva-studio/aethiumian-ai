@@ -61,6 +61,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
         /// <summary>Measures the existing topology/presentation and full SetTopology rebuild paths.</summary>
         [Test]
+        [Explicit("Performance diagnostic: run on demand")]
         public void SyntheticTrees_ReportTopologyPresentationAndCanvasRebuildBaselines()
         {
             GraphEditorModule module = null;
@@ -121,6 +122,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
         /// <summary>Measures repeated MoveNode preview updates followed by one semantic commit.</summary>
         [Test]
+        [Explicit("Performance diagnostic: run on demand")]
         public void MoveNode_RepeatedPreviewAndSingleCommitReportBaseline()
         {
             BehaviourTreeData tree = CreateSyntheticTree(100);

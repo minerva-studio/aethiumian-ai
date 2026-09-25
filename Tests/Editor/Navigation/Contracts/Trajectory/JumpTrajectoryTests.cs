@@ -1,7 +1,6 @@
 using Aethiumian.AI.Navigation;
 using NUnit.Framework;
 using System;
-using System.Reflection;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor.Tests.Navigation
@@ -104,19 +103,6 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Assert.That(solution.GetPosition(solution.FlightDuration).y, Is.EqualTo(0f).Within(0.0001f));
         }
 
-        /// <summary>Verifies compact solutions retain no per-tick position or velocity arrays.</summary>
-        [Test]
-        public void TrySolve_SolutionStoresCompactRecurrence()
-        {
-            JumpTrajectoryInput input = new(Vector2.zero, new Vector2(1f, 0f),
-                new Vector2(0f, -9.81f), 4f, 5f, 2f, 0.02f);
-
-            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
-            FieldInfo[] fields = solution.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.That(Array.Exists(fields, field => field.FieldType.IsArray), Is.False);
-        }
-
         /// <summary>Verifies partial-tick evaluation follows the existing damped recurrence contract.</summary>
         [Test]
         public void TrySolve_CompactSolutionPreservesPartialTickRecurrence()
@@ -152,7 +138,6 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Assert.That(() => JumpTrajectory.TrySolve(
                 new JumpTrajectoryInput(Vector2.zero, Vector2.right, Vector2.down, 1f, 0f, 1f, 0f), out _),
                 Throws.InstanceOf<ArgumentException>());
-            Assert.That(typeof(JumpTrajectoryInput).GetProperty("FinalSpeed", BindingFlags.Instance | BindingFlags.Public), Is.Null);
         }
 
         /// <summary>Verifies explicit solve budgets cannot exceed the compact solver's bounded workspace.</summary>

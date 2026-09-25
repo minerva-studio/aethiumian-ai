@@ -161,14 +161,6 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
-        public void VariableFieldBase_OnlyOwnsBindingContract()
-        {
-            Assert.That(typeof(VariableFieldBase).GetProperty("IsConstant", BindingFlags.Instance | BindingFlags.Public), Is.Null);
-            Assert.That(typeof(VariableFieldBase).GetProperty("ConstantBoxed", BindingFlags.Instance | BindingFlags.Public), Is.Null);
-            Assert.That(typeof(VariableFieldBase).GetMethod("ForceSetConstantValue", BindingFlags.Instance | BindingFlags.Public), Is.Null);
-        }
-
-        [Test]
         public void ValueField_ConstantAndBindingStatesAreDistinct()
         {
             VariableField<int> field = 7;

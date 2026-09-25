@@ -204,8 +204,10 @@ namespace Aethiumian.AI.Navigation.Tests
             harness.Body.gravityScale = 0f;
             Vector2 initialBodyPosition = harness.Body.position;
             yield return WaitForTreeCreated(harness);
-            yield return WaitForTerminal(harness, 4);
+            for (int frame = 0; frame < 4 && harness.AI.BehaviourTree.IsRunning; frame++)
+                yield return null;
 
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.False, DescribeHarness(harness));
             Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
             Assert.That(harness.Body.position.x, Is.EqualTo(initialBodyPosition.x).Within(0.0001f));
             Assert.That(harness.Body.position.y, Is.EqualTo(initialBodyPosition.y).Within(0.0001f));

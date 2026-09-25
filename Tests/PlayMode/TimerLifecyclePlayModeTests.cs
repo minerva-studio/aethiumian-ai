@@ -377,6 +377,7 @@ namespace Aethiumian.AI.PlayMode.Tests
                 ai.Resume();
                 yield return WaitUntil(() => !ai.IsRunning, 5f);
                 Assert.That(ai.IsRunning, Is.False, "The expired Timeout did not end after resume.");
+                yield return WaitUntil(() => asyncFunctionCanceled, 5f);
                 Assert.That(asyncFunctionCanceled, Is.True,
                     "The expired Timeout did not interrupt the still-pending async FunctionAction after resume.");
             }

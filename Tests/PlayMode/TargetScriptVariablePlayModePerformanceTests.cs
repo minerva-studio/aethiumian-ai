@@ -14,6 +14,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         private const int Iterations = 100_000;
 
         [UnityTest]
+        [Explicit("Performance diagnostic: run on demand")]
         public IEnumerator TargetScriptVariable_RuntimeCompiledAndReflectionDiagnostics()
         {
             GameObject gameObject = new("TargetScriptVariablePlayModePerformance");

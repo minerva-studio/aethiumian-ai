@@ -12,6 +12,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         private const int Iterations = 100_000;
 
         [Test]
+        [Explicit("Performance diagnostic: run on demand")]
         public void FirstAccessPerformanceDiagnosticReportsColdProbe()
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
@@ -26,6 +27,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
+        [Explicit("Performance diagnostic: run on demand")]
         public void WarmPathPerformanceDiagnosticReportsTypedBaselines()
         {
             VariableField<int> fixedField = 7;
@@ -66,6 +68,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
+        [Explicit("Performance diagnostic: run on demand")]
         public void TargetScriptAccessorPerformanceDiagnosticReportsCompiledReflectionAndValue()
         {
             TargetScriptValues target = new()
