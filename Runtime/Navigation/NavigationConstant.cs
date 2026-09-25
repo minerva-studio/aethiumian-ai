@@ -51,6 +51,12 @@ namespace Aethiumian.AI.Navigation
         internal const float BodySweepSampleSpacing = 0.25f;
 
         /// <summary>
+        /// Substeps per physics tick when validating a jump. A fast diagonal ascent can clip a
+        /// solid corner between two fixed-step positions even when both positions are clear.
+        /// </summary>
+        internal const int JumpClearanceSubstepsPerPhysicsTick = 4;
+
+        /// <summary>
         /// Spacing at which a swept body samples oriented one-way surfaces for crossings.
         /// </summary>
         internal const float OneWayCrossingSampleSpacing = 0.2f;

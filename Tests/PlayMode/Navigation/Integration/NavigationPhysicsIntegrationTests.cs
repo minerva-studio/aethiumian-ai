@@ -74,7 +74,8 @@ namespace Aethiumian.AI.Navigation.Tests
             body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             Vector2 observedStart = NavigationBodyGeometry.GetGroundAnchor(collider);
             WalkNavigationParameters parameters = new(5f, Physics2D.gravity, GravityScale, LinearDamping, 2.5f, 5f, Time.fixedDeltaTime);
-            var planner = new WalkNavigationPlanner(world, 256, new GroundJumpSolver(world));
+            var jumpSolver = new GroundJumpSolver(world);
+            var planner = new WalkNavigationPlanner(world, 256, jumpSolver);
             var diagnostics = new NavigationPlanningDiagnostics();
             AABB targetBounds = new(PhysicsOrigin + new Vector2(4.5f, 1f), PhysicsOrigin + new Vector2(4.5f, 1f));
             NavigationGoalRequest goal = NavigationGoalRequest.Proximity(targetBounds, DistanceMetric.Euclidean, 0.1f);
@@ -92,18 +93,18 @@ namespace Aethiumian.AI.Navigation.Tests
             for (int stepIndex = 0; stepIndex < route.Count; stepIndex++)
             {
                 NavigationRouteSegment segment = route[stepIndex];
+                JumpTrajectorySolution? jumpTrajectory = null;
                 switch (segment)
                 {
                     case GroundRouteSegment ground:
                         executor.SetGroundMove(ground.Start, ground.End);
                         break;
                     case JumpRouteSegment jump:
-                        Assert.That(JumpTrajectory.TrySolve(new JumpTrajectoryInput(
+                        Assert.That(jumpSolver.TrySolve(
                             NavigationBodyGeometry.GetGroundAnchor(collider), jump.End,
-                            parameters.Gravity, parameters.GravityScale, parameters.LinearDamping,
-                            parameters.JumpHeight, parameters.SimulationTimeStep), 512,
-                            jump.MinimumApexHeight,
+                            parameters.GetJumpParameters(collider.bounds.size),
                             out JumpTrajectorySolution trajectory), Is.True);
+                        jumpTrajectory = trajectory;
                         executor.BeginJump(trajectory);
                         break;
                     case FallRouteSegment fall:
@@ -116,17 +117,23 @@ namespace Aethiumian.AI.Navigation.Tests
                         Assert.Fail($"Unsupported route segment {segment.GetType().Name}.");
                         break;
                 }
-                ExecutionStatus completed = ExecutionStatus.Running;
+                ExecutionResult result = ExecutionResult.Running;
+                float highestAnchorY = NavigationBodyGeometry.GetGroundAnchor(collider).y;
                 for (int tick = 0; tick < 360; tick++)
                 {
-                    completed = executor.Tick(Time.fixedDeltaTime).Status;
-                    if (completed != ExecutionStatus.Running) break;
+                    result = executor.Tick(Time.fixedDeltaTime);
+                    if (result.Status != ExecutionStatus.Running) break;
                     yield return new WaitForFixedUpdate();
-                    leftGround |= NavigationBodyGeometry.GetGroundAnchor(collider).y > settledAnchorY + 0.02f;
+                    float anchorY = NavigationBodyGeometry.GetGroundAnchor(collider).y;
+                    highestAnchorY = Mathf.Max(highestAnchorY, anchorY);
+                    leftGround |= anchorY > settledAnchorY + 0.02f;
                 }
 
-                Assert.That(completed, Is.EqualTo(ExecutionStatus.Completed),
+                Assert.That(result.Status, Is.EqualTo(ExecutionStatus.Completed),
                     $"Route segment {stepIndex} ({segment.GetType().Name}) did not complete; "
+                    + $"reason={result.FailureReason}, highestAnchorY={highestAnchorY:F6}, "
+                    + $"trajectoryApex={jumpTrajectory?.ApexPosition}, "
+                    + $"initialVelocity={jumpTrajectory?.InitialVelocity}, "
                     + $"position=({body.position.x:F6}, {body.position.y:F6}), "
                     + $"velocity=({body.linearVelocity.x:F6}, {body.linearVelocity.y:F6}), "
                     + $"anchor=({NavigationBodyGeometry.GetGroundAnchor(collider).x:F6}, "

@@ -74,7 +74,11 @@ namespace Aethiumian.AI.Navigation
 
                 bool clear = true;
                 Vector2 previous = candidate.StartPosition;
-                int samples = Mathf.Clamp(Mathf.CeilToInt(candidate.FlightDuration / 0.02f), 8, 256);
+                int samples = Mathf.Clamp(
+                    Mathf.CeilToInt(candidate.FlightDuration / parameters.SimulationTimeStep)
+                    * NavigationConstant.JumpClearanceSubstepsPerPhysicsTick,
+                    8,
+                    MaximumPlannerFlightTicks * NavigationConstant.JumpClearanceSubstepsPerPhysicsTick);
                 for (int index = 1; index <= samples; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
