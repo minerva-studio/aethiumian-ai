@@ -591,6 +591,18 @@ namespace Aethiumian.AI.Editor
             UUID ownerUUID = serviceHost.Node.uuid;
             editor.NodeSelection.Open(NodeSelectionContext.Services, choice =>
             {
+                TreeNode owner = tree.GetNode(ownerUUID);
+                if (owner == null)
+                {
+                    editor.ShowConnectionRejectedNotification();
+                    return;
+                }
+
+                if (!NodeMovePrompt.TryAuthorizeMove(tree, choice.ExistingNodeUUID, owner, out bool allowMoveExisting))
+                {
+                    return;
+                }
+
                 if (!editor.NodeCommands.CommitChoiceToCollection(
                     choice,
                     NodeSelectionContext.Services,
@@ -598,6 +610,7 @@ namespace Aethiumian.AI.Editor
                     nameof(ServiceHostNode.services),
                     -1,
                     "Assign Service reference",
+                    allowMoveExisting,
                     out TreeNode committedNode))
                 {
                     editor.ShowConnectionRejectedNotification();

@@ -145,7 +145,7 @@ namespace Aethiumian.AI.Editor
             }
 
             NodeReferenceSelectionSession session = CreateSession(tree, property, ownerNode, isRawReference);
-            if (session == null || session.ApplyChoice(NodeSelectionChoice.Paste()))
+            if (session == null || session.ApplyChoice(NodeSelectionChoice.Paste(), false))
             {
                 return;
             }

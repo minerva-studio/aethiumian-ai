@@ -99,10 +99,21 @@ namespace Aethiumian.AI.Editor
                 NodeSelectionContext.Nodes,
                 choice =>
                 {
-                    bool committed = ApplyChoice(choice);
+                    bool allowMoveExisting = false;
+                    if (!rawReference && choice.ExistingNodeUUID != UUID.Empty)
+                    {
+                        TreeNode owner = tree.GetNode(ownerUUID);
+                        if (owner != null
+                            && !NodeMovePrompt.TryAuthorizeMove(tree, choice.ExistingNodeUUID, owner, out allowMoveExisting))
+                        {
+                            return;
+                        }
+                    }
+
+                    bool committed = ApplyChoice(choice, allowMoveExisting);
                     if (!committed && (choice.Kind != NodeSelectionChoiceKind.ExistingNode || choice.ExistingNodeUUID != UUID.Empty))
                     {
-                        observer?.ShowNotification(new GUIContent(AIEditorWindowModule.ConnectionRejectedMessage));
+                        observer?.ShowConnectionRejectedNotification();
                     }
                 },
                 CanSelectExistingNode,
@@ -114,8 +125,9 @@ namespace Aethiumian.AI.Editor
         /// Applies a choice as one undoable data transaction.
         /// </summary>
         /// <param name="choice">The mutation-free dropdown result.</param>
+        /// <param name="allowMoveExisting">Whether moving a node from another owner was authorized.</param>
         /// <returns>True when the transaction committed.</returns>
-        internal bool ApplyChoice(NodeSelectionChoice choice)
+        internal bool ApplyChoice(NodeSelectionChoice choice, bool allowMoveExisting)
         {
             if (!TryResolveProperty(out SerializedProperty property, out TreeNode owner) ||
                 !TryGetDestination(owner, out string fieldName, out int index))
@@ -141,6 +153,7 @@ namespace Aethiumian.AI.Editor
                     index,
                     oldUUID,
                     "Assign node reference",
+                    allowMoveExisting,
                     out _,
                     rawReference);
 
@@ -156,7 +169,7 @@ namespace Aethiumian.AI.Editor
         /// Clears the reference through the same transaction path as replacement.
         /// </summary>
         /// <returns>True when the clear committed.</returns>
-        internal bool Clear() => ApplyChoice(NodeSelectionChoice.Existing(UUID.Empty));
+        internal bool Clear() => ApplyChoice(NodeSelectionChoice.Existing(UUID.Empty), false);
 
         /// <summary>
         /// Returns whether an existing node can be assigned without creating a structural cycle.

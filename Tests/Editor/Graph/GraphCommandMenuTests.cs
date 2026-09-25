@@ -22,7 +22,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
     [Category("GraphEditor")]
     public sealed class GraphCommandMenuTests : GraphTopologyEditTestBase
     {
-private static DropdownMenuAction FindMenuAction(DropdownMenu menu, string name)
+        private static DropdownMenuAction FindMenuAction(DropdownMenu menu, string name)
         {
             DropdownMenuAction action = menu.MenuItems().OfType<DropdownMenuAction>().Single(item => item.name == name);
             action.UpdateActionStatus(null);
@@ -30,7 +30,7 @@ private static DropdownMenuAction FindMenuAction(DropdownMenu menu, string name)
         }
 
 
-private static DropdownMenuAction FindMenuAction(GraphEditorModule module, TreeNode node, string name)
+        private static DropdownMenuAction FindMenuAction(GraphEditorModule module, TreeNode node, string name)
         {
             DropdownMenu menu = new();
             module.Canvas.PopulateNodeCommandMenu(menu, node);
@@ -38,8 +38,8 @@ private static DropdownMenuAction FindMenuAction(GraphEditorModule module, TreeN
         }
 
 
-private static DropdownMenuAction FindMenuAction(
-            GraphEditorModule module, TreeNode owner, string fieldName, int index, string name)
+        private static DropdownMenuAction FindMenuAction(
+                    GraphEditorModule module, TreeNode owner, string fieldName, int index, string name)
         {
             GraphEdgeDescriptor edge = module.Topology.Edges.Single(candidate => candidate.Source.UUID == owner.uuid
                 && candidate.Reference.Address.FieldName == fieldName && candidate.Reference.Address.Index == index);
@@ -52,7 +52,7 @@ private static DropdownMenuAction FindMenuAction(
         }
 
 
-private static void AssertRecordedMenu(RecordingNodeCommandMenu menu, int separatorCount, bool hasRename)
+        private static void AssertRecordedMenu(RecordingNodeCommandMenu menu, int separatorCount, bool hasRename)
         {
             Assert.That(menu.Entries.Count(entry => entry.IsSeparator), Is.EqualTo(separatorCount));
             Assert.That(menu.Entries.First().IsSeparator, Is.False);
@@ -63,7 +63,7 @@ private static void AssertRecordedMenu(RecordingNodeCommandMenu menu, int separa
         }
 
 
-private sealed class RecordingNodeCommandHandler : INodeCommandHandler
+        private sealed class RecordingNodeCommandHandler : INodeCommandHandler
         {
             internal string LastCommand { get; private set; }
             public bool SupportsRename { get; }
@@ -129,7 +129,7 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
         }
         [Test]
-        public void GraphNodeMenu_SetAsHeadRejectsOwnedNodeWithoutMutation()
+        public void GraphNodeMenu_SetAsHeadMovesOwnedNodeAndUndoRestoresOwnership()
         {
             TestHost head = Node<TestHost>("Head");
             TestNode child = Node<TestNode>("Child");
@@ -147,26 +147,31 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             DropdownMenu menu = new();
             module.Canvas.PopulateNodeCommandMenu(menu, child);
             DropdownMenuAction setHead = FindMenuAction(menu, "Set as Head");
-            Assert.That(setHead.status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
-            Assert.That(FindMenuAction(module, head, "Set as Head").status,
-                Is.EqualTo(DropdownMenuAction.Status.Disabled));
-            Assert.That(module.SetHead(child), Is.False);
+            Assert.That(setHead.status, Is.EqualTo(DropdownMenuAction.Status.Normal));
+            Assert.That(FindMenuAction(module, head, "Set as Head").status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(module.SetHead(child), Is.True);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(child.uuid));
+            Assert.That(child.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(head.children, Is.Empty);
+            AssertGraphPositions(module.Topology, positions);
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+
+            Assert.That(FindMenuAction(module, child, "Set as Head").status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, service, "Set as Head").status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            TestNode foreign = Node<TestNode>("Foreign");
+            Assert.That(FindMenuAction(module, foreign, "Set as Head").status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
+
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
             Assert.That(tree.headNodeUUID, Is.EqualTo(head.uuid));
             Assert.That(child.parent.UUID, Is.EqualTo(parentUUID));
             Assert.That(head.children[0].UUID, Is.EqualTo(childReferenceUUID));
-            AssertGraphPositions(module.Topology, positions);
-            Assert.That(EditorUtility.IsDirty(tree), Is.False);
-
-            Assert.That(FindMenuAction(module, child, "Set as Head").status,
-                Is.EqualTo(DropdownMenuAction.Status.Disabled));
-            Assert.That(FindMenuAction(module, service, "Set as Head").status,
-                Is.EqualTo(DropdownMenuAction.Status.Disabled));
-            TestNode foreign = Node<TestNode>("Foreign");
-            Assert.That(FindMenuAction(module, foreign, "Set as Head").status,
-                Is.EqualTo(DropdownMenuAction.Status.Disabled));
-
             Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
         }
+
         [Test]
         public void GraphEdgeMenu_ReorderUsesOccurrenceAddressAndPreservesLayout()
         {
@@ -191,20 +196,15 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             DropdownMenu menu = new();
             module.Canvas.PopulateEdgeCommandMenu(menu, relation);
 
-            Assert.That(menu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name),
-                Is.EqualTo(new[] { "Move First", "Move Earlier", "Move Later", "Move Last", "Disconnect" }));
+            Assert.That(menu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name), Is.EqualTo(new[] { "Move First", "Move Earlier", "Move Later", "Move Last", "Disconnect" }));
             Assert.That(FindMenuAction(menu, "Move First").status, Is.EqualTo(DropdownMenuAction.Status.Normal));
             Assert.That(FindMenuAction(menu, "Move Earlier").status, Is.EqualTo(DropdownMenuAction.Status.Normal));
             Assert.That(FindMenuAction(menu, "Move Later").status, Is.EqualTo(DropdownMenuAction.Status.Normal));
             Assert.That(FindMenuAction(menu, "Move Last").status, Is.EqualTo(DropdownMenuAction.Status.Normal));
-            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 0, "Move First").status,
-                Is.EqualTo(DropdownMenuAction.Status.Disabled));
-            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 0, "Move Earlier").status,
-                Is.EqualTo(DropdownMenuAction.Status.Disabled));
-            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 2, "Move Later").status,
-                Is.EqualTo(DropdownMenuAction.Status.Disabled));
-            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 2, "Move Last").status,
-                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 0, "Move First").status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 0, "Move Earlier").status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 2, "Move Later").status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 2, "Move Last").status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
 
             FindMenuAction(menu, "Move First").Execute();
             Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid, first.uuid, third.uuid }));
@@ -218,6 +218,7 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             tree.SerializedObject.Update();
             Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid, first.uuid, third.uuid }));
         }
+
         [Test]
         public void GraphEdgeMenu_HidesReorderForNonCollectionAndNonAuthoredRelations()
         {

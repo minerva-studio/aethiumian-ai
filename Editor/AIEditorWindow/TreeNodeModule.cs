@@ -324,7 +324,7 @@ namespace Aethiumian.AI.Editor
                                 NodeSelectionContext.Nodes,
                                 choice =>
                                 {
-                                    if (!CommitChoiceToHead(choice))
+                                    if (CommitChoiceToHead(choice) == false)
                                         ShowConnectionRejectedNotification();
                                 },
                                 GUILayoutUtility.GetLastRect(),
@@ -347,7 +347,7 @@ namespace Aethiumian.AI.Editor
                                     NodeSelectionContext.Nodes,
                                     choice =>
                                     {
-                                        if (!CommitChoiceToHead(choice))
+                                        if (CommitChoiceToHead(choice) == false)
                                             ShowConnectionRejectedNotification();
                                     },
                                     GUILayoutUtility.GetLastRect(),
@@ -355,7 +355,7 @@ namespace Aethiumian.AI.Editor
                             }
                             else if (GUILayout.Button("Delete"))
                             {
-                                TrySetHeadNode(null);
+                                TrySetHeadNode(null, false);
                             }
                         }
 
@@ -617,17 +617,24 @@ namespace Aethiumian.AI.Editor
         #endregion
 
         #region Node Creation
-        /// <summary>Commits one dropdown choice to the tree Head.</summary>
-        private bool CommitChoiceToHead(NodeSelectionChoice choice)
+        /// <summary>Commits one dropdown choice to Head, or returns null when the user cancels a move.</summary>
+        private bool? CommitChoiceToHead(NodeSelectionChoice choice)
         {
             if (!NodeCommands.TryResolveChoice(choice, NodeSelectionContext.Nodes, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
             {
                 return false;
             }
 
+            bool allowMoveExisting = false;
+            if (addedNodes == null
+                && !NodeMovePrompt.TryAuthorizeMove(tree, root.uuid, null, out allowMoveExisting))
+            {
+                return null;
+            }
+
             bool committed = addedNodes != null
                 ? tree.TryAddAndSetHead(addedNodes, root.uuid, "Set tree Head")
-                : TrySetHeadNode(root);
+                : TrySetHeadNode(root, allowMoveExisting);
             if (committed && addedNodes != null)
             {
                 editorWindow.Refresh();
@@ -650,7 +657,7 @@ namespace Aethiumian.AI.Editor
                     NodeSelectionContext.Nodes,
                     choice =>
                     {
-                        if (!CommitChoiceToHead(choice))
+                        if (CommitChoiceToHead(choice) == false)
                             ShowConnectionRejectedNotification();
                     },
                     GUILayoutUtility.GetLastRect(),
@@ -702,8 +709,9 @@ namespace Aethiumian.AI.Editor
         /// Changes the authored Head node through the legacy editor transaction boundary.
         /// </summary>
         /// <param name="node">The node to make Head, or <c>null</c> to clear Head.</param>
+        /// <param name="allowMoveExisting">Whether moving a node from another owner was authorized.</param>
         /// <returns><c>true</c> when the Head value changed; otherwise, <c>false</c>.</returns>
-        internal bool TrySetHeadNode(TreeNode node)
+        internal bool TrySetHeadNode(TreeNode node, bool allowMoveExisting)
         {
             UUID nextUUID = node?.uuid ?? UUID.Empty;
             if (node != null && tree?.GetNode(nextUUID) != node)
@@ -727,26 +735,9 @@ namespace Aethiumian.AI.Editor
                 return cleared;
             }
 
-            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
-            if (!tree.CanSetHead(node.uuid, allowMoveExisting: true))
-            {
-                return false;
-            }
-
-            TreeNode parent = incoming.Count == 1 ? incoming[0].Owner : null;
-
-            if (parent != null
-                && !EditorUtility.DisplayDialog(
-                    "Node has a parent already",
-                    $"This Node is connecting to {parent.name}, move to Head?",
-                    "OK",
-                    "Cancel"))
-            {
-                return false;
-            }
-
-            bool committed = tree.TryMoveToHead(nextUUID, "Set tree Head");
+            bool committed = allowMoveExisting
+                ? tree.TryMoveToHead(nextUUID, "Set tree Head")
+                : tree.TrySetHead(nextUUID, "Set tree Head");
             if (committed)
             {
                 editorWindow.Refresh();

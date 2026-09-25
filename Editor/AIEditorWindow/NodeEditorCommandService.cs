@@ -4,7 +4,6 @@ using Aethiumian.AI.References;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor;
 
 namespace Aethiumian.AI.Editor
 {
@@ -308,6 +307,8 @@ namespace Aethiumian.AI.Editor
         /// <param name="fieldName">The serialized collection field name.</param>
         /// <param name="index">The insertion index.</param>
         /// <param name="undoName">The Undo transaction name.</param>
+        /// <param name="allowMoveExisting">Whether moving a node from another owner was authorized.</param>
+        /// <param name="root">The resolved root node.</param>
         /// <returns><c>true</c> when the transaction commits.</returns>
         internal bool CommitChoiceToCollection(
             NodeSelectionChoice choice,
@@ -316,6 +317,7 @@ namespace Aethiumian.AI.Editor
             string fieldName,
             int index,
             string undoName,
+            bool allowMoveExisting,
             out TreeNode root)
         {
             if (!TryResolveChoice(choice, context, out root, out IReadOnlyList<TreeNode> addedNodes))
@@ -333,26 +335,12 @@ namespace Aethiumian.AI.Editor
             }
 
             NodeReferenceAddress address = new(ownerUUID, fieldName, index);
-            if (!tree.CanInsertReference(address, root.uuid, allowMoveExisting: true))
+            if (!tree.CanInsertReference(address, root.uuid, allowMoveExisting))
             {
                 return false;
             }
 
-            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(root);
-            TreeNode parent = incoming.Count == 1 ? incoming[0].Owner : null;
-            TreeNode owner = tree.GetNode(ownerUUID);
-            if (parent != null && parent != owner
-                && !EditorUtility.DisplayDialog(
-                    "Node has a parent already",
-                    $"This Node is connecting to {parent.name}, move under {owner.name} ?",
-                    "OK",
-                    "Cancel"))
-            {
-                return false;
-            }
-
-            return tree.TryInsertReference(address, root.uuid, true, undoName);
+            return tree.TryInsertReference(address, root.uuid, allowMoveExisting, undoName);
         }
 
         /// <summary>Commits a dropdown choice to one exact reference occurrence.</summary>
@@ -363,6 +351,8 @@ namespace Aethiumian.AI.Editor
         /// <param name="index">The exact occurrence index.</param>
         /// <param name="expectedTargetUUID">The target UUID captured when the picker opened.</param>
         /// <param name="undoName">The Undo transaction name.</param>
+        /// <param name="allowMoveExisting">Whether moving a node from another owner was authorized.</param>
+        /// <param name="root">The resolved root node.</param>
         /// <param name="rawReference">Whether the destination is a raw reference without topology ownership.</param>
         /// <returns><c>true</c> when the transaction commits.</returns>
         internal bool CommitChoiceToReference(
@@ -373,6 +363,7 @@ namespace Aethiumian.AI.Editor
             int index,
             UUID expectedTargetUUID,
             string undoName,
+            bool allowMoveExisting,
             out TreeNode root,
             bool rawReference = false)
         {
@@ -409,28 +400,12 @@ namespace Aethiumian.AI.Editor
             }
 
             NodeReferenceAddress address = new(ownerUUID, fieldName, index);
-            if (!rawReference && !tree.CanSetReference(address, root.uuid, allowMoveExisting: true))
+            if (!rawReference && !tree.CanSetReference(address, root.uuid, allowMoveExisting))
             {
                 return false;
             }
 
-            if (!rawReference)
-            {
-                NodeReferenceOccurrence incoming = NodeTopologySnapshot.Create(tree.EditorNodes)
-                    .GetIncoming(root)
-                    .FirstOrDefault();
-                if (incoming.Owner != null && incoming.Owner != owner
-                    && !EditorUtility.DisplayDialog(
-                        "Node has a parent already",
-                        $"This Node is connecting to {incoming.Owner.name}, move under {owner.name} ?",
-                        "OK",
-                        "Cancel"))
-                {
-                    return false;
-                }
-            }
-
-            return tree.TrySetReference(address, root.uuid, true, undoName);
+            return tree.TrySetReference(address, root.uuid, allowMoveExisting, undoName);
         }
 
         /// <summary>Clears one exact reference occurrence after verifying its captured target.</summary>

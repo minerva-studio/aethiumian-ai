@@ -1038,11 +1038,6 @@ namespace Aethiumian.AI.Editor
             NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
             IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(draggedNode);
             TreeNode currentOwner = incoming.Count == 1 ? incoming[0].Owner : null;
-            if (topology.HasInvalidParentMetadata(draggedNode))
-            {
-                return DragAndDropVisualMode.Rejected;
-            }
-
             if (targetParent != currentOwner
                 && !CanMoveToOwner(topology, targetParent, draggedNode))
             {
@@ -1144,7 +1139,8 @@ namespace Aethiumian.AI.Editor
             }
 
             TreeNode targetHost = targetServiceHost.Node;
-            TreeNode oldHostNode = tree.GetParent(draggedService);
+            IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(tree.EditorNodes).GetIncoming(draggedService);
+            TreeNode oldHostNode = incoming.Count == 1 ? incoming[0].Owner : null;
             if (!ServiceHostNodeUtility.TryAsServiceHost(oldHostNode, out var oldServiceHost))
             {
                 return;
@@ -1189,10 +1185,15 @@ namespace Aethiumian.AI.Editor
             }
             else
             {
+                if (!NodeMovePrompt.TryAuthorizeMove(tree, draggedService.uuid, targetHost, out bool allowMoveExisting))
+                {
+                    return;
+                }
+
                 bool inserted = tree.TryInsertReference(
                     new NodeReferenceAddress(targetHost.uuid, nameof(ServiceHostNode.services), targetIndex),
                     draggedService.uuid,
-                    allowMoveExisting: true,
+                    allowMoveExisting,
                     undoName: $"Move service {draggedService.name}");
                 if (!inserted)
                 {
@@ -1212,7 +1213,8 @@ namespace Aethiumian.AI.Editor
             }
 
 #nullable enable
-            TreeNode? oldParent = tree.GetParent(draggedNode);
+            IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(tree.EditorNodes).GetIncoming(draggedNode);
+            TreeNode? oldParent = incoming.Count == 1 ? incoming[0].Owner : null;
 
             if (oldParent == targetParent && TryReorderInSameParent(oldParent, draggedNode, insertAtIndex))
             {
@@ -1222,6 +1224,11 @@ namespace Aethiumian.AI.Editor
             // set null parent (detached)
             if (targetParent == null)
             {
+                if (oldParent != null && !NodeMovePrompt.ConfirmDetach(draggedNode, oldParent))
+                {
+                    return;
+                }
+
                 bool detached = tree.TryDetachTarget(
                     draggedNode.uuid,
                     $"Detach node {draggedNode.name}");
@@ -1249,7 +1256,12 @@ namespace Aethiumian.AI.Editor
 
             if (targetSlots.Count == 1)
             {
-                if (AssignToSlot(targetParent, targetSlots[0], draggedNode, insertAtIndex))
+                if (!NodeMovePrompt.TryAuthorizeMove(tree, draggedNode.uuid, targetParent, out bool allowMoveExisting))
+                {
+                    return;
+                }
+
+                if (AssignToSlot(targetParent, targetSlots[0], draggedNode, insertAtIndex, allowMoveExisting))
                 {
                     ReloadAndReveal(draggedNode);
                 }
@@ -1273,7 +1285,12 @@ namespace Aethiumian.AI.Editor
                         return;
                     }
 
-                    if (AssignToSlot(targetParent, slot, draggedNode, insertAtIndex))
+                    if (!NodeMovePrompt.TryAuthorizeMove(tree, draggedNode.uuid, targetParent, out bool allowMoveExisting))
+                    {
+                        return;
+                    }
+
+                    if (AssignToSlot(targetParent, slot, draggedNode, insertAtIndex, allowMoveExisting))
                     {
                         ReloadAndReveal(draggedNode);
                     }
@@ -1353,14 +1370,15 @@ namespace Aethiumian.AI.Editor
             return false;
         }
 
-        private bool AssignToSlot(TreeNode parent, INodeReferenceSlot slot, TreeNode draggedNode, int insertAtIndex)
+        /// <summary>Assigns a dropped node to a selected slot using the authorization obtained after the drop.</summary>
+        private bool AssignToSlot(TreeNode parent, INodeReferenceSlot slot, TreeNode draggedNode, int insertAtIndex, bool allowMoveExisting)
         {
             if (slot is INodeReferenceSingleSlot single)
             {
                 return tree.TrySetReference(
                     new NodeReferenceAddress(parent.uuid, single.Name, -1),
                     draggedNode.uuid,
-                    allowMoveExisting: true,
+                    allowMoveExisting,
                     undoName: $"Move node {draggedNode.name}");
             }
 
@@ -1370,7 +1388,7 @@ namespace Aethiumian.AI.Editor
                 return tree.TryInsertReference(
                     new NodeReferenceAddress(parent.uuid, list.Name, index),
                     draggedNode.uuid,
-                    allowMoveExisting: true,
+                    allowMoveExisting,
                     undoName: $"Move node {draggedNode.name}");
             }
 
@@ -1380,8 +1398,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Checks whether a legacy drag can safely move one existing node.</summary>
         private static bool CanMoveToOwner(NodeTopologySnapshot topology, TreeNode owner, TreeNode candidate)
         {
-            if (topology == null || candidate == null || topology.HasInvalidParentMetadata(candidate)
-                || owner != null && (owner == candidate || topology.WouldCreateCycle(owner, candidate)))
+            if (topology == null || candidate == null || (owner != null && (owner == candidate || topology.WouldCreateCycle(owner, candidate))))
             {
                 return false;
             }

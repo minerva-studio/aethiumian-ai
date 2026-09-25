@@ -35,7 +35,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
 
             NodeReferenceSelectionSession session = CreateSession(tree, owner, nameof(TestNode.child));
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid)), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid), false), Is.True);
             tree.SerializedObject.Update();
             tree.RegenerateTable();
             TestNode updatedOwner = (TestNode)tree.GetNode(owner.uuid);
@@ -83,7 +83,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             tree.RegenerateTable();
             NodeReferenceSelectionSession session = CreateSession(tree, owner, nameof(TestNode.child));
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Create(typeof(Sequence))), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Create(typeof(Sequence)), false), Is.True);
             tree.SerializedObject.Update();
             tree.RegenerateTable();
             Assert.That(tree.EditorNodes, Has.Count.EqualTo(2));
@@ -110,7 +110,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             tree.SerializedObject.Update();
             NodeReferenceSelectionSession session = CreateSession(tree, owner, nameof(TestNode.child));
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid)), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid), false), Is.True);
             tree.SerializedObject.ApplyModifiedProperties();
             tree.RegenerateTable();
 
@@ -129,7 +129,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             AIEditorWindow.SharedClipboard.Write(source, tree);
             NodeReferenceSelectionSession session = CreateSession(tree, owner, nameof(TestNode.child));
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Paste()), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Paste(), false), Is.True);
             tree.SerializedObject.Update();
             tree.RegenerateTable();
             TreeNode pasted = tree.GetNode(owner.child.UUID);
@@ -156,7 +156,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             tree.RegenerateTable();
             NodeReferenceSelectionSession rawSession = CreateSession(tree, owner, nameof(TestNode.raw), rawReference: true);
 
-            Assert.That(rawSession.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid)), Is.True);
+            Assert.That(rawSession.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid), false), Is.True);
             Assert.That(owner.raw.UUID, Is.EqualTo(replacement.uuid));
             Assert.That(current.parent.UUID, Is.EqualTo(owner.uuid));
             Assert.That(replacement.parent.UUID, Is.EqualTo(UUID.Empty));
@@ -180,7 +180,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             NodeReferenceSelectionSession session = CreateSession(tree, owner, nameof(TestNode.child));
             int undoGroup = Undo.GetCurrentGroup();
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(owner.uuid)), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(owner.uuid), false), Is.False);
             Assert.That(owner.child.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
             Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
@@ -199,7 +199,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             EditorUtility.ClearDirty(tree);
             NodeReferenceSelectionSession session = CreateSession(tree, owner, nameof(TestNode.child));
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(ancestor.uuid)), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(ancestor.uuid), false), Is.False);
             Assert.That(owner.child.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(owner.parent.UUID, Is.EqualTo(ancestor.uuid));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
@@ -223,7 +223,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             int undoGroup = Undo.GetCurrentGroup();
 
             Assert.That(session.CanSelectExistingNode(candidate), Is.False);
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid)), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid), false), Is.False);
             Assert.That(destination.child.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(firstOwner.child.UUID, Is.EqualTo(candidate.uuid));
             Assert.That(secondOwner.child.UUID, Is.EqualTo(candidate.uuid));
@@ -258,7 +258,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
                 null);
             int undoGroup = Undo.GetCurrentGroup();
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid)), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid), false), Is.False);
             Assert.That(owner.children.Select(reference => reference.UUID), Is.EqualTo(new[] { candidate.uuid, UUID.Empty }));
             Assert.That(candidate.parent.UUID, Is.EqualTo(owner.uuid));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
@@ -266,9 +266,9 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
         }
 
-        /// <summary>Verifies that a mismatched parent field cannot be used to move a structurally referenced node.</summary>
+        /// <summary>Verifies selection moves the structural edge and repairs stale parent metadata.</summary>
         [Test]
-        public void ExistingSelectionRejectsInconsistentStructuralParentMetadata()
+        public void ExistingSelectionReparentsWhenParentMetadataIsStale()
         {
             TestNode source = Node<TestNode>("Source");
             TestNode destination = Node<TestNode>("Destination");
@@ -280,16 +280,46 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             tree.RegenerateTable();
             EditorUtility.ClearDirty(tree);
             NodeReferenceSelectionSession session = CreateSession(tree, destination, nameof(TestNode.child));
-            int undoGroup = Undo.GetCurrentGroup();
 
-            Assert.That(session.CanSelectExistingNode(candidate), Is.False);
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid)), Is.False);
-            Assert.That(destination.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(session.CanSelectExistingNode(candidate), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid), true), Is.True);
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(((TestNode)tree.GetNode(source.uuid)).child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(((TestNode)tree.GetNode(destination.uuid)).child.UUID, Is.EqualTo(candidate.uuid));
+            Assert.That(tree.GetNode(candidate.uuid).parent.UUID, Is.EqualTo(destination.uuid));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(((TestNode)tree.GetNode(source.uuid)).child.UUID, Is.EqualTo(candidate.uuid));
+            Assert.That(((TestNode)tree.GetNode(destination.uuid)).child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(tree.GetNode(candidate.uuid).parent.UUID, Is.EqualTo(declaredParent.uuid));
+        }
+
+        /// <summary>Verifies an unauthorized move leaves the existing ownership untouched.</summary>
+        [Test]
+        public void ExistingSelectionDoesNotMoveWithoutMoveAuthorization()
+        {
+            TestNode source = Node<TestNode>("Source");
+            TestNode destination = Node<TestNode>("Destination");
+            TestNode candidate = Node<TestNode>("Candidate");
+            source.child = new NodeReference(candidate.uuid);
+            candidate.parent = new NodeReference(source.uuid);
+            BehaviourTreeData tree = Tree(source, destination, candidate);
+            tree.RegenerateTable();
+            EditorUtility.ClearDirty(tree);
+            int undoGroup = Undo.GetCurrentGroup();
+            NodeReferenceSelectionSession session = CreateSession(tree, destination, nameof(TestNode.child));
+
+            Assert.That(session.CanSelectExistingNode(candidate), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid), false), Is.False);
             Assert.That(source.child.UUID, Is.EqualTo(candidate.uuid));
-            Assert.That(candidate.parent.UUID, Is.EqualTo(declaredParent.uuid));
+            Assert.That(destination.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(candidate.parent.UUID, Is.EqualTo(source.uuid));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
             Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
-            Assert.That(tree.GetStructureValidationErrors(), Is.Not.Empty);
         }
 
         /// <summary>Verifies that raw references intentionally bypass structural cycle checks.</summary>
@@ -301,7 +331,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             tree.RegenerateTable();
             NodeReferenceSelectionSession session = CreateSession(tree, owner, nameof(TestNode.raw), rawReference: true);
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(owner.uuid)), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(owner.uuid), false), Is.True);
             Assert.That(owner.raw.UUID, Is.EqualTo(owner.uuid));
             Assert.That(owner.parent.UUID, Is.EqualTo(UUID.Empty));
         }
@@ -321,7 +351,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
                 AIEditorWindow.SharedClipboard,
                 null);
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Create(typeof(Sequence))), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Create(typeof(Sequence)), false), Is.False);
             Assert.That(tree.EditorNodes, Has.Count.EqualTo(1));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
@@ -342,7 +372,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             tree.nodes.Add(movedOwner);
             tree.RegenerateTable();
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid)), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid), false), Is.True);
             Assert.That(((TestNode)tree.GetNode(owner.uuid)).child.UUID, Is.EqualTo(replacement.uuid));
         }
 
@@ -376,7 +406,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
                 AIEditorWindow.SharedClipboard,
                 null);
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid)), Is.True);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid), false), Is.True);
             tree.SerializedObject.Update();
             tree.RegenerateTable();
             Probability updatedOwner = (Probability)tree.GetNode(owner.uuid);
@@ -410,7 +440,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             tree.RegenerateTable();
             EditorUtility.ClearDirty(tree);
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Create(typeof(Sequence))), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Create(typeof(Sequence)), false), Is.False);
             Assert.That(tree.EditorNodes, Is.Empty);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
@@ -427,7 +457,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             owner.child = null;
             EditorUtility.ClearDirty(tree);
 
-            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid)), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(replacement.uuid), false), Is.False);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 

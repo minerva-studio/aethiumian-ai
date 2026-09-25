@@ -762,7 +762,7 @@ namespace Aethiumian.AI.Editor
 
         #region Node Lifecycle Commands
 
-        /// <summary>Checks whether an authored node can become the Graph tree head.</summary>
+        /// <summary>Checks whether an authored node can move to the Graph tree Head, including from another owner.</summary>
         /// <param name="node">The candidate authored node.</param>
         /// <returns><c>true</c> when the candidate belongs to this tree, is not a Service, and is not already Head.</returns>
         internal bool CanSetHead(TreeNode node)
@@ -772,10 +772,10 @@ namespace Aethiumian.AI.Editor
                 && node != null
                 && node is not Service
                 && tree.GetNode(node.uuid) == node
-                && tree.CanSetHead(node.uuid, allowMoveExisting: false);
+                && tree.CanSetHead(node.uuid, allowMoveExisting: true);
         }
 
-        /// <summary>Sets the authored Graph tree head without changing parents, references, or layout.</summary>
+        /// <summary>Moves an authored node to the Graph tree Head and preserves its layout.</summary>
         /// <param name="node">The authored node to make Head.</param>
         /// <returns><c>true</c> when the head changed and the Graph was rebuilt.</returns>
         internal bool SetHead(TreeNode node)
@@ -787,7 +787,7 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
-            if (!tree.TrySetHead(node.uuid, "Set tree Head"))
+            if (!tree.TryMoveToHead(node.uuid, "Set tree Head"))
             {
                 ShowConnectionRejectedNotification();
                 return false;

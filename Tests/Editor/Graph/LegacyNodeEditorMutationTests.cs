@@ -311,7 +311,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TreeNodeModule module = OpenWindow(tree).TreeModule;
             EditorUtility.ClearDirty(tree);
 
-            Assert.That(module.TrySetHeadNode(replacement), Is.True);
+            Assert.That(module.TrySetHeadNode(replacement, allowMoveExisting: false), Is.True);
             Assert.That(tree.headNodeUUID, Is.EqualTo(replacement.uuid));
             Assert.That(head.single.UUID, Is.EqualTo(child.uuid));
             Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
@@ -604,6 +604,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
                 1,
                 oldTarget.uuid,
                 "Replace list reference",
+                allowMoveExisting: false,
                 out _), Is.True);
             Assert.That(owner.list.Select(reference => reference.UUID), Is.EqualTo(
                 new[] { first.uuid, detachedCandidate.uuid, other.uuid }));
@@ -649,9 +650,64 @@ namespace Aethiumian.AI.Editor.Tests.Graph
                 0,
                 child.uuid,
                 "Reject self reference",
+                allowMoveExisting: false,
                 out _), Is.False);
             Assert.That(JsonUtility.ToJson(owner), Is.EqualTo(before));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            AssertValid(tree);
+        }
+
+        /// <summary>Verifies list insertion requires move authorization and restores the original owner on Undo.</summary>
+        [Test]
+        public void CommitChoiceToCollection_MovesOwnedNodeOnlyWhenAuthorized()
+        {
+            TestHost source = Node<TestHost>("Source");
+            TestHost destination = Node<TestHost>("Destination");
+            TestNode candidate = Node<TestNode>("Candidate");
+            source.list = new[] { Reference(candidate) };
+            candidate.parent = Reference(source);
+            BehaviourTreeData tree = Tree(source, destination, candidate);
+            TreeNodeModule module = OpenWindow(tree).TreeModule;
+            EditorUtility.ClearDirty(tree);
+            int undoGroup = Undo.GetCurrentGroup();
+            NodeSelectionChoice choice = NodeSelectionChoice.Existing(candidate.uuid);
+
+            Assert.That(module.NodeCommands.CommitChoiceToCollection(
+                choice,
+                NodeSelectionContext.Nodes,
+                destination.uuid,
+                nameof(TestHost.list),
+                -1,
+                "Move list reference",
+                allowMoveExisting: false,
+                out _), Is.False);
+            Assert.That(source.list.Select(reference => reference.UUID), Is.EqualTo(new[] { candidate.uuid }));
+            Assert.That(destination.list, Is.Empty);
+            Assert.That(candidate.parent.UUID, Is.EqualTo(source.uuid));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
+
+            Assert.That(module.NodeCommands.CommitChoiceToCollection(
+                choice,
+                NodeSelectionContext.Nodes,
+                destination.uuid,
+                nameof(TestHost.list),
+                -1,
+                "Move list reference",
+                allowMoveExisting: true,
+                out TreeNode committed), Is.True);
+            Assert.That(committed.uuid, Is.EqualTo(candidate.uuid));
+            Assert.That(source.list, Is.Empty);
+            Assert.That(destination.list.Select(reference => reference.UUID), Is.EqualTo(new[] { candidate.uuid }));
+            Assert.That(candidate.parent.UUID, Is.EqualTo(destination.uuid));
+            AssertValid(tree);
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(source.list.Select(reference => reference.UUID), Is.EqualTo(new[] { candidate.uuid }));
+            Assert.That(destination.list, Is.Empty);
+            Assert.That(candidate.parent.UUID, Is.EqualTo(source.uuid));
             AssertValid(tree);
         }
 

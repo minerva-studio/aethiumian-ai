@@ -477,9 +477,22 @@ namespace Aethiumian.AI.Editor
                 string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
                 host.editor.NodeSelection.Open(selectionContext, choice =>
                 {
+                    TreeNode owner = host.tree.GetNode(ownerUuid);
+                    if (owner == null)
+                    {
+                        host.editor.ShowConnectionRejectedNotification();
+                        return;
+                    }
+
+                    if (!NodeMovePrompt.TryAuthorizeMove(host.tree, choice.ExistingNodeUUID, owner, out bool allowMoveExisting))
+                    {
+                        return;
+                    }
+
                     if (!host.editor.NodeCommands.CommitChoiceToReference(
                         choice, selectionContext, ownerUuid, fieldName, expectedIndex, expectedTargetUuid,
                         $"Replace node reference in {fieldName}",
+                        allowMoveExisting,
                         out TreeNode committedNode))
                     {
                         host.editor.ShowConnectionRejectedNotification();
@@ -608,6 +621,11 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
+                if (!NodeMovePrompt.TryAuthorizeMove(tree, choice.ExistingNodeUUID, currentOwner, out bool allowMoveExisting))
+                {
+                    return;
+                }
+
                 if (!editor.NodeCommands.CommitChoiceToCollection(
                     choice,
                     context,
@@ -615,6 +633,7 @@ namespace Aethiumian.AI.Editor
                     relativeListPath,
                     -1,
                     "Add node reference",
+                    allowMoveExisting,
                     out TreeNode committedNode))
                 {
                     editor.ShowConnectionRejectedNotification();
