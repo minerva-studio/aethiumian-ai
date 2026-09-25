@@ -87,10 +87,22 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            TreeNode parent = tree.GetParent(node);
-            return node is Service
-                ? parent != null && parent.CanEditServices()
-                : TryGetSiblingOccurrence(node, out _, out _, out _);
+            if (node is Service)
+            {
+                IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(tree.EditorNodes).GetIncoming(node);
+                if (incoming.Count != 1)
+                {
+                    return false;
+                }
+
+                NodeReferenceOccurrence occurrence = incoming[0];
+                return occurrence.Kind == NodeOwnershipKind.Service
+                    && occurrence.Address.Index >= 0
+                    && occurrence.Address.FieldName == nameof(ServiceHostNode.services)
+                    && occurrence.Owner.CanEditServices();
+            }
+
+            return TryGetSiblingOccurrence(node, out _, out _, out _);
         }
 
         /// <summary>Copies an authored node or subtree into the editor clipboard.</summary>
@@ -133,9 +145,44 @@ namespace Aethiumian.AI.Editor
         /// <returns>The duplicated root, or <c>null</c> when the command is rejected.</returns>
         internal TreeNode Duplicate(TreeNode node, UnityEngine.Vector2? graphPosition = null)
         {
-            if (!CanDuplicateNode(node))
+            if (node == null
+                || tree?.GetNode(node.uuid) != node)
             {
                 return null;
+            }
+
+            TreeNode parent;
+            string fieldName;
+            int index;
+            if (node is Service)
+            {
+                IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(tree.EditorNodes).GetIncoming(node);
+                if (incoming.Count != 1)
+                {
+                    return null;
+                }
+
+                NodeReferenceOccurrence occurrence = incoming[0];
+                if (occurrence.Kind != NodeOwnershipKind.Service
+                    || occurrence.Address.Index < 0
+                    || occurrence.Address.FieldName != nameof(ServiceHostNode.services)
+                    || !occurrence.Owner.CanEditServices())
+                {
+                    return null;
+                }
+
+                parent = occurrence.Owner;
+                fieldName = occurrence.Address.FieldName;
+                index = occurrence.Address.Index;
+            }
+            else
+            {
+                if (!TryGetSiblingOccurrence(node, out parent, out INodeReferenceListSlot slot, out index))
+                {
+                    return null;
+                }
+
+                fieldName = slot.Name;
             }
 
             Clipboard source = new();
@@ -147,19 +194,11 @@ namespace Aethiumian.AI.Editor
             }
 
             TreeNode root = content[0];
-            TreeNode parent = tree.GetParent(node);
-            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-            NodeReferenceOccurrence occurrence = topology.GetIncoming(node).SingleOrDefault();
-            if (parent == null || occurrence.Owner != parent || occurrence.Address.Index < 0)
-            {
-                return null;
-            }
-
             IReadOnlyDictionary<UUID, UnityEngine.Vector2> positions = graphPosition.HasValue
                 ? new Dictionary<UUID, UnityEngine.Vector2> { [root.uuid] = graphPosition.Value }
                 : null;
             return tree.TryAddAndInsertReference(
-                new NodeReferenceAddress(parent.uuid, occurrence.Address.FieldName, occurrence.Address.Index + 1),
+                new NodeReferenceAddress(parent.uuid, fieldName, index + 1),
                 content,
                 root.uuid,
                 $"Duplicate {node.name}",
@@ -447,33 +486,38 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Finds a node's actual list owner without consulting clipboard state.</summary>
-        private bool TryGetSiblingOccurrence(
-            TreeNode node,
-            out TreeNode parent,
-            out INodeReferenceListSlot slot,
-            out int index)
+        private bool TryGetSiblingOccurrence(TreeNode node, out TreeNode parent, out INodeReferenceListSlot slot, out int index)
         {
-            parent = node == null ? null : tree?.GetParent(node);
+            parent = null;
             slot = null;
             index = -1;
-            if (parent == null)
+            if (node == null || tree?.GetNode(node.uuid) != node)
             {
                 return false;
             }
 
+            IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(tree.EditorNodes).GetIncoming(node);
+            if (incoming.Count != 1 || incoming[0].Address.Index < 0)
+            {
+                return false;
+            }
+
+            NodeReferenceOccurrence occurrence = incoming[0];
+            parent = occurrence.Owner;
             foreach (INodeReferenceListSlot candidate in parent.ToReferenceSlots().OfType<INodeReferenceListSlot>())
             {
-                int candidateIndex = candidate.IndexOf(node);
-                if (candidateIndex < 0)
+                if (candidate.Name != occurrence.Address.FieldName
+                    || candidate.IndexOf(node) != occurrence.Address.Index)
                 {
                     continue;
                 }
 
                 slot = candidate;
-                index = candidateIndex;
+                index = occurrence.Address.Index;
                 return true;
             }
 
+            parent = null;
             return false;
         }
     }

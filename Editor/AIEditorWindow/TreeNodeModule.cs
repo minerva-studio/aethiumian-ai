@@ -47,7 +47,7 @@ namespace Aethiumian.AI.Editor
         internal TreeNodeOverviewController OverviewController => overviewController ??= new(this, editorWindow);
         public bool overviewShowService { get => EditorSetting.overviewShowService; set => EditorSetting.overviewShowService = value; }
         internal TreeNode SelectedNode { get => selectedNode; }
-        internal TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetParent(selectedNode));
+        internal TreeNode SelectedNodeParent => selectedNodeParent;
         internal EditorHeadNode EditorHeadNode => editorHeadNode ??= new();
 
         #region Tree Rendering And Pane Layout
@@ -194,6 +194,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="node"></param>
         public bool TryDeleteNode(TreeNode node, bool ok = false)
         {
+            TreeNode previousOwner = GetAuthoredParent(node);
             if (HasValidChildren(node))
             {
                 int option = ok ? 0 : EditorUtility.DisplayDialogComplex("Deleting Node", $"Delete entire subtree under the node {node.name} ({node.uuid}) ?",
@@ -218,7 +219,7 @@ namespace Aethiumian.AI.Editor
                 tree.Remove(node);
             }
 
-            FinalizeDelete(node);
+            FinalizeDelete(previousOwner);
             return true;
         }
 
@@ -231,8 +232,9 @@ namespace Aethiumian.AI.Editor
             if (!ok && !EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
                 return false;
 
+            TreeNode previousOwner = GetAuthoredParent(node);
             tree.Remove(node);
-            FinalizeDelete(node);
+            FinalizeDelete(previousOwner);
             return true;
         }
 
@@ -247,33 +249,56 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
+            TreeNode previousOwner = GetAuthoredParent(node);
             tree.RemoveSubTree(node);
 
-            FinalizeDelete(node);
+            FinalizeDelete(previousOwner);
             return true;
         }
 
         /// <summary>
         /// Refreshes the legacy editor after the data owner commits a deletion.
         /// </summary>
-        /// <param name="node">The deleted node whose previous parent should be selected.</param>
-        private void FinalizeDelete(TreeNode node)
+        /// <param name="previousOwner">The authored owner captured before deleting the node.</param>
+        private void FinalizeDelete(TreeNode previousOwner)
         {
             editorWindow.Refresh();
-            TryDeleteNode_OpenParent(node);
-        }
-
-        private void TryDeleteNode_OpenParent(TreeNode node)
-        {
-            var parent = tree.GetNode(node.parent);
-            if (parent != null)
+            if (previousOwner != null && tree?.GetNode(previousOwner.uuid) == previousOwner)
             {
-                SelectNode(parent);
+                SelectNode(previousOwner);
             }
             else
             {
-                SelectNode(tree.Head);
+                SelectNode(tree?.Head);
             }
+        }
+
+        /// <summary>Returns the unique authored owner of a node that belongs to the active tree.</summary>
+        /// <param name="node">The node whose owning occurrence should be resolved.</param>
+        /// <returns>The unique owner, or <c>null</c> when the node is absent or has zero or multiple owners.</returns>
+        internal TreeNode GetAuthoredParent(TreeNode node)
+        {
+            if (tree == null || node == null || tree.GetNode(node.uuid) != node)
+            {
+                return null;
+            }
+
+            IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(tree.EditorNodes).GetIncoming(node);
+            return incoming.Count == 1 ? incoming[0].Owner : null;
+        }
+
+        /// <summary>Refreshes the cached owner of the current selection after tree data changes.</summary>
+        internal void RefreshSelectedNodeParent()
+        {
+            selectedNodeParent = GetAuthoredParent(selectedNode);
+        }
+
+        /// <summary>Refreshes Overview topology after a committed edit and selects the edited node.</summary>
+        /// <param name="selected">The node to reveal after the overview is rebuilt.</param>
+        internal void RefreshAfterOverviewEdit(TreeNode selected)
+        {
+            editorWindow.RecomputeReachableNodes();
+            SelectNode(selected);
         }
 
         /// <summary>
@@ -285,7 +310,7 @@ namespace Aethiumian.AI.Editor
             // use this line to magically remove the focus the line
             GUI.FocusControl(null);
             selectedNode = node;
-            selectedNodeParent = node == null || tree == null ? null : tree.GetParent(node);
+            selectedNodeParent = GetAuthoredParent(node);
             editorWindow.NotifySelectionChanged(node);
         }
 
@@ -295,7 +320,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="node"></param>
         public void SelectParentNode(TreeNode node)
         {
-            var parent = tree.GetParent(node) ?? editorHeadNode;
+            var parent = GetAuthoredParent(node) ?? editorHeadNode;
             SelectNode(parent);
         }
 

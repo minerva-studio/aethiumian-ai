@@ -103,6 +103,7 @@ namespace Aethiumian.AI.Editor
 
         private void ReloadAndReveal(TreeNode node)
         {
+            treeNodeModule.RefreshAfterOverviewEdit(node);
             Reload();
 
             int? id = FindIdByNode(node);
@@ -184,7 +185,8 @@ namespace Aethiumian.AI.Editor
             if (reachableNodes != null && tree.EditorNodes != null)
             {
                 var unreachables = tree.EditorNodes.Where(n => n != null && !reachableNodes.Contains(n)).ToList();
-                var unusedGroup = BuildUnusedGroup(unreachables, mainRoot);
+                NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
+                var unusedGroup = BuildUnusedGroup(unreachables, mainRoot, topology);
                 if (unusedGroup != null)
                 {
                     root.AddChild(unusedGroup);
@@ -195,7 +197,7 @@ namespace Aethiumian.AI.Editor
             return root;
         }
 
-        private OverviewItem BuildUnusedGroup(IReadOnlyList<TreeNode> unreachables, TreeNode mainRoot)
+        private OverviewItem BuildUnusedGroup(IReadOnlyList<TreeNode> unreachables, TreeNode mainRoot, NodeTopologySnapshot topology)
         {
             var unreachableSet = new HashSet<TreeNode>(unreachables);
             var group = new OverviewItem
@@ -212,7 +214,7 @@ namespace Aethiumian.AI.Editor
             for (int i = 0; i < unreachables.Count; i++)
             {
                 var node = unreachables[i];
-                if (node == null || node == mainRoot || HasDisplayedUnusedParent(node, unreachableSet))
+                if (node == null || node == mainRoot || HasDisplayedUnusedParent(node, unreachableSet, topology))
                 {
                     continue;
                 }
@@ -229,21 +231,17 @@ namespace Aethiumian.AI.Editor
             return group;
         }
 
-        private bool HasDisplayedUnusedParent(TreeNode node, HashSet<TreeNode> unreachables)
+        private bool HasDisplayedUnusedParent(TreeNode node, HashSet<TreeNode> unreachables, NodeTopologySnapshot topology)
         {
-            if (tree == null || node == null || unreachables == null)
+            if (node == null || unreachables == null || topology == null)
             {
                 return false;
             }
 
-            TreeNode parent = tree.GetParent(node);
-            if (parent == null || !unreachables.Contains(parent))
-            {
-                return false;
-            }
-
-            // Service nodes are only drawn inside their parent subtree when the overview service toggle is on.
-            return node is not Service || showService;
+            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
+            return incoming.Count == 1
+                && unreachables.Contains(incoming[0].Owner)
+                && (node is not Service || showService);
         }
 
         private TreeViewItem BuildNodeSubTree(TreeNode node, bool isUnreachableRoot)
@@ -367,7 +365,7 @@ namespace Aethiumian.AI.Editor
                 return (serviceInfoIcon ? serviceInfoIcon : serviceInfoIcon = GetServiceInfoIcon(), null);
             }
 
-            Texture overrideIcon = GetConditionChildIcon(item.Node);
+            Texture overrideIcon = GetConditionChildIcon(item);
             return (overrideIcon, defaultIcon);
         }
 
@@ -445,59 +443,40 @@ namespace Aethiumian.AI.Editor
         /// <remarks>
         /// Returns <c>null</c> when the tree is unavailable or when the node is not referenced by a condition.
         /// </remarks>
-        private Texture GetConditionChildIcon(TreeNode node)
+        private Texture GetConditionChildIcon(OverviewItem item)
         {
-            if (tree == null || node == null)
+            if (item?.Node == null || item.parent is not OverviewItem parentItem)
             {
                 return null;
             }
 
-            TreeNode parent = GetStrictParentNode(node);
-            if (parent is not Condition condition)
+            TreeNode displayedParent = parentItem.Node;
+            if (displayedParent == editorHeadNode)
+            {
+                displayedParent = treeNodeModule.GetAuthoredParent(item.Node);
+            }
+
+            if (displayedParent is not Condition condition)
             {
                 return null;
             }
 
-            if (condition.condition.IsPointTo(node))
+            if (condition.condition.IsPointTo(item.Node))
             {
                 return conditionQuestionIcon ??= GetEditorIcon("d__Help", "_Help");
             }
 
-            if (condition.trueNode.IsPointTo(node))
+            if (condition.trueNode.IsPointTo(item.Node))
             {
                 return conditionTrueIcon ??= GetEditorIcon("TestPassed", "d_TestPassed");
             }
 
-            if (condition.falseNode.IsPointTo(node))
+            if (condition.falseNode.IsPointTo(item.Node))
             {
                 return conditionFalseIcon ??= GetEditorIcon("TestFailed", "d_TestFailed");
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// Finds the strict parent node by skipping service nodes in the parent chain.
-        /// </summary>
-        /// <param name="node">The node whose strict parent should be resolved.</param>
-        /// <returns>The first non-service parent node, or <c>null</c> if none is found.</returns>
-        /// <remarks>
-        /// Returns <c>null</c> when the tree is unavailable or the input node is <c>null</c>.
-        /// </remarks>
-        private TreeNode GetStrictParentNode(TreeNode node)
-        {
-            if (tree == null || node == null)
-            {
-                return null;
-            }
-
-            TreeNode parent = tree.GetParent(node);
-            while (parent is Service)
-            {
-                parent = tree.GetParent(parent);
-            }
-
-            return parent;
         }
 
         /// <summary>
@@ -727,6 +706,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (selected != null && TryPasteFromClipboard(selected))
                 {
+                    ReloadAndReveal(selected);
                     evt.Use();
                     return true;
                 }
@@ -891,19 +871,11 @@ namespace Aethiumian.AI.Editor
             var nodeReferenceSlots = node.ToReferenceSlots();
             var listSlot = nodeReferenceSlots.OfType<INodeReferenceListSlot>().FirstOrDefault();
             int index = -1;
-            var parent = tree.GetParent(node);
-            if (parent != null)
+            if (treeNodeModule.NodeCommands.TryGetSiblingPasteTarget(node, out TreeNode parent, out INodeReferenceListSlot siblingSlot, out int siblingIndex))
             {
-                // use parent slots
-                var parentReference = parent.ToReferenceSlots();
-                var parentSlots = parentReference.OfType<INodeReferenceListSlot>().FirstOrDefault();
-                if (parentSlots != null)
-                {
-                    listSlot = parentSlots;
-                    // get index of original node in parent
-                    index = listSlot.IndexOf(node);
-                    node = parent;
-                }
+                listSlot = siblingSlot;
+                index = siblingIndex;
+                node = parent;
             }
 
             if (listSlot != null)
@@ -1224,6 +1196,11 @@ namespace Aethiumian.AI.Editor
             // set null parent (detached)
             if (targetParent == null)
             {
+                if (oldParent == null)
+                {
+                    return;
+                }
+
                 if (oldParent != null && !NodeMovePrompt.ConfirmDetach(draggedNode, oldParent))
                 {
                     return;

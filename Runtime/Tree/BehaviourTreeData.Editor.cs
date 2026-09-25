@@ -771,7 +771,7 @@ namespace Aethiumian.AI
             TreeNode target = GetNode(targetUUID);
             NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
             IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(target);
-            if (target == null || incoming.Count != 1 || topology.HasInvalidParentMetadata(target))
+            if (target == null || incoming.Count != 1)
             {
                 return false;
             }
@@ -1683,8 +1683,7 @@ namespace Aethiumian.AI
                 && incoming.Count == 1
                 && incoming[0].Address.OwnerUUID == address.OwnerUUID
                 && incoming[0].Address.FieldName == address.FieldName
-                && incoming[0].Address.Index == address.Index
-                && (target.parent?.UUID ?? UUID.Empty) == address.OwnerUUID;
+                && incoming[0].Address.Index == address.Index;
         }
 
         private bool TryResolveReference(

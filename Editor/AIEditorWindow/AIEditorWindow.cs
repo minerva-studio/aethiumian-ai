@@ -318,6 +318,7 @@ namespace Aethiumian.AI.Editor
             {
                 tree.RegenerateTable();
                 GetAllNode();
+                treeWindow?.RefreshSelectedNodeParent();
             }
 
             graphModule?.RebuildTopology();
@@ -706,9 +707,17 @@ namespace Aethiumian.AI.Editor
         {
             if (!tree) return;
 
+            RecomputeReachableNodes();
+            treeWindow?.OverviewController.Invalidate();
+        }
+
+        /// <summary>Recomputes the Head-reachable node set without invalidating the active overview.</summary>
+        internal void RecomputeReachableNodes()
+        {
+            if (!tree) return;
+
             reachableNodes ??= new();
             reachableNodes.Clear();
-            treeWindow?.OverviewController.Invalidate();
             GetReachableNodes(reachableNodes, tree.Head);
         }
 
@@ -728,7 +737,7 @@ namespace Aethiumian.AI.Editor
 
         private List<TreeNode> GetUnusedNodes()
         {
-            GetAllNode();
+            RecomputeReachableNodes();
             return AllNodes
                 .Where(node => node != null && !reachableNodes.Contains(node))
                 .ToList();
@@ -786,6 +795,7 @@ namespace Aethiumian.AI.Editor
 
             tree.RegenerateTable();
             GetAllNode();
+            treeWindow?.RefreshSelectedNodeParent();
             if (window == Window.Graph)
             {
                 graphModule?.RebuildTopology();
