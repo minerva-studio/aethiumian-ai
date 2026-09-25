@@ -76,8 +76,14 @@ namespace Aethiumian.AI.Nodes
 
                 if (useIntegerDomain)
                 {
-                    result.SetComponentwiseValue(
-                        Operation(a.IntComponentwiseValue, b.IntComponentwiseValue, componentCount));
+                    ComponentwiseInt4 integerA = a.IntComponentwiseValue;
+                    ComponentwiseInt4 integerB = b.IntComponentwiseValue;
+                    if (!ValidateInput(new Vector4(integerA.x, integerA.y, integerA.z, integerA.w), new Vector4(integerB.x, integerB.y, integerB.z, integerB.w), componentCount))
+                    {
+                        return State.Failed;
+                    }
+
+                    result.SetComponentwiseValue(Operation(integerA, integerB, componentCount));
                     return State.Success;
                 }
 

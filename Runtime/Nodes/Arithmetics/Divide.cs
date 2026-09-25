@@ -13,7 +13,19 @@ namespace Aethiumian.AI.Nodes
         protected override Vector2 Operation(Vector2 a, Vector2 b) => new(a.x / b.x, a.y / b.y);
         protected override Vector3 Operation(Vector3 a, Vector3 b) => new(a.x / b.x, a.y / b.y, a.z / b.z);
         protected override Vector4 Operation(Vector4 a, Vector4 b) => new(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
-        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 a, ComponentwiseInt4 b, int componentCount)
-            => ComponentwiseInt4.Divide(a, b, componentCount);
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 a, ComponentwiseInt4 b, int componentCount) => ComponentwiseInt4.Divide(a, b, componentCount);
+
+        protected override bool ValidateInput(Vector4 a, Vector4 b, int componentCount)
+        {
+            for (int lane = 0; lane < componentCount; lane++)
+            {
+                if (b[lane] == 0f)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }

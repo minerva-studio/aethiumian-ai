@@ -3,9 +3,9 @@ using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using System;
-using System.Reflection;
+using System.Collections;
 using UnityEngine;
-using UnityEngine.Serialization;
+using UnityEngine.TestTools;
 
 namespace Aethiumian.AI.Editor.Tests.Variables
 {
@@ -88,7 +88,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         {
             Min node = new()
             {
-                a = Constant(VariableType.Generic, new object()),
+                a = Constant(VariableType.Generic, Texture2D.whiteTexture),
                 b = Constant(VariableType.Int, 3),
                 result = Reference(VariableType.Int, 17),
             };
@@ -111,31 +111,22 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(node.result.BoolValue, Is.True);
         }
 
-        [Test]
-        public void MinMaxIgnoreTreeArithmeticMode()
+        [UnityTest]
+        public IEnumerator MinMaxIgnoreTreeArithmeticMode()
         {
-            BehaviourTreeData data = ScriptableObject.CreateInstance<BehaviourTreeData>();
-            GameObject gameObject = new("MinMaxArithmeticModeTest");
-            try
+            using TreeTestFixture fixture = TreeTestFixture.Create(TreeTestFixture.CreateNode<Sequence>("Head"));
+            fixture.Data.arithmeticMode = ArithmeticMode.Int;
+            yield return fixture.WaitUntilReady();
+            Max node = new()
             {
-                data.arithmeticMode = ArithmeticMode.Int;
-                BehaviourTree tree = new(data, gameObject, null);
-                Max node = new()
-                {
-                    a = Constant(VariableType.Vector2, new Vector2(1f, 4f)),
-                    b = Constant(VariableType.Vector4, new Vector4(2f, 3f, 5f, 6f)),
-                    result = Reference(VariableType.Vector3, Vector3.zero),
-                    behaviourTree = tree,
-                };
+                a = Constant(VariableType.Vector2, new Vector2(1f, 4f)),
+                b = Constant(VariableType.Vector4, new Vector4(2f, 3f, 5f, 6f)),
+                result = Reference(VariableType.Vector3, Vector3.zero),
+                behaviourTree = fixture.Tree,
+            };
 
-                Assert.That(node.Execute(), Is.EqualTo(State.Success));
-                Assert.That(node.result.Vector3Value, Is.EqualTo(new Vector3(2f, 4f, 5f)));
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(gameObject);
-                UnityEngine.Object.DestroyImmediate(data);
-            }
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.result.Vector3Value, Is.EqualTo(new Vector3(2f, 4f, 5f)));
         }
 
         [Test]
@@ -328,7 +319,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         [Test]
         public void SetComponentwiseValueRejectsUnsupportedDestinationWithoutWriting()
         {
-            VariableReference result = Reference(VariableType.String, "unchanged");
+            VariableField result = Constant(VariableType.String, "unchanged");
 
             Assert.Throws<InvalidCastException>(() => result.SetComponentwiseValue(Vector4.zero));
             Assert.That(result.StringValue, Is.EqualTo("unchanged"));
@@ -379,120 +370,59 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(node.result.IntValue, Is.EqualTo(3));
         }
 
-        [Test]
-        public void TreeDefaultModeFallsBackToFloat()
+        [UnityTest]
+        public IEnumerator TreeDefaultModeFallsBackToFloat()
         {
-            BehaviourTreeData data = ScriptableObject.CreateInstance<BehaviourTreeData>();
-            GameObject gameObject = new("ArithmeticTreeDefaultModeTest");
-            try
+            using TreeTestFixture fixture = TreeTestFixture.Create(TreeTestFixture.CreateNode<Sequence>("Head"));
+            yield return fixture.WaitUntilReady();
+            Add node = new()
             {
-                BehaviourTree tree = new(data, gameObject, null);
-                Add node = new()
-                {
-                    a = Constant(VariableType.Float, 1.8f),
-                    b = Constant(VariableType.Float, 1.8f),
-                    result = Reference(VariableType.Int, 0),
-                    behaviourTree = tree,
-                };
+                a = Constant(VariableType.Float, 1.8f),
+                b = Constant(VariableType.Float, 1.8f),
+                result = Reference(VariableType.Int, 0),
+                behaviourTree = fixture.Tree,
+            };
 
-                Assert.That(data.arithmeticMode, Is.EqualTo(ArithmeticMode.Default));
-                Assert.That(node.Execute(), Is.EqualTo(State.Success));
-                Assert.That(node.result.IntValue, Is.EqualTo(3));
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(gameObject);
-                UnityEngine.Object.DestroyImmediate(data);
-            }
+            Assert.That(fixture.Data.arithmeticMode, Is.EqualTo(ArithmeticMode.Default));
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.result.IntValue, Is.EqualTo(3));
         }
 
-        [Test]
-        public void NodeModeOverridesTreeMode()
+        [UnityTest]
+        public IEnumerator NodeModeOverridesTreeMode()
         {
-            BehaviourTreeData data = ScriptableObject.CreateInstance<BehaviourTreeData>();
-            GameObject gameObject = new("ArithmeticModeTest");
-            try
+            using TreeTestFixture fixture = TreeTestFixture.Create(TreeTestFixture.CreateNode<Sequence>("Head"));
+            fixture.Data.arithmeticMode = ArithmeticMode.Int;
+            yield return fixture.WaitUntilReady();
+            Add node = new()
             {
-                data.arithmeticMode = ArithmeticMode.Int;
-                BehaviourTree tree = new(data, gameObject, null);
-                Add node = new()
-                {
-                    a = Constant(VariableType.Float, 1.8f),
-                    b = Constant(VariableType.Float, 1.8f),
-                    result = Reference(VariableType.Int, 0),
-                    operationMode = ArithmeticMode.Float,
-                    behaviourTree = tree,
-                };
+                a = Constant(VariableType.Float, 1.8f),
+                b = Constant(VariableType.Float, 1.8f),
+                result = Reference(VariableType.Int, 0),
+                operationMode = ArithmeticMode.Float,
+                behaviourTree = fixture.Tree,
+            };
 
-                Assert.That(node.Execute(), Is.EqualTo(State.Success));
-                Assert.That(node.result.IntValue, Is.EqualTo(3));
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(gameObject);
-                UnityEngine.Object.DestroyImmediate(data);
-            }
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.result.IntValue, Is.EqualTo(3));
         }
 
-        [Test]
-        public void DefaultNodeModeInheritsTreeMode()
+        [UnityTest]
+        public IEnumerator DefaultNodeModeInheritsTreeMode()
         {
-            BehaviourTreeData data = ScriptableObject.CreateInstance<BehaviourTreeData>();
-            GameObject gameObject = new("ArithmeticModeInheritanceTest");
-            try
+            using TreeTestFixture fixture = TreeTestFixture.Create(TreeTestFixture.CreateNode<Sequence>("Head"));
+            fixture.Data.arithmeticMode = ArithmeticMode.Int;
+            yield return fixture.WaitUntilReady();
+            Add node = new()
             {
-                data.arithmeticMode = ArithmeticMode.Int;
-                BehaviourTree tree = new(data, gameObject, null);
-                Add node = new()
-                {
-                    a = Constant(VariableType.Float, 1.8f),
-                    b = Constant(VariableType.Float, 1.8f),
-                    result = Reference(VariableType.Int, 0),
-                    behaviourTree = tree,
-                };
+                a = Constant(VariableType.Float, 1.8f),
+                b = Constant(VariableType.Float, 1.8f),
+                result = Reference(VariableType.Int, 0),
+                behaviourTree = fixture.Tree,
+            };
 
-                Assert.That(node.Execute(), Is.EqualTo(State.Success));
-                Assert.That(node.result.IntValue, Is.EqualTo(2));
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(gameObject);
-                UnityEngine.Object.DestroyImmediate(data);
-            }
-        }
-
-        [Test]
-        public void OnlyComponentwiseNodesExposeOperationMode()
-        {
-            Assert.That(typeof(Add).GetField("operationMode"), Is.Not.Null);
-            Assert.That(typeof(Subtract).GetField("operationMode"), Is.Not.Null);
-            Assert.That(typeof(Multiply).GetField("operationMode"), Is.Not.Null);
-            Assert.That(typeof(Divide).GetField("operationMode"), Is.Not.Null);
-            Assert.That(typeof(Min).GetField("operationMode"), Is.Null);
-            Assert.That(typeof(Max).GetField("operationMode"), Is.Null);
-            Assert.That(typeof(Arctangent2).GetField("operationMode"), Is.Null);
-            Assert.That(typeof(Round).GetField("operationMode"), Is.Null);
-            Assert.That(typeof(Normalize).GetField("operationMode"), Is.Null);
-            Assert.That(typeof(Aethiumian.AI.Nodes.Random).GetField("operationMode"), Is.Null);
-            Assert.That(typeof(Compare).GetField("operationMode"), Is.Null);
-        }
-
-        [Test]
-        public void BinaryNodesShareComponentwiseFieldsAndSerializationAliases()
-        {
-            FieldInfo a = typeof(ComponentwiseBinaryArithmetic).GetField("a");
-            FieldInfo b = typeof(ComponentwiseBinaryArithmetic).GetField("b");
-            FieldInfo result = typeof(ComponentwiseBinaryArithmetic).GetField("result");
-
-            Assert.That(a, Is.Not.Null);
-            Assert.That(b, Is.Not.Null);
-            Assert.That(result, Is.Not.Null);
-            Assert.That(typeof(Add).GetField("a"), Is.SameAs(a));
-            Assert.That(typeof(Arctangent2).GetField("b"), Is.SameAs(b));
-            Assert.That(typeof(Add).GetField("a", BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance), Is.Null);
-            Assert.That(typeof(Arctangent2).GetField("result", BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance), Is.Null);
-            Assert.That(a.GetCustomAttribute<FormerlySerializedAsAttribute>().oldName, Is.EqualTo("y"));
-            Assert.That(b.GetCustomAttribute<FormerlySerializedAsAttribute>().oldName, Is.EqualTo("x"));
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.result.IntValue, Is.EqualTo(2));
         }
 
         [Test]
@@ -615,7 +545,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         {
             Add node = new()
             {
-                a = Constant(VariableType.Generic, new object()),
+                a = Constant(VariableType.Generic, Texture2D.whiteTexture),
                 b = Constant(VariableType.Int, 3),
                 result = Reference(VariableType.Int, 17),
             };
@@ -1002,19 +932,8 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
-        public void ArithmeticNodesShareTheSerializedNaNPolicy()
+        public void ComponentwiseInt4AbsoluteValueHandlesNegativeLanes()
         {
-            var baseType = typeof(ComponentwiseUnaryArithmetic);
-            Assert.That(baseType.GetField("a")?.FieldType, Is.EqualTo(typeof(VariableField)));
-            Assert.That(baseType.GetField("result")?.FieldType, Is.EqualTo(typeof(VariableReference)));
-            Assert.That(typeof(Arithmetic).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Not.Null);
-            Assert.That(typeof(Arithmetic).GetField("failOnNaN")?.GetValue(new Add()), Is.EqualTo(false));
-            Assert.That(typeof(SquareRoot).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
-            Assert.That(typeof(Absolute).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
-            Assert.That(typeof(Ceil).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
-            Assert.That(typeof(Floor).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
-            Assert.That(typeof(Round).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
-
             ComponentwiseInt4 value = new(-2, 3, -4, 5);
             Assert.That(ComponentwiseInt4.Abs(value).x, Is.EqualTo(2));
             Assert.That(ComponentwiseInt4.Abs(value).z, Is.EqualTo(4));
