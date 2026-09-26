@@ -601,8 +601,12 @@ namespace Aethiumian.AI.Navigation.Tests
             CreateGround(1f);
             GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
             MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            // Hold AI ticks while the body settles; otherwise slow frames can pack enough unobserved
+            // ticks into setup for the Simple fallback to fire before the Smart request is observed.
+            harness.AI.Pause();
             yield return WaitForTreeCreated(harness);
             yield return WaitUntilGrounded(harness);
+            harness.AI.Resume();
             yield return WaitForRequest();
 
             ControlledWalk.Complete(ControlledWalk.Requests[0],

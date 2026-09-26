@@ -204,11 +204,11 @@ namespace Aethiumian.AI.Navigation.Tests
             harness.Body.gravityScale = 0f;
             Vector2 initialBodyPosition = harness.Body.position;
             yield return WaitForTreeCreated(harness);
-            for (int frame = 0; frame < 4 && harness.AI.BehaviourTree.IsRunning; frame++)
-                yield return null;
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
 
-            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.False, DescribeHarness(harness));
+            // "Immediately" is observable as completing without ever moving the body.
             Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
+            Assert.That(harness.Source.WalkCount, Is.Zero, DescribeHarness(harness));
             Assert.That(harness.Body.position.x, Is.EqualTo(initialBodyPosition.x).Within(0.0001f));
             Assert.That(harness.Body.position.y, Is.EqualTo(initialBodyPosition.y).Within(0.0001f));
         }

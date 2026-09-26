@@ -335,6 +335,7 @@ namespace Aethiumian.AI.PlayMode.Tests
             asyncFunctionStarted = false;
             asyncFunctionPassedFirstAwait = false;
             asyncFunctionCanceled = false;
+            asyncFunctionReleased = false;
             FunctionAction action = new() { uuid = UUID.NewUUID(), name = "Async Pause Boundary" };
             action.function.SetMethod(typeof(TimerLifecyclePlayModeTests).GetMethod(
                 nameof(ObservePauseBoundaryAsync), BindingFlags.Public | BindingFlags.Static));
@@ -383,6 +384,7 @@ namespace Aethiumian.AI.PlayMode.Tests
             }
             finally
             {
+                asyncFunctionReleased = true;
                 UnityEngine.Object.Destroy(host);
                 UnityEngine.Object.Destroy(data);
             }
@@ -468,22 +470,17 @@ namespace Aethiumian.AI.PlayMode.Tests
             try
             {
                 yield return WaitForInitialization(ai);
+                double requestedAt = ReadUnityClock(scaleMode);
                 ai.Start(false);
-                yield return new WaitForFixedUpdate();
-                double registeredAt = ReadUnityClock(scaleMode);
-                yield return new WaitForSecondsRealtime(0.04f);
-                yield return new WaitForFixedUpdate();
-                Assert.That(ai.IsRunning, Is.True, $"{domain}/{scaleMode} Timeout ended before its deadline.");
+                StopObservation observed = new();
+                yield return ObserveUntilStopped(ai, () => ReadUnityClock(scaleMode), 2f, observed);
 
-                yield return new WaitForSecondsRealtime(0.14f);
-                yield return WaitUntil(() => !ai.IsRunning, 1f);
                 Assert.That(ai.IsRunning, Is.False, $"{domain}/{scaleMode} Timeout did not interrupt the host.");
-                double terminatedAt = ReadUnityClock(scaleMode);
-                float tolerance = Mathf.Max(Time.fixedUnscaledDeltaTime * 2f, 0.04f);
-                Assert.That(terminatedAt - registeredAt, Is.GreaterThanOrEqualTo(duration - tolerance),
-                    $"{domain}/{scaleMode} Timeout ended before the configured deadline window.");
-                Assert.That(terminatedAt - registeredAt, Is.LessThan(0.4d),
-                    $"{domain}/{scaleMode} Timeout termination was not observed in the allotted window (tolerance {tolerance}).");
+                // Measured clock samples bound the deadline; no assumption about how long a frame or sleep lasts.
+                Assert.That(observed.LastRunning - requestedAt, Is.GreaterThanOrEqualTo(duration - observed.EarlyTolerance),
+                    $"{domain}/{scaleMode} Timeout ended before its deadline. {observed}");
+                Assert.That(observed.FirstStopped - requestedAt, Is.LessThanOrEqualTo(duration + observed.LateTolerance),
+                    $"{domain}/{scaleMode} Timeout did not end at its deadline. {observed}");
             }
             finally
             {
@@ -520,7 +517,7 @@ namespace Aethiumian.AI.PlayMode.Tests
             {
                 yield return WaitForInitialization(ai);
                 ai.Start(false);
-                yield return new WaitForSecondsRealtime(0.03f);
+                double aiRegisteredAt = ai.BehaviourTree.Timer.Now;
                 yield return new WaitForFixedUpdate();
                 Assert.That(ai.IsRunning, Is.True, $"{domain}/{scaleMode} Timeout was not running before pause.");
                 double timerBeforePause = ai.BehaviourTree.Timer.Now;
@@ -536,25 +533,21 @@ namespace Aethiumian.AI.PlayMode.Tests
                 }
 
                 ai.Resume();
-                yield return new WaitForFixedUpdate();
-                yield return null;
-                double timerAfterResume = ai.BehaviourTree.Timer.Now;
                 if (domain == TimeDomain.Game)
                 {
+                    yield return new WaitForFixedUpdate();
+                    yield return null;
                     Assert.That(ai.IsRunning, Is.False,
                         $"{domain}/{scaleMode} Timeout did not include the paused Game interval on resume.");
                 }
                 else
                 {
-                    Assert.That(timerAfterResume - timerBeforePause, Is.LessThan(duration - 0.03d),
-                        $"{domain}/{scaleMode} root timer did not preserve its pre-pause budget.");
-                    Assert.That(ai.IsRunning, Is.True,
-                        $"{domain}/{scaleMode} Timeout incorrectly charged the paused AI interval.");
-                    yield return new WaitForSecondsRealtime(0.03f);
-                    Assert.That(ai.IsRunning, Is.True,
-                        $"{domain}/{scaleMode} Timeout did not preserve its pre-pause AI budget.");
-                    yield return WaitUntil(() => !ai.IsRunning, 1f);
+                    // The AI clock excludes the pause, so the deadline is judged on that clock rather than on sleeps.
+                    StopObservation observed = new();
+                    yield return ObserveUntilStopped(ai, () => ai.BehaviourTree.Timer.Now, 2f, observed);
                     Assert.That(ai.IsRunning, Is.False, $"{domain}/{scaleMode} AI Timeout did not end after resumed active time.");
+                    Assert.That(observed.LastRunning - aiRegisteredAt, Is.GreaterThanOrEqualTo(duration - observed.EarlyTolerance), $"{domain}/{scaleMode} Timeout incorrectly charged the paused AI interval. {observed}");
+                    Assert.That(observed.FirstStopped - aiRegisteredAt, Is.LessThanOrEqualTo(duration + observed.LateTolerance), $"{domain}/{scaleMode} Timeout did not end when its AI budget was spent. {observed}");
                 }
             }
             finally
@@ -599,30 +592,36 @@ namespace Aethiumian.AI.PlayMode.Tests
                 yield return new WaitForFixedUpdate();
                 float beforePause = ai.BehaviourTree.Variables[value.UUID].FloatValue;
                 double beforeClock = ReadUnityClock(scaleMode);
+                double beforeAiClock = ai.BehaviourTree.Timer.Now;
 
                 ai.Pause();
+                double pausedAt = ReadUnityClock(scaleMode);
                 yield return new WaitForSecondsRealtime(0.50f);
                 Assert.That(ai.BehaviourTree.Variables[value.UUID].FloatValue, Is.EqualTo(beforePause).Within(0.01f),
                     $"{domain}/{scaleMode} Countdown changed while paused.");
 
                 ai.Resume();
+                double pausedSpan = ReadUnityClock(scaleMode) - pausedAt;
                 yield return new WaitForFixedUpdate();
                 yield return null;
                 float afterResume = ai.BehaviourTree.Variables[value.UUID].FloatValue;
                 double afterClock = ReadUnityClock(scaleMode);
+                double aiElapsed = ai.BehaviourTree.Timer.Now - beforeAiClock;
                 float observedElapsed = beforePause - afterResume;
                 double rawElapsed = afterClock - beforeClock;
-                float tolerance = Mathf.Max(Time.fixedUnscaledDeltaTime * 2f, 0.05f);
+                // The sampled value may lag the clock by the frame that just ran.
+                float frameStep = scaleMode == TimeScaleMode.Unscaled ? Time.unscaledDeltaTime : Time.deltaTime;
+                float tolerance = Mathf.Max(Time.fixedUnscaledDeltaTime * 2f, 0.05f) + frameStep;
                 Assert.That(rawElapsed, Is.GreaterThan(0.10d), $"{domain}/{scaleMode} pause window was not observable.");
                 if (domain == TimeDomain.Game)
                 {
-                    Assert.That(observedElapsed, Is.EqualTo((float)rawElapsed).Within(tolerance),
-                        $"{domain}/{scaleMode} Countdown did not charge the paused Game interval.");
+                    Assert.That(observedElapsed, Is.EqualTo((float)rawElapsed).Within(tolerance), $"{domain}/{scaleMode} Countdown did not charge the paused Game interval.");
                 }
                 else
                 {
-                    Assert.That(observedElapsed, Is.LessThan(tolerance),
-                        $"{domain}/{scaleMode} Countdown incorrectly charged the paused AI interval.");
+                    // Active time around resume varies with frame length; the pause itself must not be charged.
+                    Assert.That(aiElapsed + pausedSpan, Is.LessThanOrEqualTo(rawElapsed + tolerance), $"{domain}/{scaleMode} AI clock charged the paused interval (pausedSpan {pausedSpan:F4}).");
+                    Assert.That(observedElapsed, Is.EqualTo((float)aiElapsed).Within(tolerance), $"{domain}/{scaleMode} Countdown incorrectly charged the paused AI interval.");
                 }
             }
             finally
@@ -637,6 +636,40 @@ namespace Aethiumian.AI.PlayMode.Tests
             return scaleMode == TimeScaleMode.Unscaled
                 ? Time.unscaledTimeAsDouble
                 : Time.timeAsDouble;
+        }
+
+        /// <summary>Clock samples bracketing when a running AI was last seen running and first seen stopped.</summary>
+        private sealed class StopObservation
+        {
+            public double LastRunning = double.NaN;
+            public double FirstStopped = double.NaN;
+            public double MaxStep;
+
+            /// <summary>A correct deadline can precede the last running sample by at most one observed step.</summary>
+            public double EarlyTolerance => MaxStep + 0.005d;
+
+            /// <summary>Service checks may land up to one frame plus fixed step after the deadline.</summary>
+            public double LateTolerance => MaxStep + Time.fixedUnscaledDeltaTime * 2d + 0.005d;
+
+            public override string ToString()
+                => $"lastRunning={LastRunning:F4}, firstStopped={FirstStopped:F4}, maxStep={MaxStep:F4}";
+        }
+
+        /// <summary>Samples the clock every frame until the AI stops or the real-time limit passes.</summary>
+        private static IEnumerator ObserveUntilStopped(AI ai, System.Func<double> clock, float timeoutSeconds, StopObservation observation)
+        {
+            float deadline = Time.realtimeSinceStartup + timeoutSeconds;
+            double previous = clock();
+            while (ai.IsRunning && Time.realtimeSinceStartup < deadline)
+            {
+                observation.LastRunning = clock();
+                yield return null;
+                double now = clock();
+                observation.MaxStep = System.Math.Max(observation.MaxStep, now - previous);
+                previous = now;
+            }
+
+            if (!ai.IsRunning) observation.FirstStopped = clock();
         }
 
         private static IEnumerator WaitUntil(System.Func<bool> condition, float timeoutSeconds)
@@ -800,6 +833,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         private static bool asyncFunctionStarted;
         private static bool asyncFunctionPassedFirstAwait;
         private static bool asyncFunctionCanceled;
+        private static bool asyncFunctionReleased;
 
         [System.Serializable]
         private sealed class ClockSamplingAction : Aethiumian.AI.Nodes.Action
@@ -848,7 +882,8 @@ namespace Aethiumian.AI.PlayMode.Tests
             {
                 await progress.NextFrameAsync();
                 asyncFunctionPassedFirstAwait = true;
-                for (int index = 0; index < 30; index++)
+                // Stay pending until cancelled or released so the outcome never depends on frame rate.
+                while (!asyncFunctionReleased)
                     await progress.NextFrameAsync();
             }
             catch (System.OperationCanceledException)
