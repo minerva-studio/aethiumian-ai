@@ -303,9 +303,9 @@ namespace Aethiumian.AI.Editor.Mutations
             }
 
             IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
-            if (incoming.Count != 1 || topology.HasInvalidParentMetadata(node))
+            if (incoming.Count != 1)
             {
-                return Failure<BehaviourTreeRearrangeResult>($"Node '{node.name}' must have exactly one valid structural or Service owner.");
+                return Failure<BehaviourTreeRearrangeResult>($"Node '{node.name}' must have exactly one structural or Service owner.");
             }
 
             NodeReferenceOccurrence sourceOccurrence = incoming.SingleOrDefault();
@@ -448,9 +448,9 @@ namespace Aethiumian.AI.Editor.Mutations
 
             NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
             IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
-            if (incoming.Count != 1 || topology.HasInvalidParentMetadata(node))
+            if (incoming.Count != 1)
             {
-                error = $"Node '{node.name}' must have exactly one valid structural or Service owner.";
+                error = $"Node '{node.name}' must have exactly one structural or Service owner.";
                 return false;
             }
 

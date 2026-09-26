@@ -596,23 +596,24 @@ namespace Aethiumian.AI
         }
 
         /// <summary>
-        /// Repairs only parent metadata that has an unambiguous authored owner.
-        /// Multiple incoming edges and cycles are left untouched for explicit diagnosis.
+        /// Repairs parent metadata for nodes with zero or one authored incoming owner.
+        /// Nodes with multiple incoming owners are left unchanged for explicit diagnosis.
         /// </summary>
         /// <returns>Validation errors that remain after the repair attempt.</returns>
         public IReadOnlyList<string> RepairParentMetadata()
         {
-            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(nodes);
+            Dictionary<TreeNode, UUID> expectedParents = ComputeUnambiguousParentUUIDs(nodes);
             List<(TreeNode Node, UUID ParentUUID)> repairs = new();
-            foreach (TreeNode node in nodes.Where(node => node != null))
+            foreach (KeyValuePair<TreeNode, UUID> expectedParent in expectedParents)
             {
-                IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
-                if (incoming.Count != 1 || (node.parent?.UUID ?? UUID.Empty) == incoming[0].Owner.uuid)
+                TreeNode node = expectedParent.Key;
+                UUID parentUUID = expectedParent.Value;
+                if (node.parent != null && node.parent.UUID == parentUUID)
                 {
                     continue;
                 }
 
-                repairs.Add((node, incoming[0].Owner.uuid));
+                repairs.Add((node, parentUUID));
             }
 
             if (repairs.Count > 0)
@@ -620,7 +621,7 @@ namespace Aethiumian.AI
                 Undo.RecordObject(this, "Repair node parent metadata");
                 foreach ((TreeNode node, UUID parentUUID) in repairs)
                 {
-                    node.parent = new NodeReference(parentUUID);
+                    node.parent = parentUUID == UUID.Empty ? NodeReference.Empty : new NodeReference(parentUUID);
                 }
 
                 SerializedObject.Update();

@@ -533,17 +533,17 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             AssertValid(tree);
         }
 
-        /// <summary>Verifies a supported Upgrade preserves identity, incoming ownership, and hosted Services.</summary>
+        /// <summary>Verifies Upgrade derives parent metadata from authored ownership and preserves hosted Services.</summary>
         [UnityTest]
-        public IEnumerator UpgradeNode_PreservesIdentityIncomingReferenceParentAndServices()
+        public IEnumerator UpgradeNode_RepairsStaleParentFromIncomingOwner()
         {
             TestHost head = Node<TestHost>("Head");
             UpgradeableHost node = Node<UpgradeableHost>("Upgradeable");
             TestService service = Node<TestService>("Service");
             head.single = Reference(node);
-            node.parent = Reference(head);
             node.services = new List<NodeReference> { Reference(service) };
             service.parent = Reference(node);
+            node.parent = Reference(service);
             BehaviourTreeData tree = Tree(head, node, service);
             TreeNodeModule module = OpenWindow(tree).TreeModule;
             UUID uuid = node.uuid;

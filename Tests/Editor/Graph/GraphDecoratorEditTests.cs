@@ -366,12 +366,15 @@ private static void AssertContinuationAnchor(
         [Test]
         public void DecoratorExtractAndWrapTarget_IsSingleUndoAndPreservesChild()
         {
+            Undo.ClearAll();
             Inverter decorator = Node<Inverter>("Decorator");
             TestNode child = Node<TestNode>("Child");
             TestNode target = Node<TestNode>("Target");
             decorator.node = child.ToReference();
             child.parent = decorator.ToReference();
+            target.parent = child.ToReference();
             BehaviourTreeData tree = Tree(decorator, child, target);
+            Assert.That(tree.CanExtractDecoratorAndWrapTarget(decorator.uuid, target.uuid), Is.True);
             Assert.That(tree.TryExtractDecoratorAndWrapTarget(decorator.uuid, target.uuid, "Extract and wrap"), Is.True);
             Assert.That(tree.headNodeUUID, Is.EqualTo(child.uuid));
             Assert.That(decorator.node.UUID, Is.EqualTo(target.uuid));
@@ -381,6 +384,7 @@ private static void AssertContinuationAnchor(
             Undo.PerformUndo();
             Assert.That(decorator.node.UUID, Is.EqualTo(child.uuid));
             Assert.That(tree.headNodeUUID, Is.EqualTo(decorator.uuid));
+            Assert.That(target.parent.UUID, Is.EqualTo(child.uuid));
         }
         /// <summary>Verifies CreateNode wrapping does not displace the existing target occurrence.</summary>
         [Test]
@@ -389,7 +393,7 @@ private static void AssertContinuationAnchor(
             Sequence sequence = Node<Sequence>("Sequence");
             TestNode target = Node<TestNode>("Target");
             sequence.events = new[] { target.ToReference() };
-            target.parent = sequence.ToReference();
+            target.parent = new NodeReference(UUID.NewUUID());
             BehaviourTreeData tree = Tree(sequence, target);
             Inverter decorator = Node<Inverter>("Created Wrapper");
             Assert.That(tree.TryAddAndWrapReference(Address(sequence.uuid, nameof(Sequence.events), 0),
@@ -398,6 +402,48 @@ private static void AssertContinuationAnchor(
             Assert.That(decorator.node.UUID, Is.EqualTo(target.uuid));
             Assert.That(target.parent.UUID, Is.EqualTo(decorator.uuid));
         }
+
+        /// <summary>Verifies an unrelated stale parent does not block adding and wrapping a node.</summary>
+        [Test]
+        public void DecoratorWrap_CreateAndWrapReferenceAllowsUnrelatedStaleParent()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode target = Node<TestNode>("Target");
+            sequence.events = new[] { target.ToReference() };
+            target.parent = sequence.ToReference();
+
+            Sequence unrelatedOwner = Node<Sequence>("Unrelated Owner");
+            Always unrelatedTarget = Node<Always>("Unrelated Target");
+            unrelatedOwner.events = new[] { unrelatedTarget.ToReference() };
+            unrelatedTarget.parent = new NodeReference(UUID.NewUUID());
+
+            BehaviourTreeData tree = Tree(sequence, target, unrelatedOwner, unrelatedTarget);
+            Inverter decorator = Node<Inverter>("Created Wrapper");
+
+            Assert.That(tree.TryAddAndWrapReference(Address(sequence.uuid, nameof(Sequence.events), 0),
+                new[] { decorator }, decorator.uuid, "Create and wrap"), Is.True);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { decorator.uuid }));
+            Assert.That(decorator.node.UUID, Is.EqualTo(target.uuid));
+            Assert.That(target.parent.UUID, Is.EqualTo(decorator.uuid));
+        }
+
+        /// <summary>Verifies adding a second owner for an existing node is still rejected.</summary>
+        [Test]
+        public void AddNodes_RejectsNewMultipleOwnerTopology()
+        {
+            Sequence owner = Node<Sequence>("Owner");
+            Always target = Node<Always>("Target");
+            owner.events = new[] { target.ToReference() };
+            target.parent = owner.ToReference();
+            BehaviourTreeData tree = Tree(owner, target);
+
+            Sequence addedOwner = Node<Sequence>("Added Owner");
+            addedOwner.events = new[] { target.ToReference() };
+
+            Assert.That(tree.TryAddNodes(new[] { addedOwner }, "Add owner"), Is.False);
+            Assert.That(tree.GetNode(addedOwner.uuid), Is.Null);
+        }
+
         [Test]
         public void DecoratorDelete_UnwrapsMiddleAndSupportsUndoRedo()
         {

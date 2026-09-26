@@ -778,22 +778,54 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
         }
-        /// <summary>Verifies parent repair only changes single-incoming unambiguous nodes.</summary>
+        /// <summary>Verifies parent repair updates unique owners and clears ownerless nodes.</summary>
         [Test]
-        public void RepairParentMetadata_RepairsOnlyUnambiguousNodes()
+        public void RepairParentMetadata_ClearsOwnerlessParents()
         {
-            TestNode owner = Node<TestNode>("Owner");
+            TestHost owner = Node<TestHost>("Owner");
             TestNode child = Node<TestNode>("Child");
             TestNode orphan = Node<TestNode>("Orphan");
-            owner.child = child.ToReference();
+            owner.children = new[] { child.ToReference() };
+            owner.raw = new RawNodeReference { UUID = orphan.uuid };
             orphan.parent = owner.ToReference();
             BehaviourTreeData tree = Tree(owner, child, orphan);
 
             IReadOnlyList<string> remaining = tree.RepairParentMetadata();
 
             Assert.That(child.parent.UUID, Is.EqualTo(owner.uuid));
-            Assert.That(orphan.parent.UUID, Is.EqualTo(owner.uuid));
+            Assert.That(orphan.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(remaining, Is.Empty);
+        }
+
+        [Test]
+        public void Relink_ClearsParentWhenNodeHasNoAuthoredOwner()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            TestNode orphan = Node<TestNode>("Orphan");
+            owner.raw = new RawNodeReference { UUID = orphan.uuid };
+            orphan.parent = owner.ToReference();
+            BehaviourTreeData tree = Tree(owner, orphan);
+
+            tree.Relink();
+
+            Assert.That(orphan.parent.UUID, Is.EqualTo(UUID.Empty));
+        }
+
+        [Test]
+        public void Relink_LeavesParentWhenNodeHasMultipleAuthoredOwners()
+        {
+            TestHost firstOwner = Node<TestHost>("First Owner");
+            TestHost secondOwner = Node<TestHost>("Second Owner");
+            TestNode shared = Node<TestNode>("Shared");
+            firstOwner.children = new[] { shared.ToReference() };
+            secondOwner.children = new[] { shared.ToReference() };
+            shared.parent = firstOwner.ToReference();
+            BehaviourTreeData tree = Tree(firstOwner, secondOwner, shared);
+
+            tree.Relink();
+
+            Assert.That(shared.parent.UUID, Is.EqualTo(firstOwner.uuid));
+            Assert.That(tree.GetStructureValidationErrors(), Has.Some.Contains("owning incoming"));
         }
         [Test]
         public void TopologyEdit_RejectsNewStructuralCycle()

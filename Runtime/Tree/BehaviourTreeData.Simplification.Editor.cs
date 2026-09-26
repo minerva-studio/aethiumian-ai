@@ -357,6 +357,7 @@ namespace Aethiumian.AI
                     }
                     else
                     {
+                        GetNode(sequence.events[candidate.CutIndex]).parent = NodeReference.Empty;
                         sequence.events = sequence.events.Where((_, index) => index != candidate.CutIndex).ToArray();
                     }
                 }
@@ -369,6 +370,7 @@ namespace Aethiumian.AI
                     }
                     else
                     {
+                        GetNode(decision.events[candidate.CutIndex]).parent = NodeReference.Empty;
                         decision.events = decision.events.Where((_, index) => index != candidate.CutIndex).ToArray();
                     }
                 }

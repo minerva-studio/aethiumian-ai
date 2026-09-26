@@ -16,7 +16,7 @@ namespace Aethiumian.AI
 #if UNITY_EDITOR
     public partial class BehaviourTreeData
     {
-        /// <summary>Replaces one upgradeable node while preserving its identity and hosted services.</summary>
+        /// <summary>Replaces one upgradeable node while preserving identity, authored parent ownership, and hosted services.</summary>
         internal bool TryUpgradeNode(TreeNode node, out TreeNode upgradedNode)
         {
             upgradedNode = null;
@@ -43,10 +43,13 @@ namespace Aethiumian.AI
                 return false;
             }
 
+            Dictionary<TreeNode, UUID> expectedParents = ComputeUnambiguousParentUUIDs(EditorNodes);
             Undo.RecordObject(this, $"Upgrade node {node.name}");
             upgradedNode.UUID = node.UUID;
             upgradedNode.name = node.name;
-            upgradedNode.parent = node.parent;
+            upgradedNode.parent = expectedParents.TryGetValue(node, out UUID parentUUID)
+                ? (parentUUID == UUID.Empty ? NodeReference.Empty : new NodeReference(parentUUID))
+                : node.parent;
             if (ServiceHostNodeUtility.TryAsServiceHost(node, out var oldHost)
                 && ServiceHostNodeUtility.TryAsServiceHost(upgradedNode, out var upgradedHost)
                 && oldHost.Services != null
@@ -316,8 +319,7 @@ namespace Aethiumian.AI
                 || decorator.node?.UUID == targetUUID) return false;
             NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
             IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(target);
-            return incoming.Count <= 1 && HasConsistentParentMetadata(target, incoming)
-                && (incoming.Count == 0 || (target.parent?.UUID ?? UUID.Empty) == incoming[0].Owner.uuid);
+            return incoming.Count <= 1;
         }
 
         /// <summary>Performs extraction and wrapping in one tree transaction.</summary>
@@ -780,7 +782,7 @@ namespace Aethiumian.AI
             return TryDisconnectReference(occurrence.Address, undoName);
         }
 
-        /// <summary>Moves one complete collection entry while preserving its metadata.</summary>
+        /// <summary>Moves one complete collection entry and repairs parent metadata for its unique owner.</summary>
         internal bool TryReorderReference(NodeReferenceAddress address, int destinationIndex, string undoName)
         {
             if (!TryResolveCollection(address, out TreeNode owner, out INodeReferenceListSlot field)
@@ -799,12 +801,21 @@ namespace Aethiumian.AI
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
+                NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+                UUID targetUUID = field.GetReference(address.Index)?.UUID ?? UUID.Empty;
+                TreeNode target = GetNode(targetUUID);
+                IReadOnlyList<NodeReferenceOccurrence> targetIncoming = topology.GetIncoming(target);
+                bool ownsTarget = targetIncoming.Count == 1
+                    && targetIncoming[0].Owner == owner
+                    && targetIncoming[0].Address.FieldName == address.FieldName
+                    && targetIncoming[0].Address.Index == address.Index;
                 if (field is not IIndexedNodeReferenceListSlot indexed)
                 {
                     return false;
                 }
 
                 indexed.Move(address.Index, targetIndex);
+                if (ownsTarget) target.parent = new NodeReference(owner.uuid);
                 CompleteTransaction(undoGroup);
                 return true;
             }
@@ -1348,7 +1359,7 @@ namespace Aethiumian.AI
                 return false;
             }
             NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
-            if (topology.GetIncoming(target).Count != 1 || topology.HasInvalidParentMetadata(target)) return false;
+            if (topology.GetIncoming(target).Count != 1) return false;
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
@@ -1506,15 +1517,40 @@ namespace Aethiumian.AI
         /// <summary>Repairs parent metadata only when authored ownership is unambiguous.</summary>
         private void ReconcileUnambiguousParents()
         {
-            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
-            foreach (TreeNode node in nodes.Where(node => node != null))
+            Dictionary<TreeNode, UUID> expectedParents = ComputeUnambiguousParentUUIDs(EditorNodes);
+            foreach (KeyValuePair<TreeNode, UUID> expectedParent in expectedParents)
             {
-                IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
-                if (incoming.Count == 1)
+                TreeNode node = expectedParent.Key;
+                UUID parentUUID = expectedParent.Value;
+                if (node.parent == null || node.parent.UUID != parentUUID)
                 {
-                    node.parent = new NodeReference(incoming[0].Owner.uuid);
+                    node.parent = parentUUID == UUID.Empty ? NodeReference.Empty : new NodeReference(parentUUID);
                 }
             }
+        }
+
+        /// <summary>Computes the parent UUID for nodes with zero or one authored incoming owner.</summary>
+        /// <param name="sourceNodes">The nodes whose forward references define ownership.</param>
+        /// <returns>Expected parents for unambiguous nodes; multi-owner nodes are omitted.</returns>
+        private static Dictionary<TreeNode, UUID> ComputeUnambiguousParentUUIDs(IEnumerable<TreeNode> sourceNodes)
+        {
+            List<TreeNode> nodes = sourceNodes?.Where(node => node != null).ToList() ?? new List<TreeNode>();
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(nodes);
+            Dictionary<TreeNode, UUID> expectedParents = new();
+            foreach (TreeNode node in nodes)
+            {
+                IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
+                if (incoming.Count == 0)
+                {
+                    expectedParents.Add(node, UUID.Empty);
+                }
+                else if (incoming.Count == 1)
+                {
+                    expectedParents.Add(node, incoming[0].Owner.uuid);
+                }
+            }
+
+            return expectedParents;
         }
 
         private bool TryChangeHead(UUID candidateUUID, bool allowMoveExisting, string undoName)
@@ -1605,17 +1641,31 @@ namespace Aethiumian.AI
             }
 
             NodeTopologySnapshot combined = NodeTopologySnapshot.Create(EditorNodes.Concat(addedNodes));
-            return combined.GetValidationErrors().Count == 0
+            return HasNoNewValidationErrors(combined)
                 && (raw || CanAssign(combined, owner, root, false, out _));
         }
 
+        /// <summary>Checks that the candidate tree introduces no validation errors beyond its current errors.</summary>
+        /// <param name="candidateTopology">The topology after applying the proposed addition.</param>
+        /// <returns>True when every candidate validation error was already present in this tree.</returns>
+        private bool HasNoNewValidationErrors(NodeTopologySnapshot candidateTopology)
+        {
+            HashSet<string> existingErrors = new(NodeTopologySnapshot.Create(EditorNodes).GetValidationErrors());
+            return candidateTopology.GetValidationErrors().All(existingErrors.Contains);
+        }
+
+        /// <summary>Checks node additions while allowing validation errors already present in the tree.</summary>
         private bool CanAddNodes(IReadOnlyList<TreeNode> addedNodes)
         {
-            return addedNodes != null
-                && addedNodes.Count > 0
-                && addedNodes.All(node => node != null && GetNode(node.uuid) == null)
-                && addedNodes.Select(node => node.uuid).Distinct().Count() == addedNodes.Count
-                && NodeTopologySnapshot.Create(EditorNodes.Concat(addedNodes)).GetValidationErrors().Count == 0;
+            if (addedNodes == null
+                || addedNodes.Count == 0
+                || addedNodes.Any(node => node == null || GetNode(node.uuid) != null)
+                || addedNodes.Select(node => node.uuid).Distinct().Count() != addedNodes.Count)
+            {
+                return false;
+            }
+
+            return HasNoNewValidationErrors(NodeTopologySnapshot.Create(EditorNodes.Concat(addedNodes)));
         }
 
         /// <summary>Checks parent metadata for both owned and genuinely free nodes.</summary>

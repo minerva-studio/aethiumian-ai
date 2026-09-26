@@ -160,15 +160,16 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
         }
 
         [Test]
-        public void ReorderNode_MovesCollectionEntryAndPreservesOwnership()
+        public void ReorderNode_RepairsStaleParentAndPreservesOwnership()
         {
             Sequence head = CreateNode<Sequence>("Head");
             Always first = CreateNode<Always>("First");
             Always second = CreateNode<Always>("Second");
             head.events = new[] { new NodeReference(first.uuid), new NodeReference(second.uuid) };
-            first.parent = new NodeReference(head.uuid);
+            first.parent = new NodeReference(second.uuid);
             second.parent = new NodeReference(head.uuid);
             BehaviourTreeData tree = CreateTree(head, first, second);
+            Undo.ClearAll();
 
             try
             {
@@ -188,6 +189,10 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
                 Assert.That(result.Destination.Index, Is.EqualTo(1));
                 Assert.That(head.events.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid, first.uuid }));
                 Assert.That(first.parent.UUID, Is.EqualTo(head.uuid));
+
+                Undo.PerformUndo();
+                Assert.That(head.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, second.uuid }));
+                Assert.That(first.parent.UUID, Is.EqualTo(second.uuid));
             }
             finally
             {
@@ -196,7 +201,7 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
         }
 
         [Test]
-        public void MoveNode_ReparentsCollectionEntryAndUpdatesParent()
+        public void MoveNode_RepairsStaleParentAndUpdatesParent()
         {
             Sequence head = CreateNode<Sequence>("Head");
             Sequence source = CreateNode<Sequence>("Source");
@@ -206,9 +211,10 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
             source.parent = new NodeReference(head.uuid);
             target.parent = new NodeReference(head.uuid);
             source.events = new[] { new NodeReference(child.uuid) };
-            child.parent = new NodeReference(source.uuid);
+            child.parent = new NodeReference(head.uuid);
             target.events = Array.Empty<NodeReference>();
             BehaviourTreeData tree = CreateTree(head, source, target, child);
+            Undo.ClearAll();
 
             try
             {
@@ -230,6 +236,10 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
                 Assert.That(source.events, Is.Empty);
                 Assert.That(target.events.Select(reference => reference.UUID), Is.EqualTo(new[] { child.uuid }));
                 Assert.That(child.parent.UUID, Is.EqualTo(target.uuid));
+
+                Undo.PerformUndo();
+                Assert.That(source.events.Select(reference => reference.UUID), Is.EqualTo(new[] { child.uuid }));
+                Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
             }
             finally
             {
@@ -238,7 +248,7 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
         }
 
         [Test]
-        public void MoveNode_AssignsScalarReferenceAndUpdatesParent()
+        public void MoveNode_RepairsStaleParentForScalarReference()
         {
             Sequence head = CreateNode<Sequence>("Head");
             Sequence source = CreateNode<Sequence>("Source");
@@ -248,9 +258,10 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
             source.parent = new NodeReference(head.uuid);
             target.parent = new NodeReference(head.uuid);
             source.events = new[] { new NodeReference(child.uuid) };
-            child.parent = new NodeReference(source.uuid);
+            child.parent = new NodeReference(head.uuid);
             target.node = NodeReference.Empty;
             BehaviourTreeData tree = CreateTree(head, source, target, child);
+            Undo.ClearAll();
 
             try
             {
@@ -270,6 +281,11 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
                 Assert.That(source.events, Is.Empty);
                 Assert.That(target.node.UUID, Is.EqualTo(child.uuid));
                 Assert.That(child.parent.UUID, Is.EqualTo(target.uuid));
+
+                Undo.PerformUndo();
+                Assert.That(source.events.Select(reference => reference.UUID), Is.EqualTo(new[] { child.uuid }));
+                Assert.That(target.node.UUID, Is.EqualTo(UUID.Empty));
+                Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
             }
             finally
             {
@@ -319,13 +335,15 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
         }
 
         [Test]
-        public void DetachNode_RemovesOwnershipAndKeepsAuthoredNode()
+        public void DetachNode_RepairsStaleParentAndKeepsAuthoredNode()
         {
             Sequence head = CreateNode<Sequence>("Head");
             Always child = CreateNode<Always>("Child");
+            UUID staleParent = UUID.NewUUID();
             head.events = new[] { new NodeReference(child.uuid) };
-            child.parent = new NodeReference(head.uuid);
+            child.parent = new NodeReference(staleParent);
             BehaviourTreeData tree = CreateTree(head, child);
+            Undo.ClearAll();
 
             try
             {
@@ -336,6 +354,10 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
                 Assert.That(head.events, Is.Empty);
                 Assert.That(tree.GetNode(child.uuid), Is.SameAs(child));
                 Assert.That(child.parent.UUID, Is.EqualTo(UUID.Empty));
+
+                Undo.PerformUndo();
+                Assert.That(head.events.Select(reference => reference.UUID), Is.EqualTo(new[] { child.uuid }));
+                Assert.That(child.parent.UUID, Is.EqualTo(staleParent));
             }
             finally
             {
