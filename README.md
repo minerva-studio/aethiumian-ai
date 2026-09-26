@@ -15,7 +15,8 @@ Aethiumian.AI provides runtime tree execution, node editors, variable system, an
 ## Installation summary / 安装摘要
 
 - Package name: `com.minervagamestudio.aethiumian.ai`
-- Minimum Unity: `2021.3`
+- Recommended Unity: Unity 6 (`6000.x`); CI runs on Unity 6 only
+- Minimum Unity: `2021.3` (installable, but not tested or guaranteed)
 - The package manifest currently declares no package dependency. The Library of Meialia integration also uses [Unity Utilities](https://github.com/minerva-studio/unity-utilities).
 - Documentation site: `https://minerva-studio.github.io/aethiumian-ai/`
 

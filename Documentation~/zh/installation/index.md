@@ -1,7 +1,8 @@
 # 安装
 
 - 包名：`com.minervagamestudio.aethiumian.ai`
-- Unity 最低版本：`2021.3`
+- 推荐 Unity 版本：Unity 6（`6000.x`）；自动化测试只在 Unity 6 上运行
+- Unity 最低版本：`2021.3`（可以安装，但未经测试，不做兼容保证）
 
 ## 安装方式
 

@@ -13,7 +13,7 @@
   <section class="aeth-home__section aeth-home__requirements">
     <h2 class="aeth-home__heading">Requirements</h2>
     <ul>
-      <li>Unity <code>2021.3</code> 或更高版本。</li>
+      <li>推荐 Unity 6（<code>6000.x</code>）。<code>2021.3</code> 及以上版本可以安装，但未经测试，不做兼容保证。</li>
       <li>Aethiumian.AI 本身未声明额外的包依赖。</li>
     </ul>
   </section>

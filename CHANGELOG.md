@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Unity 6 (`6000.x`) is the recommended and CI-tested version. `2021.3` remains the declared minimum and can install the package, but it is no longer tested or guaranteed.
 - Unified `FunctionCall` and `FunctionAction` result modes with `Default`, `ReturnValue`, `AlwaysSuccess`, and `AlwaysFailure`; invocation exceptions continue to follow the tree exception rule.
 - Reworked variable fields to use the staged payload model, preserving typed constant and tree-variable conversion semantics while reducing boxing in common paths.
 - Serialized UUIDs as GUID strings while retaining legacy payload support during migration.

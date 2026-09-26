@@ -1,7 +1,8 @@
 # Installation
 
 - Package name: `com.minervagamestudio.aethiumian.ai`
-- Minimum Unity: `2021.3`
+- Recommended Unity: Unity 6 (`6000.x`); automated tests run on Unity 6 only
+- Minimum Unity: `2021.3` (installable, but not tested or guaranteed)
 
 ## Install
 

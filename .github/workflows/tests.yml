@@ -18,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Unity 6 is the supported line; 2021.3 remains installable but is not tested.
         unityVersion:
-          - 2021.3.54f1
           - 6000.3.9f1
         testMode:
           - EditMode

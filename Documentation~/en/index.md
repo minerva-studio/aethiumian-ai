@@ -13,7 +13,7 @@
   <section class="aeth-home__section aeth-home__requirements">
     <h2 class="aeth-home__heading">Requirements</h2>
     <ul>
-      <li>Unity <code>2021.3</code> or later.</li>
+      <li>Unity 6 (<code>6000.x</code>) recommended. <code>2021.3</code> or later can install the package but is not tested or guaranteed.</li>
       <li>No additional package dependencies are declared by Aethiumian.AI.</li>
     </ul>
   </section>
