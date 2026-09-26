@@ -84,7 +84,8 @@ namespace Aethiumian.AI.Navigation
                     cancellationToken.ThrowIfCancellationRequested();
                     Vector2 next = candidate.GetPosition(candidate.FlightDuration * index / samples);
                     AABB body = AABB.FromLowerCenter(previous, parameters.BodySize);
-                    if (!World.IsBodyPathClear(body, next - previous, GroundTraversalEndpointPolicy.VerticalSupportTolerance))
+                    if (!World.IsBodyPathClear(body, next - previous, GroundTraversalEndpointPolicy.VerticalSupportTolerance)
+                        || !IsFlightMarginClear(body, next - previous, snappedStart.y, snappedEnd.y))
                     {
                         clear = false;
                         break;
@@ -102,6 +103,25 @@ namespace Aethiumian.AI.Navigation
 
             trajectory = default;
             return false;
+        }
+
+        /// <summary>
+        /// Requires a flight margin around the body away from its launch and landing surfaces. The contact
+        /// sweep ignores the body's lowest contact tolerance so a resting body can leave and reach support,
+        /// but mid-flight that slack let trajectories graze obstacle corners; a real body also rests lower
+        /// than its snapped anchor by solver-dependent penetration. Near either support height the contact
+        /// sweep alone applies, because the margin would intersect the support being left or reached.
+        /// </summary>
+        private bool IsFlightMarginClear(AABB body, Vector2 displacement, float launchSupportY, float landingSupportY)
+        {
+            float margin = NavigationWorldQueries.SupportSnapDistance;
+            float band = margin + GroundTraversalEndpointPolicy.VerticalSupportTolerance;
+            float lowestFeet = Mathf.Min(body.MinY, body.MinY + displacement.y);
+            if (Mathf.Abs(lowestFeet - launchSupportY) <= band || Mathf.Abs(lowestFeet - landingSupportY) <= band)
+                return true;
+
+            AABB inflated = new(body.Min - Vector2.one * margin, body.Max + Vector2.one * margin);
+            return World.IsBodyPathClear(inflated, displacement, 0f);
         }
 
 

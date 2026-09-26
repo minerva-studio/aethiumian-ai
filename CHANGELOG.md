@@ -36,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Guarded graph topology edits against invalid existing-node moves and enforced tree ownership during subtree reuse.
 - Corrected dynamic numeric variable-field conversions and nested-condition behavior.
 - Corrected graph entrance attachment and interactions, service-hosting constraints, creation-palette navigation, and selection behavior.
+- Ground jump planning keeps a flight margin of two Physics2D contact offsets around geometry away from the launch and landing supports, so planned jumps no longer graze obstacle corners or depend on the host project's Physics2D solver iterations.
 
 ### Deprecated
 
