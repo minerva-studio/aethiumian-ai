@@ -79,7 +79,7 @@
 <a id="waitforanimationend"></a>
 ### [`WaitForAnimationEnd`](actions/wait-for-animation-end/index.md)
 
-- Wait until a target animation state changes.
+  - Wait for an animation state to finish naturally or be interrupted.
 - [Details](actions/wait-for-animation-end/index.md)
 
 <a id="waitfordestroy"></a>

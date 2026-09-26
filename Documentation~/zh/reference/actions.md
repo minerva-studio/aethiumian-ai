@@ -58,7 +58,7 @@
 
 <a id="wait-for-animation-end"></a>
 ### [`WaitForAnimationEnd`](actions/wait-for-animation-end/index.md)
-- 用途：等待动画状态退出某一初始哈希或指定状态名。
+  - 用途：等待动画自然结束或被状态转换打断。
 
 <a id="wait-for-destroy"></a>
 ### [`WaitForDestroy`](actions/wait-for-destroy/index.md)
