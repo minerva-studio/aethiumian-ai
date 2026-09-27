@@ -43,6 +43,16 @@ namespace Aethiumian.AI.Nodes
         /// <summary>A Fly destination is a body-center position.</summary>
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
+            if (path == PathMode.Naive)
+            {
+                Vector2 start = body.Center;
+                Vector2 end = goal.TargetBounds.Center;
+                NavigationRoute route = Vector2.Distance(start, end) <= NavigationWorldQueries.GeometryEpsilon
+                    ? default
+                    : NavigationRoute.Create(new[] { new FlyRouteSegment(start, end) }, true);
+                operation = CompletedPlan(route);
+                return true;
+            }
             operation = NavigationRuntime.PlanFlyAsync(body, goal, new FlyNavigationParameters(RetreatExecution?.RemainingApproachDistance), extent, cancellation);
             return true;
         }
@@ -115,6 +125,7 @@ namespace Aethiumian.AI.Nodes
 
         private Vector2 LimitTargetHeight(Vector2 target)
         {
+            if (NavigationWorld == null) return target;
             float limit = MaximumSupportHeight;
             INavigationWorld world = NavigationWorld;
             if (world.TryGetSupportBelow(target, out NavigationSupport support))
@@ -124,7 +135,7 @@ namespace Aethiumian.AI.Nodes
 
         private FlyTraversalExecutor CreateExecutor()
         {
-            ContactFilter2D filter = RequireNavigationRuntime(nameof(Fly)).CreateTerrainFilter();
+            ContactFilter2D filter = TerrainFilter;
             filter.SetLayerMask(filter.layerMask.value
                 & ~RigidBody.excludeLayers.value
                 & ~Collider.excludeLayers.value);
@@ -134,17 +145,14 @@ namespace Aethiumian.AI.Nodes
 
         protected override Vector2 GetWanderLocation(Vector2 center, AABB body)
         {
-            INavigationWorld world = NavigationWorld;
             for (int index = 0; index < MaximumWanderLocationTrials; index++)
             {
                 Vector2 point = behaviourTree.RandomSources.Resolve(this).NextUnitCircleDirection() * wanderDistance;
                 Vector2 candidate = LimitTargetHeight(center + point);
                 // Fly destinations are body centers. Lowering an authored sample may put the
                 // body inside geometry, so validate the final point rather than the sample.
-                if (!IsNavigationDestinationAllowed(body.Center, candidate)) continue;
-
                 AABB candidateBody = AABB.FromCenterAndSize(candidate, body.Size);
-                if (!world.IsBodyClear(candidateBody, 0f)) continue;
+                if (!IsWanderCandidateAllowed(body.Center, candidate, candidateBody, false)) continue;
 
                 return candidate;
             }

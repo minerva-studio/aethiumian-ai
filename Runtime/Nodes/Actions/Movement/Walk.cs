@@ -31,6 +31,16 @@ namespace Aethiumian.AI.Nodes
 
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
+            if (path == PathMode.Naive)
+            {
+                Vector2 start = body.LowerCenter;
+                Vector2 end = new(goal.TargetBounds.CenterX, start.y);
+                NavigationRoute route = Vector2.Distance(start, end) <= NavigationWorldQueries.GeometryEpsilon
+                    ? default
+                    : NavigationRoute.Create(new[] { new GroundRouteSegment(start, end) }, true);
+                operation = CompletedPlan(route);
+                return true;
+            }
             operation = NavigationRuntime.PlanWalkAsync(body, goal, CreateNavigationParameters(), extent, cancellation);
             return true;
         }
@@ -70,7 +80,7 @@ namespace Aethiumian.AI.Nodes
                     return true;
                 case ExecutionFailureReason.UnexpectedSupport when unexpectedLandingRecoveryCount < 2:
                     {
-                        if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out Vector2 support)
+                        if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out Vector2 support)
                         || !NavigationRuntime.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(support, body.Size), out _, out _)) return false;
                         unexpectedLandingRecoveryCount++;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -105,7 +115,7 @@ namespace Aethiumian.AI.Nodes
             {
                 if (groundExecutor != null) return groundExecutor;
                 unexpectedLandingRecoveryCount = 0;
-                return groundExecutor = new GroundTraversalExecutor(RigidBody, Collider, NavigationRuntime.CreateTerrainFilter(),
+                return groundExecutor = new GroundTraversalExecutor(RigidBody, Collider, TerrainFilter,
                     NewFixedSpeed, accelerateRate, NavigationColliders, maxIdleDuration);
             }
             switch (segment)
@@ -206,7 +216,7 @@ namespace Aethiumian.AI.Nodes
                 var random = behaviourTree.RandomSources.Resolve(this);
                 var x = random.NextFloat(-1f, 1f) * random.NextFloat(wanderDistance * 0.5f, wanderDistance * 1.5f);
                 var candidate = new Vector2(center.x + x, center.y);
-                if (IsValidNavigationWanderLocation(candidate, body, true))
+                if (IsWanderCandidateAllowed(body.Center, candidate, AABB.FromLowerCenter(candidate, body.Size), true))
                     return candidate;
             }
             Debug.LogWarning("Cannot find valid wander location around. is the entity outside the room?");

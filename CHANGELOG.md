@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Added Naive Walk, Fly, and Jump paths that execute direct segments without querying the navigation world. `NavigationAction` still borrows the runtime and waits for a world for other modes.
+- Marked `FixedJump` runtime state as non-serialized so editor node copying excludes active execution resources.
+- Breaking change for `Movement` subclasses: `IsValidNavigationWanderLocation(groundAnchor, body, requireSupport)` is replaced by `IsWanderCandidateAllowed(origin, destination, candidateBody, requireSupport)`; the caller passes the sampled destination point and candidate body explicitly.
 - Unity 6 (`6000.x`) is the recommended and CI-tested version. `2021.3` remains the declared minimum and can install the package, but it is no longer tested or guaranteed.
 - Unified `FunctionCall` and `FunctionAction` result modes with `Default`, `ReturnValue`, `AlwaysSuccess`, and `AlwaysFailure`; invocation exceptions continue to follow the tree exception rule.
 - Reworked variable fields to use the staged payload model, preserving typed constant and tree-variable conversion semantics while reducing boxing in common paths.

@@ -91,6 +91,8 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private GameObject capturedTarget;
 
 
+        /// <summary>The physics contact filter for navigation terrain queries in this run.</summary>
+        protected ContactFilter2D TerrainFilter => RequireNavigationRuntime(GetType().Name).CreateTerrainFilter();
 
         /// <summary>The owned executor instance, exposed for live navigation inspection.</summary>
         public MovementExecutor Executor => executor;
@@ -112,8 +114,15 @@ namespace Aethiumian.AI.Nodes
         protected NavigationPlanningExtent PlanningExtent => path == PathMode.Smart ? NavigationPlanningExtent.Route : NavigationPlanningExtent.NextAction;
         public NavigationRouteSegment ActiveSegment => executor != null && executor.IsExecuting && route.HasValue && routeIndex < route.Count ? route[routeIndex] : null;
 
+        /// <inheritdoc/>
+        protected sealed override bool RequiresNavigationWorld => path != PathMode.Naive;
+
+        private bool NaiveConfigurationRejected => path == PathMode.Naive && (type == Behaviour.Retreat || goal == MovementGoal.Confront || goal == MovementGoal.FiringPosition);
+
         protected sealed override void InitializeAction()
         {
+            if (NaiveConfigurationRejected)
+                throw new InvalidOperationException("Naive movement cannot retreat or use line-of-sight goals.");
             route = default;
             routeGoal = default;
             routeIndex = 0;
@@ -151,7 +160,7 @@ namespace Aethiumian.AI.Nodes
             bool faulted = false;
             try
             {
-                if (!goal.IsRetreat)
+                if (path != PathMode.Naive && !goal.IsRetreat)
                 {
                     bool destinationAllowed = IsNavigationDestinationAllowed(body, goal);
                     if (!destinationAllowed)
@@ -204,7 +213,10 @@ namespace Aethiumian.AI.Nodes
                     route = default;
                     routeGoal = default;
                     routeIndex = 0;
-                    if (!TryRecover(result.FailureReason, goal, body) || !AllowRetry())
+                    bool recoverable = path == PathMode.Naive
+                        ? result.FailureReason == ExecutionFailureReason.Obstructed || result.FailureReason == ExecutionFailureReason.UnexpectedSupport
+                        : TryRecover(result.FailureReason, goal, body);
+                    if (!recoverable || !AllowRetry())
                     {
                         EndMovement(false, goal);
                     }
@@ -272,6 +284,14 @@ namespace Aethiumian.AI.Nodes
         /// False means temporary physical prerequisites are missing; true supplies the requested planning horizon.
         /// </summary>
         protected abstract bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
+
+        /// <summary>Wraps an immediate direct route in the normal planning receipt contract.</summary>
+        protected static NavigationPlanningOperation CompletedPlan(NavigationRoute route)
+        {
+            var operation = new NavigationPlanningOperation();
+            operation.TryComplete(route.HasValue ? NavigationPlanResult.ResultProduced(route) : NavigationPlanResult.NoResult);
+            return operation;
+        }
 
         /// <summary>
         /// Returns a route reconnected to actual physics; performs no goal-policy, executor, or lease mutation.
@@ -397,6 +417,11 @@ namespace Aethiumian.AI.Nodes
 
         public override bool EditorCheck(BehaviourTreeData tree)
         {
+            if (NaiveConfigurationRejected)
+            {
+                Debug.LogError($"Naive {GetType().Name} cannot retreat or use line-of-sight goals.", tree?.prefab);
+                return false;
+            }
 #if UNITY_EDITOR
             if (!tree.prefab)
             {
@@ -463,7 +488,9 @@ namespace Aethiumian.AI.Nodes
             [Tooltip("Plan and execute one reachable step at a time")]
             Simple,
             [Tooltip("Use path finder to calculate the precise path to go to the destination")]
-            Smart
+            Smart,
+            [Tooltip("Move directly toward the target without querying the navigation world")]
+            Naive
         }
 
     }

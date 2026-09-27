@@ -75,16 +75,16 @@ namespace Aethiumian.AI.Nodes
         protected abstract Vector2 GetWanderLocation(Vector2 center, AABB body);
 
         /// <summary>
-        /// Validates one candidate body pose as a Wander destination. Region membership uses the sampled
-        /// body's center, the same canonical origin every other destination check uses; the candidate
-        /// itself stays a lower-center ground anchor because that is the physical placement it describes.
+        /// Validates one sampled Wander candidate. Region membership uses the sampled body's center as the
+        /// origin, the same canonical origin every other destination check uses; the destination is the
+        /// sampled point in the capability's own frame (ground lower center or aerial body center), passed
+        /// unchanged so no anchor is re-derived from the candidate body.
         /// </summary>
-        protected bool IsValidNavigationWanderLocation(Vector2 groundAnchor, AABB body, bool requireSupport)
+        protected bool IsWanderCandidateAllowed(Vector2 origin, Vector2 destination, AABB candidateBody, bool requireSupport)
         {
             INavigationWorld world = NavigationWorld;
-            if (!IsNavigationDestinationAllowed(body.Center, groundAnchor)) return false;
-
-            AABB candidateBody = AABB.FromLowerCenter(groundAnchor, body.Size);
+            if (world == null) return true;
+            if (!IsNavigationDestinationAllowed(origin, destination)) return false;
             if (!world.IsBodyClear(candidateBody, 0f)) return false;
             if (!requireSupport) return true;
 

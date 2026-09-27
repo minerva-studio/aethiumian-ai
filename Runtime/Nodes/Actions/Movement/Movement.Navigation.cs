@@ -259,7 +259,9 @@ namespace Aethiumian.AI.Nodes
                     && CanWaitForPrimaryContinuation(candidate, candidateGoal, goal)
                     ? ActionPreparation.Waiting
                     : ActionPreparation.Unavailable;
-            if (!TryConnectRoute(candidate, body, out NavigationRoute connected))
+            NavigationRoute connected;
+            if (path == PathMode.Naive) connected = candidate;
+            else if (!TryConnectRoute(candidate, body, out connected))
             {
                 return source == CandidateSource.PrimaryRequest
                     && CanWaitForPrimaryContinuation(candidate, candidateGoal, goal)
@@ -388,6 +390,14 @@ namespace Aethiumian.AI.Nodes
         {
             if (request != null) return false;
             NavigationRouteSegment action = ActiveSegment;
+            if (path == PathMode.Naive)
+            {
+                if (action != null && (!action.IsReversible || routeGoal.IsReusableFor(goal))) return false;
+                if (!TryCreatePlanningRequest(body, goal, PlanningExtent, NavigationPlanningPurpose.InitialRoute, null, out NavigationPlanningRequest naiveRequest)) return false;
+                request = naiveRequest;
+                intentGoal = goal;
+                return true;
+            }
             bool changed = route.HasValue && !routeGoal.IsSamePlanningTarget(goal);
             if (action == null && route.HasValue && routeIndex < route.Count) return false;
             if (action != null && !changed && routeIndex + 1 < route.Count) return false;

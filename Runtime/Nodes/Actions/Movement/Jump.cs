@@ -17,11 +17,11 @@ namespace Aethiumian.AI.Nodes
     {
         [Header("Jump Property")]
         /// <summary>Maximum apex displacement above the launch support; the solver selects a lower arc when possible.</summary>
-        public VariableField<float> jumpHeight = 3f;
-        public VariableField<float> jumpLength = 3f;
-        public VariableField<float> jumpInterval = 1.5f;
+        [Readable] public VariableField<float> jumpHeight = 3f;
+        [Readable] public VariableField<float> jumpLength = 3f;
+        [Readable] public VariableField<float> jumpInterval = 1.5f;
         /// <summary>Scales only the interval between launches; the project must provide a finite positive value.</summary>
-        public VariableField<float> speedModifier = 1f;
+        [Readable] public VariableField<float> speedModifier = 1f;
 
         [NonSerialized] private float nextJumpTime;
         private float EffectiveJumpInterval => jumpInterval / speedModifier;
@@ -31,7 +31,29 @@ namespace Aethiumian.AI.Nodes
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
             operation = null;
-            if (purpose == NavigationPlanningPurpose.InitialRoute && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _)) return false;
+            if (path == PathMode.Naive)
+            {
+                if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _)) return false;
+                Vector2 start = body.LowerCenter;
+                Vector2 landing = new(start.x + Mathf.Clamp(goal.TargetBounds.CenterX - start.x, -jumpLength, jumpLength), goal.TargetBounds.LowerCenter.y);
+                JumpTrajectoryInput input = new(start, landing, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, Time.fixedDeltaTime);
+                bool solvable = JumpTrajectory.TrySolve(input, out _);
+                if (!solvable)
+                {
+                    landing.y = start.y;
+                    input = new JumpTrajectoryInput(start, landing, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, Time.fixedDeltaTime);
+                    solvable = JumpTrajectory.TrySolve(input, out _);
+                }
+                NavigationRoute route = default;
+                if (solvable && Vector2.Distance(start, landing) > NavigationWorldQueries.GeometryEpsilon)
+                {
+                    bool reachesGoal = Vector2.Distance(landing, goal.TargetBounds.LowerCenter) <= NavigationWorldQueries.GeometryEpsilon;
+                    route = NavigationRoute.Create(new[] { new JumpRouteSegment(start, landing) }, reachesGoal);
+                }
+                operation = CompletedPlan(route);
+                return true;
+            }
+            if (purpose == NavigationPlanningPurpose.InitialRoute && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _)) return false;
             operation = NavigationRuntime.PlanJumpAsync(body, goal, new JumpNavigationParameters(Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), extent, cancellation);
             return true;
         }
@@ -41,7 +63,7 @@ namespace Aethiumian.AI.Nodes
             connected = default;
             if (candidate.Count == 0 || candidate[0] is not JumpRouteSegment jump) return false;
             // Keep the receipt while contact is temporarily absent; preparation owns launch waiting.
-            if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _))
+            if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _))
             { connected = candidate; return true; }
             if (!NavigationRuntime.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport current)
                 || !NavigationRuntime.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(jump.Start, body.Size), out _, out NavigationSupport launch)
@@ -51,7 +73,7 @@ namespace Aethiumian.AI.Nodes
         }
 
         protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept)
-            => NavigationWorld.IsGoalComplete(goal, body) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _);
+            => NavigationWorld.IsGoalComplete(goal, body) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _);
 
         protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body) => reason == ExecutionFailureReason.Obstructed;
 
@@ -59,6 +81,7 @@ namespace Aethiumian.AI.Nodes
 
         public override bool EditorCheck(BehaviourTreeData tree)
         {
+            if (!base.EditorCheck(tree)) return false;
             if (jumpHeight.IsConstant && jumpHeight < 0f)
             {
                 Debug.LogError($"Jump height of {name} is less than 0, this is not allowed", gameObject);
@@ -80,8 +103,16 @@ namespace Aethiumian.AI.Nodes
             if (reusable != null && ExecutionTime < nextJumpTime) return ActionPreparation.Waiting;
 
             MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Jump));
-            if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, navigation.CreateTerrainFilter(), out _))
+            if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _))
                 return ActionPreparation.Waiting;
+            if (path == PathMode.Naive)
+            {
+                JumpTrajectoryInput input = new(body.LowerCenter, jump.End, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, Time.fixedDeltaTime);
+                if (!JumpTrajectory.TrySolve(input, out JumpTrajectorySolution direct))
+                    return ActionPreparation.Unavailable;
+                prepared = CreateJump(direct, null);
+                return ActionPreparation.Ready;
+            }
             if (!navigation.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport currentSupport))
                 return ActionPreparation.Waiting;
             if (!navigation.TryResolvePlanningGroundSupport(
@@ -108,7 +139,7 @@ namespace Aethiumian.AI.Nodes
             BallisticJumpExecutor action = null;
             try
             {
-                action = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, NavigationRuntime.CreateTerrainFilter(), trajectory, lease, maxIdleDuration);
+                action = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, TerrainFilter, trajectory, lease, maxIdleDuration);
                 ReportMovementState(MovementState.Jumping);
                 nextJumpTime = ExecutionTime + EffectiveJumpInterval;
                 return action;
@@ -132,7 +163,7 @@ namespace Aethiumian.AI.Nodes
                 float x = random.NextFloat(-1f, 1f)
                     * random.NextFloat(wanderDistance * 0.5f, wanderDistance * 1.5f);
                 Vector2 candidate = center + Vector2.right * x;
-                if (IsValidNavigationWanderLocation(candidate, body, true)) return candidate;
+                if (IsWanderCandidateAllowed(body.Center, candidate, AABB.FromLowerCenter(candidate, body.Size), true)) return candidate;
             }
             Debug.LogWarning("Cannot find valid wander location around. Is the entity outside the room?");
             return center;

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
+using Aethiumian.AI.Navigation.Diagnostics;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
@@ -16,6 +17,241 @@ namespace Aethiumian.AI.Navigation.Tests
         private const float ArrivalErrorBound = 0.2f;
         private const int GoalTickLimit = 240;
         private const float DirectionNoise = 0.25f;
+
+        [TearDown]
+        public void ResetReplanDiagnostics()
+        {
+            MovementReplanDiagnostics.Enabled = false;
+            MovementReplanDiagnostics.Reset();
+        }
+
+        // An unpublished runtime leaves Plan*Async requests pending, so reaching a goal proves Naive bypasses the planner.
+        [UnityTest]
+        public IEnumerator NaiveWalkReachesDestinationWithoutPublishedWorld()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            Vector2 start = new(MovementStart.x, 0f);
+            Walk node = CreateFixedWalk(start + Vector2.right * 3f);
+            node.path = Movement.PathMode.Naive;
+            MovementHarness harness = CreateHarness(start, node);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, GoalTickLimit);
+
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
+            Assert.That(harness.Source.WalkCount, Is.GreaterThan(0), DescribeHarness(harness));
+        }
+
+        // The runtime has no published world; a planner request could not produce this route.
+        [UnityTest]
+        public IEnumerator NaiveFlyReachesDestinationWithoutPublishedWorld()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            GameObject target = CreateTraceTarget(new Vector2(34f, 5f));
+            Fly node = CreateFlyTrace(target);
+            node.path = Movement.PathMode.Naive;
+            MovementHarness harness = CreateHarness(new Vector2(30f, 4f), node);
+            harness.Body.gravityScale = 0f;
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, GoalTickLimit);
+
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
+        }
+
+        [UnityTest]
+        public IEnumerator SimpleWalkWaitsForPublishedWorld()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            Walk node = CreateFixedWalk(MovementStart + Vector2.right * 3f);
+            node.path = Movement.PathMode.Simple;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+            yield return WaitForTreeCreated(harness);
+            for (int tick = 0; tick < 5; tick++) yield return new WaitForFixedUpdate();
+
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+            Assert.That(((Movement)harness.AI.BehaviourTree.Head).Route.HasValue, Is.False);
+        }
+
+        // The runtime has no published world; both completed jumps must use direct routes.
+        [UnityTest]
+        public IEnumerator NaiveJumpChainsTwoDirectSegmentsWithoutPublishedWorld()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            Jump node = new()
+            {
+                uuid = UUID.NewUUID(),
+                path = Movement.PathMode.Naive,
+                type = Movement.Behaviour.FixedDestination,
+                destination = new VariableField(MovementStart + Vector2.right * 6f),
+                reachDistance = (VariableField<float>)0.3f,
+                jumpHeight = (VariableField<float>)2f,
+                jumpLength = (VariableField<float>)3f,
+                jumpInterval = (VariableField<float>)0.1f,
+                speedModifier = (VariableField<float>)1f,
+            };
+            MovementHarness harness = CreateHarness(MovementStart, node);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, 500);
+
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.True, DescribeHarness(harness));
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(2), DescribeHarness(harness));
+        }
+
+        // The unpublished runtime also rules out a planner route during recovery.
+        [UnityTest]
+        public IEnumerator NaiveJumpRecoversFromUnexpectedLanding()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            const float platformHeight = 1.5f;
+            GameObject platform = CreateGround(platformHeight, 1.5f);
+            platform.transform.position = new Vector2(MovementStart.x + 2.25f, platformHeight - 0.25f);
+            platform.layer = NavigationPhysicsTestLayers.PlatformLayer;
+            BoxCollider2D platformCollider = platform.GetComponent<BoxCollider2D>();
+            platformCollider.usedByEffector = true;
+            PlatformEffector2D effector = platform.AddComponent<PlatformEffector2D>();
+            effector.useOneWay = true;
+            effector.surfaceArc = 90f;
+            Physics2D.SyncTransforms();
+            Jump node = new()
+            {
+                uuid = UUID.NewUUID(),
+                path = Movement.PathMode.Naive,
+                type = Movement.Behaviour.FixedDestination,
+                destination = new VariableField(MovementStart + Vector2.right * 6f),
+                reachDistance = (VariableField<float>)0.3f,
+                jumpHeight = (VariableField<float>)2f,
+                jumpLength = (VariableField<float>)3f,
+                jumpInterval = (VariableField<float>)0.1f,
+                speedModifier = (VariableField<float>)1f,
+            };
+            MovementHarness harness = CreateHarness(MovementStart, node);
+            yield return WaitForTreeCreated(harness);
+            bool stoodOnPlatform = false;
+            bool jumpedAgain = false;
+            for (int tick = 0; tick < 500 && harness.AI.BehaviourTree.IsRunning; tick++)
+            {
+                yield return new WaitForFixedUpdate();
+                float feetY = harness.Collider.bounds.min.y;
+                if (harness.Source.JumpCount == 1 && Mathf.Abs(feetY - platformHeight) < 0.1f
+                    && Mathf.Abs(harness.Body.linearVelocityY) < 0.1f)
+                    stoodOnPlatform = true;
+                if (stoodOnPlatform && harness.Source.JumpCount >= 2) jumpedAgain = true;
+            }
+
+            Assert.That(stoodOnPlatform, Is.True, DescribeHarness(harness));
+            Assert.That(jumpedAgain, Is.True, DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.True, DescribeHarness(harness));
+            Assert.That(harness.Source.JumpCount, Is.GreaterThanOrEqualTo(2), DescribeHarness(harness));
+        }
+
+        // A completed route with no published world proves the moved target did not invoke Plan*Async.
+        [UnityTest]
+        public IEnumerator NaiveFlyRefreshesRouteWhenTargetMoves()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            GameObject target = CreateTraceTarget(new Vector2(34f, 5f));
+            Fly node = CreateFlyTrace(target);
+            node.path = Movement.PathMode.Naive;
+            MovementHarness harness = CreateHarness(new Vector2(30f, 4f), node);
+            harness.Body.gravityScale = 0f;
+            yield return WaitForTreeCreated(harness);
+            yield return new WaitForFixedUpdate();
+            target.transform.position = new Vector2(38f, 5f);
+            Physics2D.SyncTransforms();
+            Movement movement = (Movement)harness.AI.BehaviourTree.Head;
+            bool refreshedBeforeOldTarget = false;
+            for (int tick = 0; tick < GoalTickLimit && harness.AI.BehaviourTree.IsRunning; tick++)
+            {
+                yield return new WaitForFixedUpdate();
+                if (harness.Body.position.x >= 34f) break;
+                if (movement.ActiveSegment is FlyRouteSegment segment && segment.End.x > 37f)
+                {
+                    refreshedBeforeOldTarget = true;
+                    break;
+                }
+            }
+            Assert.That(refreshedBeforeOldTarget, Is.True, DescribeHarness(harness));
+            yield return WaitForTerminal(harness, GoalTickLimit);
+
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.True, DescribeHarness(harness));
+            Assert.That(harness.Body.position.x, Is.GreaterThan(37f), DescribeHarness(harness));
+        }
+
+        // Pause and completion with an unpublished world also exclude pending planner work.
+        [UnityTest]
+        public IEnumerator NaiveFlyHonorsMovementPause()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            GameObject target = CreateTraceTarget(new Vector2(34f, 5f));
+            Fly node = CreateFlyTrace(target);
+            node.path = Movement.PathMode.Naive;
+            MovementHarness harness = CreateHarness(new Vector2(30f, 4f), node, canMove: false);
+            harness.Body.gravityScale = 0f;
+            yield return WaitForTreeCreated(harness);
+            for (int tick = 0; tick < 5; tick++) yield return new WaitForFixedUpdate();
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True, DescribeHarness(harness));
+            Assert.That(harness.Body.position.x, Is.EqualTo(30f).Within(0.05f));
+
+            harness.Source.CanMove = true;
+            yield return WaitForTerminal(harness, GoalTickLimit);
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.True, DescribeHarness(harness));
+        }
+
+        // A planner request would remain pending without a published world.
+        [UnityTest]
+        public IEnumerator NaiveWalkStopsAfterRepeatedNoProgressAtWall()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            CreateGround();
+            GameObject wall = CreateGround();
+            wall.transform.position = new Vector2(MovementStart.x + 2f, 1f);
+            wall.GetComponent<BoxCollider2D>().size = new Vector2(0.5f, 3f);
+            Physics2D.SyncTransforms();
+            Vector2 start = new(MovementStart.x, 0f);
+            Walk node = CreateFixedWalk(start + Vector2.right * 4f);
+            node.path = Movement.PathMode.Naive;
+            node.maxIdleDuration = (VariableField<float>)0f;
+            MovementHarness harness = CreateHarness(start, node);
+            yield return WaitForTreeCreated(harness);
+            MovementReplanDiagnostics.Enabled = true;
+            MovementReplanDiagnostics.Reset();
+            yield return WaitForTerminal(harness, GoalTickLimit);
+
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.False, DescribeHarness(harness));
+            Assert.That(MovementReplanDiagnostics.Capture().MovementStalls, Is.Zero, DescribeHarness(harness));
+            Assert.That(harness.Body.position.x, Is.LessThan(MovementStart.x + 2f), DescribeHarness(harness));
+        }
+
+        // Cancellation completes despite the unpublished runtime having no planner results.
+        [UnityTest]
+        public IEnumerator NaiveFlyCancellationReleasesExecutor()
+        {
+            using MapNavigationRuntime runtime = CreateUnpublishedRuntime();
+            using RuntimeContextScope context = new(runtime);
+            GameObject target = CreateTraceTarget(new Vector2(50f, 5f));
+            Fly node = CreateFlyTrace(target);
+            node.path = Movement.PathMode.Naive;
+            MovementHarness harness = CreateHarness(new Vector2(30f, 4f), node);
+            harness.Body.gravityScale = 0f;
+            yield return WaitForTreeCreated(harness);
+            yield return new WaitForFixedUpdate();
+            harness.AI.End(false);
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.False, DescribeHarness(harness));
+            Assert.That(((Movement)harness.AI.BehaviourTree.Head).Executor, Is.Null);
+            Assert.That(runtime.IsDisposed, Is.False);
+        }
 
         [UnityTest]
         public IEnumerator FlyCurrentPointCompletesAndClearsVelocity()
@@ -239,6 +475,10 @@ namespace Aethiumian.AI.Navigation.Tests
                 new[] { new NavigationRegionData(bounds, 0) }));
             return runtime;
         }
+
+        private static MapNavigationRuntime CreateUnpublishedRuntime()
+            => new(8, 4096, 4096,
+                new NavigationPhysicsLayers(NavigationPhysicsTestLayers.GeometryMask, NavigationPhysicsTestLayers.PlatformMask));
 
 
         private static Fly CreateFlyTrace(GameObject target, MovementGoal goal = MovementGoal.Default)

@@ -6,13 +6,6 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    /// <summary>Controls whether a navigation action may choose a destination in another region.</summary>
-    public enum NavigationRegionPolicy
-    {
-        InRegion = 0,
-        CrossRegion = 1,
-    }
-
     /// <summary>
     /// Owns one navigation action's borrowed runtime, readiness and terminal cleanup.
     /// Current is captured once; permission pauses execution, never invalidation or cancellation.
@@ -22,6 +15,7 @@ namespace Aethiumian.AI.Nodes
     {
         private enum Phase { Ended, WaitingForWorld, Executing }
         [NonSerialized] private Phase phase;
+        [NonSerialized] private bool requiresNavigationWorld;
         [NonSerialized] private CancellationTokenSource executionCancellation;
         [NonSerialized] protected IMovementSource movementSource;
         [NonSerialized] private MapNavigationRuntime navigationRuntime;
@@ -45,6 +39,8 @@ namespace Aethiumian.AI.Nodes
         public IReadOnlyList<Collider2D> NavigationColliders => bodyColliders;
         /// <summary>Cancelled immediately on action completion, including before the tree consumes its result.</summary>
         protected CancellationToken ExecutionCancellation => executionCancellation.Token;
+        /// <summary>Whether this run must wait for a published navigation world before initialization.</summary>
+        protected virtual bool RequiresNavigationWorld => true;
 
         /// <summary>
         /// Checks the action's destination contract from the sampled body and the goal's target geometry.
@@ -85,6 +81,7 @@ namespace Aethiumian.AI.Nodes
             phase = Phase.WaitingForWorld;
             try
             {
+                requiresNavigationWorld = RequiresNavigationWorld;
                 movementSource = Script as IMovementSource
                     ?? throw new InvalidOperationException($"{GetType().Name} requires its control target to implement {nameof(IMovementSource)}.");
                 body = gameObject.GetComponent<Rigidbody2D>();
@@ -126,7 +123,7 @@ namespace Aethiumian.AI.Nodes
                 if (phase == Phase.WaitingForWorld)
                 {
                     ReportMovementState(MovementState.Idle);
-                    if (!navigationRuntime.TryGetWorld(out world)) return;
+                    if (requiresNavigationWorld && !navigationRuntime.TryGetWorld(out world)) return;
                     phase = Phase.Executing;
                     InitializeAction();
                     if (IsComplete || phase == Phase.Ended) return;
