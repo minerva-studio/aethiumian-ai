@@ -13,7 +13,7 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Library-of-Meialia-AI")]
     public class Fly : Aethiumian.AI.Nodes.Movement
     {
-        private const int MaximumWanderLocationTrials = 20;
+        private const int MAXIMUM_WANDER_LOCATION_TRIALS = 20;
 
         [Header("Fly Parameter")]
         public VariableField<bool> setFinalPosition;
@@ -26,15 +26,12 @@ namespace Aethiumian.AI.Nodes
         [DisplayIf(nameof(type), Behaviour.Trace)]
         public bool neverAboveMaxHeight;
 
-        private float FinalSpeed => speed * speedModifier;
-
-        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body)
+        protected override NavigationGoalRequest BuildGoal(AABB target)
         {
             if (type == Behaviour.Trace && neverAboveMaxHeight)
             {
                 Vector2 center = target.Center;
                 Vector2 offset = LimitTargetHeight(center) - center;
-                // target = new AABB(target.Min + offset, target.Max + offset);
                 target = target.Translate(offset);
             }
             return CreateGoal(target, NavigationGoalGeometry.Proximity);
@@ -75,23 +72,21 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, AABB body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override SegmentStartResult StartSegment(NavigationRouteSegment segment, AABB body)
         {
             if (segment is not FlyRouteSegment) throw new InvalidOperationException("Fly requires an aerial route action.");
-            var flight = reusable as FlyTraversalExecutor ?? CreateExecutor();
-            flight.SetWaypoint(body.Center, segment.End,
-                Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
-            prepared = flight;
-            return ActionPreparation.Ready;
+            if (Executor is not FlyTraversalExecutor flight)
+            {
+                ContactFilter2D filter = TerrainFilter;
+                int layerMask = filter.layerMask.value & ~RigidBody.excludeLayers.value & ~Collider.excludeLayers.value;
+                filter.SetLayerMask(layerMask);
+                flight = new FlyTraversalExecutor(RigidBody, Collider, speed * speedModifier, flexibility, filter, NavigationColliders, maxIdleDuration);
+            }
+            flight.SetWaypoint(body.Center, segment.End, Physics2D.defaultContactOffset + NavigationWorldQueries.GeometryEpsilon);
+            return SegmentStartResult.Started(flight);
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept)
-            => NavigationWorld.IsGoalComplete(goal, body) || swept;
-
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body)
-            => reason == ExecutionFailureReason.Obstructed;
-
-        protected override void Finish(bool success, NavigationGoalRequest? goal)
+        protected override void Finish(bool success)
         {
             if (success && type == Behaviour.Wander)
             {
@@ -109,43 +104,23 @@ namespace Aethiumian.AI.Nodes
             RigidBody.linearVelocity = Vector2.zero;
         }
 
-        private float MaximumSupportHeight
-        {
-            get
-            {
-                if (maxHeight == null || !maxHeight.HasValue)
-                    throw new ArgumentException("Fly maximum support height is required.", nameof(maxHeight));
-                float value = maxHeight;
-                if (!NavigationNumeric.IsFinite(value) || value < 0f)
-                    throw new ArgumentOutOfRangeException(nameof(maxHeight), value,
-                        "Fly maximum support height must be finite and non-negative.");
-                return value;
-            }
-        }
-
         private Vector2 LimitTargetHeight(Vector2 target)
         {
-            if (NavigationWorld == null) return target;
-            float limit = MaximumSupportHeight;
             INavigationWorld world = NavigationWorld;
+            if (world == null) return target;
+            if (maxHeight == null || !maxHeight.HasValue)
+                throw new ArgumentException("Fly maximum support height is required.", nameof(maxHeight));
+            float limit = maxHeight;
+            if (!NavigationNumeric.IsFinite(limit) || limit < 0f)
+                throw new ArgumentOutOfRangeException(nameof(maxHeight), limit, "Fly maximum support height must be finite and non-negative.");
             if (world.TryGetSupportBelow(target, out NavigationSupport support))
                 target.y = Mathf.Min(target.y, support.Position.y + limit);
             return target;
         }
 
-        private FlyTraversalExecutor CreateExecutor()
-        {
-            ContactFilter2D filter = TerrainFilter;
-            filter.SetLayerMask(filter.layerMask.value
-                & ~RigidBody.excludeLayers.value
-                & ~Collider.excludeLayers.value);
-            return new FlyTraversalExecutor(RigidBody, Collider, FinalSpeed, flexibility, filter,
-                NavigationColliders, maxIdleDuration);
-        }
-
         protected override Vector2 GetWanderLocation(Vector2 center, AABB body)
         {
-            for (int index = 0; index < MaximumWanderLocationTrials; index++)
+            for (int index = 0; index < MAXIMUM_WANDER_LOCATION_TRIALS; index++)
             {
                 Vector2 point = behaviourTree.RandomSources.Resolve(this).NextUnitCircleDirection() * wanderDistance;
                 Vector2 candidate = LimitTargetHeight(center + point);

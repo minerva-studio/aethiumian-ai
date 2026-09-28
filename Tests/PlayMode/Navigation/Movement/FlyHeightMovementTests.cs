@@ -226,7 +226,7 @@ namespace Aethiumian.AI.Navigation.Tests
                     : tracing != null && tracing.GameObjectValue
                         ? AABB.FromBounds(tracing.GameObjectValue.GetComponent<Collider2D>().bounds)
                         : AABB.Point(Vector3.zero);
-                return BuildGoal(target, NavigationBodyAabb);
+                return BuildGoal(target);
             }
 
             protected override Vector2 GetWanderLocation(Vector2 center, AABB body)

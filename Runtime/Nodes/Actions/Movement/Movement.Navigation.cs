@@ -207,9 +207,9 @@ namespace Aethiumian.AI.Nodes
                 return true;
             }
 
-            ActionPreparation preparation = TryAdoptRoute(candidate, primary.Goal, CandidateSource.PrimaryRequest, goal, body);
-            if (preparation == ActionPreparation.Unavailable) RejectPrimaryCandidate(goal);
-            // Ready and Waiting both consume this selection boundary. Waiting retains the
+            SegmentStartResult start = TryAdoptRoute(candidate, primary.Goal, CandidateSource.PrimaryRequest, goal, body);
+            if (start.Status == SegmentStartStatus.Rejected) RejectPrimaryCandidate(goal);
+            // Started and Pending both consume this selection boundary. Pending retains the
             // completed Smart candidate instead of letting a lower-priority local candidate win.
             return true;
         }
@@ -218,8 +218,8 @@ namespace Aethiumian.AI.Nodes
         {
             if (ActiveSegment != null || !route.HasValue || routeIndex >= route.Count) return false;
             NavigationRoute remaining = route.Slice(routeIndex);
-            ActionPreparation preparation = TryAdoptRoute(remaining, routeGoal, CandidateSource.ExistingRoute, goal, body);
-            if (preparation != ActionPreparation.Unavailable) return true;
+            SegmentStartResult start = TryAdoptRoute(remaining, routeGoal, CandidateSource.ExistingRoute, goal, body);
+            if (start.Status != SegmentStartStatus.Rejected) return true;
 
             route = default; routeGoal = default;
             routeIndex = 0;
@@ -244,59 +244,57 @@ namespace Aethiumian.AI.Nodes
                 return true;
             }
 
-            ActionPreparation preparation = TryAdoptRoute(candidate, local.Goal, CandidateSource.LocalFallback, goal, body);
-            if (preparation == ActionPreparation.Unavailable) CancelFallbackRequest();
-            // Waiting retains this local candidate. A later Smart receipt still wins at the
+            SegmentStartResult start = TryAdoptRoute(candidate, local.Goal, CandidateSource.LocalFallback, goal, body);
+            if (start.Status == SegmentStartStatus.Rejected) CancelFallbackRequest();
+            // Pending retains this local candidate. A later Smart receipt still wins at the
             // next selection boundary because primary processing happens first.
             return true;
         }
 
         /// <summary>Reconnects, validates, prepares, and only then commits a route candidate.</summary>
-        private ActionPreparation TryAdoptRoute(NavigationRoute candidate, NavigationGoalRequest candidateGoal, CandidateSource source, NavigationGoalRequest goal, AABB body)
+        private SegmentStartResult TryAdoptRoute(NavigationRoute candidate, NavigationGoalRequest candidateGoal, CandidateSource source, NavigationGoalRequest goal, AABB body)
         {
             if (!CanReplaceActiveAction)
                 return source == CandidateSource.PrimaryRequest
                     && CanWaitForPrimaryContinuation(candidate, candidateGoal, goal)
-                    ? ActionPreparation.Waiting
-                    : ActionPreparation.Unavailable;
+                    ? SegmentStartResult.Pending
+                    : SegmentStartResult.Rejected;
             NavigationRoute connected;
             if (path == PathMode.Naive) connected = candidate;
             else if (!TryConnectRoute(candidate, body, out connected))
             {
                 return source == CandidateSource.PrimaryRequest
                     && CanWaitForPrimaryContinuation(candidate, candidateGoal, goal)
-                    ? ActionPreparation.Waiting
-                    : ActionPreparation.Unavailable;
+                    ? SegmentStartResult.Pending
+                    : SegmentStartResult.Rejected;
             }
             if (!connected.HasValue || connected.Count == 0)
             {
-                return ActionPreparation.Unavailable;
+                return SegmentStartResult.Rejected;
             }
             if (!RouteAllowed(goal, connected))
             {
-                return ActionPreparation.Unavailable;
+                return SegmentStartResult.Rejected;
             }
 
-            bool servesCurrentIntent = candidateGoal.HasCompatibleSemantics(goal)
-                && (candidateGoal.IsReusableFor(goal) || RouteCoversGoal(connected, 0, body, goal));
+            bool servesCurrentIntent = candidateGoal.HasCompatibleSemantics(goal) && (candidateGoal.IsReusableFor(goal) || RouteCoversGoal(connected, 0, body, goal));
 
-            ActionPreparation preparation = PrepareExecutor(connected[0], body, executor, out MovementExecutor prepared);
-            if (preparation != ActionPreparation.Ready) return preparation;
-            if (prepared == null || !prepared.IsExecuting)
-                throw new InvalidOperationException("Ready acquisition must supply an executing executor.");
+            SegmentStartResult start = StartSegment(connected[0], body);
+            if (start.Status != SegmentStartStatus.Started) return start;
+            if (!start.Executor.IsExecuting) throw new InvalidOperationException("A started segment must supply an executing executor.");
 
-            if (!ReferenceEquals(executor, prepared)) executor?.Dispose();
-            executor = prepared;
+            if (!ReferenceEquals(executor, start.Executor)) executor?.Dispose();
+            executor = start.Executor;
             route = connected;
             routeGoal = candidateGoal;
             routeIndex = 0;
             OnRouteAdopted(source, servesCurrentIntent);
-            return ActionPreparation.Ready;
+            return start;
         }
 
         /// <summary>
         /// Keeps a valid primary continuation pending while its committed predecessor is still
-        /// physically irreversible. Waiting is intentionally limited to that request boundary;
+        /// physically irreversible. Pending is intentionally limited to that request boundary;
         /// local candidates and unrelated predecessors must be rejected instead.
         /// </summary>
         private bool CanWaitForPrimaryContinuation(NavigationRoute candidate, NavigationGoalRequest candidateGoal, NavigationGoalRequest goal)
@@ -348,8 +346,7 @@ namespace Aethiumian.AI.Nodes
         {
             if (IsComplete) return;
             EnsurePrimaryRequest(goal, body);
-            MaintainSimpleAcquisition(goal, body, NeedsSimpleAcquisition(goal, body),
-                skipCountingThisTick);
+            MaintainSimpleAcquisition(goal, body, NeedsSimpleAcquisition(goal, body), skipCountingThisTick);
         }
 
         private bool NeedsSimpleAcquisition(NavigationGoalRequest goal, AABB body)
@@ -381,7 +378,8 @@ namespace Aethiumian.AI.Nodes
                 return;
 
             simpleWaitTicks = 0;
-            SubmitFallbackRequest(goal, body);
+            if (TryCreatePlanningRequest(body, goal, NavigationPlanningExtent.NextAction, NavigationPlanningPurpose.InitialRoute, null, out NavigationPlanningRequest created))
+                fallbackRequest = created;
         }
 
         private int CurrentSmartWaitThreshold => fallbackBackoffLevel == 0 ? 4 : fallbackBackoffLevel == 1 ? 8 : 16;
@@ -435,14 +433,6 @@ namespace Aethiumian.AI.Nodes
             if (purpose == NavigationPlanningPurpose.InitialRoute) MovementReplanDiagnostics.RecordInitialPlan();
 #endif
             return true;
-        }
-
-        private void SubmitFallbackRequest(NavigationGoalRequest goal, AABB body)
-        {
-            if (fallbackRequest != null) return;
-            if (TryCreatePlanningRequest(body, goal, NavigationPlanningExtent.NextAction,
-                NavigationPlanningPurpose.InitialRoute, null, out NavigationPlanningRequest created))
-                fallbackRequest = created;
         }
 
         private bool TryCreatePlanningRequest(AABB startBody, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, NavigationRouteSegment predecessor, out NavigationPlanningRequest created)
@@ -502,7 +492,7 @@ namespace Aethiumian.AI.Nodes
 #endif
         }
 
-        private bool AllowRetry() => ++retries <= MaximumNoProgressAttempts;
+        private bool AllowRetry() => ++retries <= MAXIMUM_NO_PROGRESS_ATTEMPTS;
 
         private void ResetSmartFallbackBackoff() => fallbackBackoffLevel = 0;
 

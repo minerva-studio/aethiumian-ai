@@ -19,9 +19,7 @@ namespace Aethiumian.AI.Nodes
     [Serializable]
     public abstract partial class Movement : NavigationAction
     {
-        private const int MaximumNoProgressAttempts = 3;
-
-
+        private const int MAXIMUM_NO_PROGRESS_ATTEMPTS = 3;
 
         public PathMode path;
         public Behaviour type;
@@ -92,7 +90,7 @@ namespace Aethiumian.AI.Nodes
 
 
         /// <summary>The physics contact filter for navigation terrain queries in this run.</summary>
-        protected ContactFilter2D TerrainFilter => RequireNavigationRuntime(GetType().Name).CreateTerrainFilter();
+        protected ContactFilter2D TerrainFilter => NavigationRuntime.CreateTerrainFilter();
 
         /// <summary>The owned executor instance, exposed for live navigation inspection.</summary>
         public MovementExecutor Executor => executor;
@@ -153,7 +151,7 @@ namespace Aethiumian.AI.Nodes
             {
                 EndMovement(false, null); return;
             }
-            NavigationGoalRequest goal = BuildGoal(target, body);
+            NavigationGoalRequest goal = BuildGoal(target);
             executionTime += Time.fixedDeltaTime;
             bool firstGoalSample = !intentGoal.HasValue;
             bool planningInvalidated = false;
@@ -162,7 +160,7 @@ namespace Aethiumian.AI.Nodes
             {
                 if (path != PathMode.Naive && !goal.IsRetreat)
                 {
-                    bool destinationAllowed = IsNavigationDestinationAllowed(body, goal);
+                    bool destinationAllowed = IsNavigationDestinationAllowed(body.Center, goal.TargetBounds.Center);
                     if (!destinationAllowed)
                     {
                         EndMovement(false, goal);
@@ -198,15 +196,16 @@ namespace Aethiumian.AI.Nodes
                         return;
                     }
                     RefreshPendingPlanningRequest(goal, body);
-                    MaintainPlanning(goal, body,
-                        skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
+                    MaintainPlanning(goal, body, skipCountingThisTick: firstGoalSample || planningInvalidated || fallbackReceiptConsumed);
                     return;
                 }
 
                 NavigationRouteSegment action = ActiveSegment;
                 ExecutionResult result = executor.Tick(Time.fixedDeltaTime);
                 ReportMovementStateAfterExecution(action, result);
-                RecordStallFailure(result);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (result.FailureReason == ExecutionFailureReason.Stalled) MovementReplanDiagnostics.RecordMovementStall();
+#endif
                 if (result.Status == ExecutionStatus.Failed)
                 {
                     CancelPlanningRequests();
@@ -215,7 +214,7 @@ namespace Aethiumian.AI.Nodes
                     routeIndex = 0;
                     bool recoverable = path == PathMode.Naive
                         ? result.FailureReason == ExecutionFailureReason.Obstructed || result.FailureReason == ExecutionFailureReason.UnexpectedSupport
-                        : TryRecover(result.FailureReason, goal, body);
+                        : TryRecover(result.FailureReason, body);
                     if (!recoverable || !AllowRetry())
                     {
                         EndMovement(false, goal);
@@ -275,10 +274,10 @@ namespace Aethiumian.AI.Nodes
         public sealed override void LateUpdate() { }
 
         /// <summary>
-        /// Creates this ability's geometric goal from the tick sample. The body AABB carries the whole
-        /// pose; a planner derives its own mode-specific start anchor from the same body it receives.
+        /// Creates this ability's geometric goal from the tick's target sample. Route planning receives
+        /// the body AABB separately and derives its own mode-specific start anchor from that pose.
         /// </summary>
-        protected abstract NavigationGoalRequest BuildGoal(AABB target, AABB body);
+        protected abstract NavigationGoalRequest BuildGoal(AABB target);
 
         /// <summary>
         /// False means temporary physical prerequisites are missing; true supplies the requested planning horizon.
@@ -299,34 +298,34 @@ namespace Aethiumian.AI.Nodes
         protected abstract bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected);
 
         /// <summary>
-        /// Prepares one route action after its predecessor was cancelled or completed.
+        /// Starts one route segment after its predecessor was cancelled or completed. An implementation may
+        /// reconfigure and return the current <see cref="Executor"/> or return a new one; pending and rejected
+        /// results must leave the current executor untouched. Movement disposes a replaced executor on adoption.
         /// </summary>
-        protected abstract ActionPreparation PrepareExecutor(NavigationRouteSegment segment, AABB body, MovementExecutor reusable, out MovementExecutor prepared);
+        protected abstract SegmentStartResult StartSegment(NavigationRouteSegment segment, AABB body);
         /// <summary>
-        /// Confirms the entire objective, including ability-specific support requirements.
+        /// Confirms the movement goal. The default checks goal completion or swept completion; a capability
+        /// may add physical requirements such as Jump landing support.
         /// </summary>
-        protected abstract bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept);
+        protected virtual bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept) => NavigationWorld.IsGoalComplete(goal, body) || swept;
 
         /// <summary>
-        /// Authorizes recovery after a normal physical failure; never ends the node itself.
+        /// Authorizes recovery after a normal physical failure; the default permits Obstructed failures.
+        /// An override may add capability-specific recovery conditions and never ends the node itself.
         /// </summary>
-        protected abstract bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body);
+        protected virtual bool TryRecover(ExecutionFailureReason reason, AABB body) => reason == ExecutionFailureReason.Obstructed;
 
         /// <summary>
-        /// Applies final physics effects. Failure may arrive before a target was available,
-        /// so the goal is absent on that path.
+        /// Applies final capability-specific physics effects.
         /// </summary>
-        protected abstract void Finish(bool success, NavigationGoalRequest? goal);
+        protected abstract void Finish(bool success);
 
         private bool RecordRetreatApproach(NavigationGoalRequest goal, AABB tickStartBody)
         {
             if (retreat == null || !goal.IsRetreat) return true;
 
             AABB tickEndBody = NavigationBodyAabb;
-            float additionalApproachDistance = RetreatNavigationGeometry.SegmentApproachDistance(
-                tickStartBody.Center,
-                tickEndBody.Center,
-                goal.TargetBounds.Center);
+            float additionalApproachDistance = RetreatNavigationGeometry.SegmentApproachDistance(tickStartBody.Center, tickEndBody.Center, goal.TargetBounds.Center);
             return retreat.RecordApproachDistance(additionalApproachDistance);
         }
 
@@ -336,21 +335,9 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         private void EndMovement(bool success, NavigationGoalRequest? goal)
         {
-            if (success && goal.HasValue) Finish(true, goal);
+            if (success && goal.HasValue) Finish(true);
             CompleteAction(success);
         }
-
-        private static MovementState GetMovementState(NavigationRouteSegment segment)
-            => segment switch
-            {
-                GroundRouteSegment => MovementState.Walking,
-                JumpRouteSegment => MovementState.Jumping,
-                FallRouteSegment => MovementState.Falling,
-                DropThroughRouteSegment => MovementState.DroppingThrough,
-                FlyRouteSegment => MovementState.Flying,
-                _ => throw new InvalidOperationException(
-                    $"Movement navigation produced an unsupported state for {segment?.GetType().Name ?? "null"}.")
-            };
 
         private void ReportMovementStateAfterExecution(NavigationRouteSegment action, ExecutionResult result)
         {
@@ -361,15 +348,24 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
-            if (result.Status != ExecutionStatus.Failed)
-                ReportMovementState(GetMovementState(action));
+            if (result.Status == ExecutionStatus.Failed) return;
+            ReportMovementState(action switch
+            {
+                GroundRouteSegment => MovementState.Walking,
+                JumpRouteSegment => MovementState.Jumping,
+                FallRouteSegment => MovementState.Falling,
+                DropThroughRouteSegment => MovementState.DroppingThrough,
+                FlyRouteSegment => MovementState.Flying,
+                _ => throw new InvalidOperationException(
+                    $"Movement navigation produced an unsupported state for {action?.GetType().Name ?? "null"}.")
+            });
         }
 
         protected sealed override void OnActionCompleting(bool success)
         {
             if (!success)
             {
-                if (RigidBody) Finish(false, null);
+                if (RigidBody) Finish(false);
             }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (success) MovementReplanDiagnostics.RecordMovementSuccess();
@@ -398,21 +394,6 @@ namespace Aethiumian.AI.Nodes
                     retreat = null;
                 }
             }
-        }
-
-        protected MapNavigationRuntime RequireNavigationRuntime(string caller)
-        {
-            var runtime = NavigationRuntime;
-            if (runtime == null || runtime.IsDisposed)
-                throw new InvalidOperationException($"{caller} requires this execution's live runtime.");
-            return runtime;
-        }
-
-        protected static void RecordStallFailure(ExecutionResult result)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (result.FailureReason == ExecutionFailureReason.Stalled) MovementReplanDiagnostics.RecordMovementStall();
-#endif
         }
 
         public override bool EditorCheck(BehaviourTreeData tree)
@@ -453,13 +434,34 @@ namespace Aethiumian.AI.Nodes
 
 
         /// <summary>
-        /// Outcome of action acquisition, distinct from the executor's physical result.
+        /// Whether a route segment started, should be retried on a later fixed step, or rejects its candidate route.
         /// </summary>
-        protected enum ActionPreparation
+        protected enum SegmentStartStatus
         {
-            Waiting,
-            Ready,
-            Unavailable
+            Pending,
+            Started,
+            Rejected
+        }
+
+        /// <summary>
+        /// Outcome of starting one route segment, distinct from the executor's physical result.
+        /// A started result always carries the executor now running the segment.
+        /// </summary>
+        protected readonly struct SegmentStartResult
+        {
+            public static SegmentStartResult Pending => default;
+            public static SegmentStartResult Rejected => new(SegmentStartStatus.Rejected, null);
+
+            public SegmentStartStatus Status { get; }
+            public MovementExecutor Executor { get; }
+
+            private SegmentStartResult(SegmentStartStatus status, MovementExecutor executor)
+            {
+                Status = status;
+                Executor = executor;
+            }
+
+            public static SegmentStartResult Started(MovementExecutor executor) => new(SegmentStartStatus.Started, executor ?? throw new ArgumentNullException(nameof(executor)));
         }
 
         public enum Behaviour

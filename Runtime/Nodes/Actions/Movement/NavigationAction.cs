@@ -8,7 +8,7 @@ namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Owns one navigation action's borrowed runtime, readiness and terminal cleanup.
-    /// Current is captured once; permission pauses execution, never invalidation or cancellation.
+    /// The runtime is captured once; permission pauses execution without cancelling the run.
     /// </summary>
     [Serializable]
     public abstract class NavigationAction : Action
@@ -43,25 +43,10 @@ namespace Aethiumian.AI.Nodes
         protected virtual bool RequiresNavigationWorld => true;
 
         /// <summary>
-        /// Checks the action's destination contract from the sampled body and the goal's target geometry.
-        /// This is the canonical region rule for every <see cref="NavigationAction"/>: membership is decided
-        /// by the body's center and the goal target's center, so no capability declares a region frame of
-        /// its own. Both canonical points must lie inside the immutable navigation world, and the configured
-        /// <see cref="NavigationRegionPolicy"/> must accept the pair.
-        /// The gate answers point membership only. It does not test the whole body box, gate width,
-        /// intermediate route segments, or a trajectory.
-        /// </summary>
-        protected bool IsNavigationDestinationAllowed(AABB body, NavigationGoalRequest goal)
-        {
-            if (world == null) return false;
-            return IsNavigationDestinationAllowed(body.Center, goal.TargetBounds.Center);
-        }
-
-        /// <summary>
-        /// Checks a destination contract between two canonical points. Ordinary destination checks use the
-        /// body-and-goal overload; this overload is for positions a capability samples itself, which must
-        /// pass the sampled body's center as the origin. Both points must lie inside the immutable
-        /// navigation world, and the region policy applies exactly as above.
+        /// Checks that a destination is within the immutable world and accepted by the configured
+        /// <see cref="NavigationRegionPolicy"/>. Goal checks pass the body and target centers; sampled
+        /// destinations pass the body center and candidate point. This checks point membership only, not
+        /// body bounds, route segments, or trajectories.
         /// </summary>
         protected bool IsNavigationDestinationAllowed(Vector2 origin, Vector2 destination)
         {

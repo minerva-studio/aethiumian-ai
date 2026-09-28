@@ -6,5 +6,4 @@ namespace Aethiumian.AI.Nodes
         InRegion = 0,
         CrossRegion = 1,
     }
-
 }

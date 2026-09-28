@@ -24,9 +24,8 @@ namespace Aethiumian.AI.Nodes
         [Readable] public VariableField<float> speedModifier = 1f;
 
         [NonSerialized] private float nextJumpTime;
-        private float EffectiveJumpInterval => jumpInterval / speedModifier;
-        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body)
-            => CreateGoal(target, NavigationGoalGeometry.Proximity);
+
+        protected override NavigationGoalRequest BuildGoal(AABB target) => CreateGoal(target, NavigationGoalGeometry.Proximity);
 
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
@@ -54,7 +53,8 @@ namespace Aethiumian.AI.Nodes
                 return true;
             }
             if (purpose == NavigationPlanningPurpose.InitialRoute && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _)) return false;
-            operation = NavigationRuntime.PlanJumpAsync(body, goal, new JumpNavigationParameters(Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), extent, cancellation);
+            JumpNavigationParameters parameters = new(Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime);
+            operation = NavigationRuntime.PlanJumpAsync(body, goal, parameters, extent, cancellation);
             return true;
         }
 
@@ -72,12 +72,9 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept)
-            => NavigationWorld.IsGoalComplete(goal, body) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _);
+        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept) => NavigationWorld.IsGoalComplete(goal, body) && RigidBody.linearVelocity.y <= 0f && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _);
 
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body) => reason == ExecutionFailureReason.Obstructed;
-
-        protected override void Finish(bool success, NavigationGoalRequest? goal) { }
+        protected override void Finish(bool success) { }
 
         public override bool EditorCheck(BehaviourTreeData tree)
         {
@@ -95,43 +92,39 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, AABB body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override SegmentStartResult StartSegment(NavigationRouteSegment segment, AABB body)
         {
-            prepared = null;
             if (segment is not JumpRouteSegment jump)
                 throw new InvalidOperationException("Jump planning produced a non-jump route segment.");
-            if (reusable != null && ExecutionTime < nextJumpTime) return ActionPreparation.Waiting;
+            if (Executor != null && ExecutionTime < nextJumpTime) return SegmentStartResult.Pending;
 
-            MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Jump));
             if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out _))
-                return ActionPreparation.Waiting;
+                return SegmentStartResult.Pending;
             if (path == PathMode.Naive)
             {
                 JumpTrajectoryInput input = new(body.LowerCenter, jump.End, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, Time.fixedDeltaTime);
                 if (!JumpTrajectory.TrySolve(input, out JumpTrajectorySolution direct))
-                    return ActionPreparation.Unavailable;
-                prepared = CreateJump(direct, null);
-                return ActionPreparation.Ready;
+                    return SegmentStartResult.Rejected;
+                return SegmentStartResult.Started(CreateJump(direct, null));
             }
+            MapNavigationRuntime navigation = NavigationRuntime;
             if (!navigation.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport currentSupport))
-                return ActionPreparation.Waiting;
-            if (!navigation.TryResolvePlanningGroundSupport(
-                AABB.FromLowerCenter(jump.Start, body.Size), out _, out NavigationSupport launchSupport))
-                return ActionPreparation.Unavailable;
+                return SegmentStartResult.Pending;
+            if (!navigation.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(jump.Start, body.Size), out _, out NavigationSupport launchSupport))
+                return SegmentStartResult.Rejected;
             if (currentSupport.Surface != launchSupport.Surface)
-                return ActionPreparation.Unavailable;
+                return SegmentStartResult.Rejected;
             INavigationWorld navigationWorld = NavigationWorld;
             if (!navigation.TryGetJumpSolver(out GroundJumpSolver jumpSolver))
-                return ActionPreparation.Waiting;
-            GroundJumpParameters parameters = new(body.Size, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime);
+                return SegmentStartResult.Pending;
+            GroundJumpParameters parameters = new JumpNavigationParameters(Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime).GetJumpParameters(body.Size);
             if (!jumpSolver.TrySolve(body.LowerCenter, jump.End, parameters, out JumpTrajectorySolution trajectory))
-                return ActionPreparation.Unavailable;
+                return SegmentStartResult.Rejected;
             JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(navigationWorld, trajectory, body.Size);
             if (!OneWayPlatformCollisionLease.TryCreateForSegment(Collider, resolvedSegment, navigation, out OneWayPlatformCollisionLease lease))
-                return ActionPreparation.Unavailable;
+                return SegmentStartResult.Rejected;
 
-            prepared = CreateJump(trajectory, lease);
-            return ActionPreparation.Ready;
+            return SegmentStartResult.Started(CreateJump(trajectory, lease));
         }
 
         private BallisticJumpExecutor CreateJump(JumpTrajectorySolution trajectory, OneWayPlatformCollisionLease lease)
@@ -141,7 +134,7 @@ namespace Aethiumian.AI.Nodes
             {
                 action = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, TerrainFilter, trajectory, lease, maxIdleDuration);
                 ReportMovementState(MovementState.Jumping);
-                nextJumpTime = ExecutionTime + EffectiveJumpInterval;
+                nextJumpTime = ExecutionTime + jumpInterval / speedModifier;
                 return action;
             }
             catch
@@ -154,10 +147,10 @@ namespace Aethiumian.AI.Nodes
 
         protected override Vector2 GetWanderLocation(Vector2 center, AABB body)
         {
-            const int MaximumTrials = 20;
+            const int MAXIMUM_WANDER_LOCATION_TRIALS = 20;
             if (wanderDistance <= 0f) return center;
 
-            for (int index = 0; index < MaximumTrials; index++)
+            for (int index = 0; index < MAXIMUM_WANDER_LOCATION_TRIALS; index++)
             {
                 var random = behaviourTree.RandomSources.Resolve(this);
                 float x = random.NextFloat(-1f, 1f)

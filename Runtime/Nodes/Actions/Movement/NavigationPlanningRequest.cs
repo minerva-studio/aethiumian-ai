@@ -9,7 +9,7 @@ namespace Aethiumian.AI.Nodes
     {
         private CancellationTokenSource cancellation;
         private int staleTicks;
-        private const int StaleRefreshTicks = 8;
+        private const int STALE_REFRESH_TICKS = 8;
 
         internal NavigationPlanningRequest(NavigationPlanningOperation operation, AABB startBody,
             NavigationGoalRequest goal, NavigationPlanningPurpose purpose,
@@ -37,8 +37,8 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Advances or clears the request-local stale interval and reports when refresh is due.</summary>
         internal bool AdvanceStaleness(bool stale)
         {
-            staleTicks = stale ? System.Math.Min(staleTicks + 1, StaleRefreshTicks) : 0;
-            return staleTicks >= StaleRefreshTicks;
+            staleTicks = stale ? System.Math.Min(staleTicks + 1, STALE_REFRESH_TICKS) : 0;
+            return staleTicks >= STALE_REFRESH_TICKS;
         }
         internal void Release(bool cancel)
         {

@@ -26,8 +26,7 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private int unexpectedLandingRecoveryCount;
         private float NewFixedSpeed => speed * speedModifier;
 
-        protected override NavigationGoalRequest BuildGoal(AABB target, AABB body)
-            => CreateGoal(target, NavigationGoalGeometry.GroundRange);
+        protected override NavigationGoalRequest BuildGoal(AABB target) => CreateGoal(target, NavigationGoalGeometry.GroundRange);
 
         protected override bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
         {
@@ -50,7 +49,7 @@ namespace Aethiumian.AI.Nodes
             connected = default;
             if (candidate.Count == 0) return false;
             if (candidate[0] is GroundRouteSegment)
-                return TryReconnectNavigationRoute(candidate, body, out connected);
+                return WalkNavigationPlanner.TryReconnectGroundRoute(NavigationWorld, candidate, body, GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(NewFixedSpeed), out connected);
             if (candidate[0] is JumpRouteSegment)
             {
                 // A plan speaks in support space, while the body anchor rests one contact gap above
@@ -70,32 +69,27 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        protected override bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept) => NavigationWorld.IsGoalComplete(goal, body) || swept;
-
-        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRequest goal, AABB body)
+        protected override bool TryRecover(ExecutionFailureReason reason, AABB body)
         {
-            switch (reason)
+            if (base.TryRecover(reason, body)) return true;
+            if (reason == ExecutionFailureReason.UnexpectedSupport && unexpectedLandingRecoveryCount < 2)
             {
-                case ExecutionFailureReason.Obstructed:
-                    return true;
-                case ExecutionFailureReason.UnexpectedSupport when unexpectedLandingRecoveryCount < 2:
-                    {
-                        if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out Vector2 support)
-                        || !NavigationRuntime.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(support, body.Size), out _, out _)) return false;
-                        unexpectedLandingRecoveryCount++;
+                if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, TerrainFilter, out Vector2 support)) return false;
+                AABB supportBody = AABB.FromLowerCenter(support, body.Size);
+                if (!NavigationRuntime.TryResolvePlanningGroundSupport(supportBody, out _, out _)) return false;
+                unexpectedLandingRecoveryCount++;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                        MovementReplanDiagnostics.RecordUnexpectedLandingReplan();
+                MovementReplanDiagnostics.RecordUnexpectedLandingReplan();
 #endif
-                        return true;
-                    }
-                default:
-                    return false;
+                return true;
             }
+            return false;
         }
 
-        protected override void Finish(bool success, NavigationGoalRequest? goal)
+        protected override void Finish(bool success)
         {
-            StopHorizontalVelocity();
+            Vector2 velocity = RigidBody.linearVelocity;
+            RigidBody.linearVelocity = new Vector2(0f, velocity.y);
             if (success && setFinalPosition && type == Behaviour.Wander && WanderDestination.HasValue)
             {
                 // Walk routes speak in the ground-anchor frame, so the sampled destination is the
@@ -107,103 +101,66 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, AABB body, MovementExecutor reusable, out MovementExecutor prepared)
+        protected override SegmentStartResult StartSegment(NavigationRouteSegment segment, AABB body)
         {
-            prepared = null;
-            var groundExecutor = reusable as GroundTraversalExecutor;
+            var groundExecutor = Executor as GroundTraversalExecutor;
+
             GroundTraversalExecutor GetExecutor()
             {
                 if (groundExecutor != null) return groundExecutor;
                 unexpectedLandingRecoveryCount = 0;
-                return groundExecutor = new GroundTraversalExecutor(RigidBody, Collider, TerrainFilter,
-                    NewFixedSpeed, accelerateRate, NavigationColliders, maxIdleDuration);
+                return groundExecutor = new GroundTraversalExecutor(RigidBody, Collider, TerrainFilter, NewFixedSpeed, accelerateRate, NavigationColliders, maxIdleDuration);
             }
+
             switch (segment)
             {
                 case GroundRouteSegment ground:
                     GetExecutor().SetGroundMove(body.LowerCenter, ground.End);
-                    prepared = groundExecutor;
-                    return ActionPreparation.Ready;
+                    return SegmentStartResult.Started(groundExecutor);
                 case JumpRouteSegment jump:
-                    MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
+                    MapNavigationRuntime navigation = NavigationRuntime;
                     INavigationWorld navigationWorld = NavigationWorld;
                     if (!navigation.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport currentSupport))
-                        return ActionPreparation.Waiting;
-                    if (!navigation.TryResolvePlanningGroundSupport(
-                        AABB.FromLowerCenter(jump.Start, body.Size), out _, out NavigationSupport launchSupport))
-                        return ActionPreparation.Unavailable;
+                        return SegmentStartResult.Pending;
+                    if (!navigation.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(jump.Start, body.Size), out _, out NavigationSupport launchSupport))
+                        return SegmentStartResult.Rejected;
                     if (currentSupport.Surface != launchSupport.Surface)
-                        return ActionPreparation.Unavailable;
+                        return SegmentStartResult.Rejected;
                     if (!JumpTrajectory.IsApexHeightAllowed(jumpHeight, jump.MinimumApexHeight))
-                        return ActionPreparation.Unavailable;
+                        return SegmentStartResult.Rejected;
 
                     if (!navigation.TryGetJumpSolver(out GroundJumpSolver solver))
-                        return ActionPreparation.Waiting;
+                        return SegmentStartResult.Pending;
 
-                    GroundJumpParameters parameters = new(
-                        body.Size,
-                        Physics2D.gravity,
-                        RigidBody.gravityScale,
-                        RigidBody.linearDamping,
-                        jumpHeight,
-                        jumpLength,
-                        Time.fixedDeltaTime);
-                    if (!solver.TrySolve(
-                        body.LowerCenter,
-                        jump.End,
-                        parameters,
-                        out JumpTrajectorySolution trajectory))
-                        return ActionPreparation.Unavailable;
+                    GroundJumpParameters parameters = CreateNavigationParameters().GetJumpParameters(body.Size);
+                    if (!solver.TrySolve(body.LowerCenter, jump.End, parameters, out JumpTrajectorySolution trajectory))
+                        return SegmentStartResult.Rejected;
 
-                    JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(
-                        navigationWorld,
-                        trajectory,
-                        body.Size);
-                    if (!OneWayPlatformCollisionLease.TryCreateForSegment(
-                        Collider, resolvedSegment, navigation, out OneWayPlatformCollisionLease lease))
-                        return ActionPreparation.Unavailable;
-                    try { GetExecutor().BeginJump(trajectory, lease); }
+                    JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(navigationWorld, trajectory, body.Size);
+                    if (!OneWayPlatformCollisionLease.TryCreateForSegment(Collider, resolvedSegment, navigation, out OneWayPlatformCollisionLease lease))
+                        return SegmentStartResult.Rejected;
+                    try
+                    {
+                        GetExecutor().BeginJump(trajectory, lease);
+                    }
                     catch { lease?.Dispose(); throw; }
-                    prepared = groundExecutor;
-                    return ActionPreparation.Ready;
+                    return SegmentStartResult.Started(groundExecutor);
                 case FallRouteSegment fall:
                     GetExecutor().BeginFall(fall.Start, fall.LedgeExit, fall.End);
-                    prepared = groundExecutor;
-                    return ActionPreparation.Ready;
+                    return SegmentStartResult.Started(groundExecutor);
                 case DropThroughRouteSegment dropThrough:
                     GetExecutor().BeginDropThrough(dropThrough.Start, dropThrough.End);
-                    prepared = groundExecutor;
-                    return ActionPreparation.Ready;
+                    return SegmentStartResult.Started(groundExecutor);
                 default:
                     throw new InvalidOperationException("Walk navigation produced an unsupported route segment.");
             }
         }
 
-        private bool TryReconnectNavigationRoute(NavigationRoute route, AABB body, out NavigationRoute reconnectedRoute)
-        {
-            reconnectedRoute = default;
-            if (!route.HasValue || route.Count == 0 || route[0] is not GroundRouteSegment)
-                return false;
-
-            MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
-            INavigationWorld snapshot = NavigationWorld;
-            float executionHorizontalCompletionTolerance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(NewFixedSpeed);
-            return WalkNavigationPlanner.TryReconnectGroundRoute(snapshot, route, body, executionHorizontalCompletionTolerance, out reconnectedRoute);
-        }
-
-        private WalkNavigationParameters CreateNavigationParameters()
-            => new(
-                NewFixedSpeed,
-                Physics2D.gravity,
-                RigidBody.gravityScale,
-                RigidBody.linearDamping,
-                jumpHeight,
-                jumpLength,
-                Time.fixedDeltaTime);
+        private WalkNavigationParameters CreateNavigationParameters() => new(NewFixedSpeed, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime);
 
         protected override Vector2 GetWanderLocation(Vector2 center, AABB body)
         {
-            const int MAX_WANDER_LOCATION_TRIAL = 20;
+            const int MAXIMUM_WANDER_LOCATION_TRIALS = 20;
 
             if (wanderDistance <= 0)
             {
@@ -211,7 +168,7 @@ namespace Aethiumian.AI.Nodes
                 return center;
             }
 
-            for (int i = 0; i < MAX_WANDER_LOCATION_TRIAL; i++)
+            for (int i = 0; i < MAXIMUM_WANDER_LOCATION_TRIALS; i++)
             {
                 var random = behaviourTree.RandomSources.Resolve(this);
                 var x = random.NextFloat(-1f, 1f) * random.NextFloat(wanderDistance * 0.5f, wanderDistance * 1.5f);
@@ -221,12 +178,6 @@ namespace Aethiumian.AI.Nodes
             }
             Debug.LogWarning("Cannot find valid wander location around. is the entity outside the room?");
             return center;
-        }
-
-        private void StopHorizontalVelocity()
-        {
-            Vector2 velocity = RigidBody.linearVelocity;
-            RigidBody.linearVelocity = new Vector2(0f, velocity.y);
         }
     }
 }

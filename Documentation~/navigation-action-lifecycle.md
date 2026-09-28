@@ -4,7 +4,7 @@ This document describes the current `Movement` contract in the Aethiumian.AI pac
 
 1. `NavigationAction` owns the action lifetime.
 2. `Movement` coordinates planning and one fixed-step execution loop.
-3. `PrepareExecutor` and `MovementExecutor.Tick` return per-step outcomes; they do not define action states.
+3. `StartSegment` and `MovementExecutor.Tick` return per-step outcomes; they do not define action states.
 
 The lifecycle and preparation boundaries below are established contracts.
 
@@ -36,14 +36,14 @@ flowchart TD
     B --> C[BuildGoal NavigationGoalRequest]
     C --> D[Acquire or select a route candidate]
     D --> E[Reconnect candidate from the real body anchor]
-    E --> F[Prepare one route segment]
-    F --> G{ActionPreparation result}
-    G -- Waiting --> A
-    G -- Unavailable --> H[Reject candidate; preserve prior executor]
+    E --> F[Start one route segment]
+    F --> G{SegmentStartResult status}
+    G -- Pending --> A
+    G -- Rejected --> H[Reject candidate; preserve prior executor]
     H --> I{Retry or goal completion allowed?}
     I -- retry --> A
     I -- terminal --> N["Finish and CompleteAction: success or failure"]
-    G -- Ready --> J[Install or reuse one executor]
+    G -- Started --> J[Install or reuse one executor]
     J --> K[MovementExecutor.Tick once]
     K --> L{ExecutionResult status}
     L -- Running --> M[Check overall goal]
@@ -67,17 +67,17 @@ when no replacement is adopted. Acquisition helpers do not call back into the
 outer receipt-processing loop. A completed segment may trigger another adoption
 attempt before the tick ends, but never a second physical execution.
 
-## Preparation outcomes, not lifecycle states
+## Segment start outcomes, not lifecycle states
 
-`PrepareExecutor` returns `ActionPreparation` for the current route segment. These values are consumed during the current fixed step and must not be shown as states of `NavigationAction`:
+`StartSegment` returns a `SegmentStartResult` for the current route segment; a `Started` result carries the executing executor, so no other status can supply one. These values are consumed during the current fixed step and must not be shown as states of `NavigationAction`:
 
-| Preparation result | Meaning | Coordinator action |
+| `SegmentStartStatus` | Meaning | Coordinator action |
 | --- | --- | --- |
-| `Waiting` | A temporary prerequisite is not ready yet, such as the Jump launch gate or contact requirement. | Keep the previous executor untouched and retain the still-valid candidate for a later permitted fixed step. This applies to local fallback candidates too. |
-| `Ready` | The segment has produced an executing executor. | Install the executor and publish the connected route. Only this result may replace executor/route state. |
-| `Unavailable` | This segment cannot be prepared under the current physical or capability constraints. | Leave the previous executor untouched, reject the candidate, and apply the normal retry/recovery or terminal policy. |
+| `Pending` | A temporary prerequisite is not ready yet, such as the Jump launch gate or contact requirement. | Keep the previous executor untouched and retain the still-valid candidate for a later permitted fixed step. This applies to local fallback candidates too. |
+| `Started` | The segment has produced an executing executor. | Install the executor and publish the connected route. Only this result may replace executor/route state. |
+| `Rejected` | This segment cannot be started under the current physical or capability constraints. | Leave the previous executor untouched, reject the candidate, and apply the normal retry/recovery or terminal policy. |
 
-`Waiting` and `Unavailable` therefore have different meanings, but neither is a persistent phase. They are decisions made by `Movement` at the shared `TryAdoptRoute` boundary. Likewise, `Running`, `Completed`, and `Failed` are `ExecutionResult.Status` values returned by one executor tick, not additional `NavigationAction` states.
+`Pending` and `Rejected` therefore have different meanings, but neither is a persistent phase. They are decisions made by `Movement` at the shared `TryAdoptRoute` boundary. Likewise, `Running`, `Completed`, and `Failed` are `ExecutionResult.Status` values returned by one executor tick, not additional `NavigationAction` states.
 
 ## Goal construction
 
@@ -99,7 +99,7 @@ Simple and Smart both obtain actions from `NavigationRoute`:
   Smart request. Each committed fallback advances the cooldown to eight, then
   sixteen physics ticks; a local miss does not make Smart fail.
 - `TryConnectRoute` reconnects a candidate to the current body and rejects unsafe or disconnected geometry. It does not receive the current goal or apply route policy.
-- `PrepareExecutor` returns `Waiting`, `Ready`, or `Unavailable` for one segment.
+- `StartSegment` returns `Pending`, `Started`, or `Rejected` for one segment.
 
 Movement holds one Smart `NavigationPlanningRequest` plus at most one local fallback
 request. The local request is an independent action-supply request and may be recreated
@@ -121,7 +121,7 @@ still be adopted as executable progress; it does not complete the latest goal an
 endpoint can seed a continuation request. A negative result for an old target cannot
 terminate the current goal.
 
-`PrepareExecutor` receives a segment and body, not a goal. After capability-specific reconnect, `Movement` applies `RouteAllowed` with the current tick's goal; a candidate route's historical `Goal` must not replace it for current Retreat policy checks. `Waiting` and `Unavailable` leave the previous executor untouched. Same-direction Ground updates and Fly waypoint updates preserve velocity and idle timing. Ground reconnection combines contiguous straight, same-level segments without crossing other action kinds.
+`StartSegment` receives a segment and body, not a goal; it reads the current executor through `Executor`. After capability-specific reconnect, `Movement` applies `RouteAllowed` with the current tick's goal; a candidate route's historical `Goal` must not replace it for current Retreat policy checks. `Pending` and `Rejected` leave the previous executor untouched. Same-direction Ground updates and Fly waypoint updates preserve velocity and idle timing. Ground reconnection combines contiguous straight, same-level segments without crossing other action kinds.
 
 ## Executor progression
 
@@ -150,7 +150,7 @@ For `Walk`, a Jump candidate whose logical start remains within the completed Gr
 | `Jump` | `BallisticJumpExecutor` / `TimedForceExecutor` | Real contact, launch interval, physical flight, and landing-bound completion |
 | `Fly` | `FlyTraversalExecutor` | Waypoint completion, dynamic reconnection, clearance, and height limits |
 
-Jump preparation returns `Waiting` without real contact or before the launch interval. Once flight/descent has ended and non-ascending landing support is established, an endpoint mismatch returns `UnexpectedSupport` instead of waiting for a trajectory that can no longer correct it. Irreversible Jump/Fall/DropThrough actions are allowed to finish before a replacement route is adopted.
+Jump segment start returns `Pending` without real contact or before the launch interval. Once flight/descent has ended and non-ascending landing support is established, an endpoint mismatch returns `UnexpectedSupport` instead of waiting for a trajectory that can no longer correct it. Irreversible Jump/Fall/DropThrough actions are allowed to finish before a replacement route is adopted.
 
 ## Recovery and terminal states
 
@@ -161,7 +161,7 @@ Recovery remains at the Movement owner:
 - exact `NoResult`, `SearchExhausted`, and `BudgetReached` planner outcomes retain their distinction;
 - stale or cancelled requests are released before fresh planning;
 - physical failure completes as failure without a second Retreat completion check; Movement records approach distance only at its active-tick accounting boundaries;
-- reversible updates preserve the executing action when possible; only a Ready preparation publishes replacement route state;
+- reversible updates preserve the executing action when possible; only a `Started` segment start publishes replacement route state;
 - no-progress route continuation is capped at three attempts.
 
 `IsGoalSatisfied` is the only overall completion predicate. `RetreatExecution` records target identity and approach accounting but does not decide goal completion. `Finish` applies capability-specific final effects, then `CompleteAction` cancels the execution token and releases the action, request, route, lease, and executor resources.
@@ -176,7 +176,7 @@ Recovery remains at the Movement owner:
 | Request data and cancellation receipt | Private `NavigationPlanningRequest` |
 | Route reconnection | Capability `TryConnectRoute` |
 | Current-goal route admission | `Movement.RouteAllowed` and `RetreatExecution.AllowsRoute` |
-| Action preparation | Capability `PrepareExecutor` |
+| Segment start | Capability `StartSegment` |
 | Physical progression and action-local resources | `MovementExecutor` implementations |
 | Idle watchdog | `MovementExecutor` | `stallTimer` and `ExecutionFailureReason.Stalled` |
 | Retreat identity and approach accounting | `RetreatExecution` | target identity and cumulative approach budget; Movement supplies scalar approach distance |
@@ -198,7 +198,18 @@ Failure memoization also keeps `InitialRoute` and `EndpointContinuation` request
 
 ## Extension and migration contract
 
-External movement implementations use the protected `BuildGoal`, explicit-extent `TryRequestRoute`, `TryConnectRoute`, `PrepareExecutor`, `IsGoalSatisfied`, `TryRecover`, `Finish`, and required `GetWanderLocation` hooks. Implementations must preserve the one-executor and fixed-step result-adoption boundaries. The partial Ground continuation rule is owned by `Movement`; it does not require a new derived-class interface.
+External movement implementations provide these protected hooks:
+
+- `NavigationGoalRequest BuildGoal(AABB target)`
+- `bool TryRequestRoute(AABB body, NavigationGoalRequest goal, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)`
+- `bool TryConnectRoute(NavigationRoute candidate, AABB body, out NavigationRoute connected)`
+- `SegmentStartResult StartSegment(NavigationRouteSegment segment, AABB body)`
+- `bool IsGoalSatisfied(NavigationGoalRequest goal, AABB body, bool swept)`, virtual with the default `NavigationWorld.IsGoalComplete(goal, body) || swept`
+- `bool TryRecover(ExecutionFailureReason reason, AABB body)`, virtual with the default `reason == ExecutionFailureReason.Obstructed`
+- `void Finish(bool success)`
+- `Vector2 GetWanderLocation(Vector2 center, AABB body)`
+
+All hooks except `IsGoalSatisfied` and `TryRecover` remain abstract. Implementations must preserve the one-executor and fixed-step result-adoption boundaries. The partial Ground continuation rule is owned by `Movement`; it does not require a new derived-class interface.
 
 `NavigationAction` borrows the runtime once in `Awake`. Its `RequiresNavigationWorld` decision is also captured once: the default waits for a published world before `InitializeAction`, while Naive `Movement` enters execution on its first permitted fixed step with a null world. Simple, Smart, and `FixedJump` retain the world wait. Naive produces a completed `NavigationPlanningOperation` containing one direct route segment; ordinary receipt adoption, execution, retries, and completion remain in `Movement`. Naive rejects Retreat and line-of-sight goals, skips the region gate, and samples its next segment from the current body after completion or target movement. Reversible Ground and Fly segments regenerate immediately when the target moves beyond the goal reuse tolerance; Jump regenerates only after landing. `NavigationAction.IsNavigationDestinationAllowed` retains the world bounds and region check for world-backed movement. Wander capabilities pass the sampled destination and body to `IsWanderCandidateAllowed(origin, destination, candidateBody, requireSupport)`; without a world, the first sampled destination is accepted. `FixedJump` marks its captured inputs and execution resources as non-serialized so editor node copying excludes them.
 

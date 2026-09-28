@@ -133,18 +133,15 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
-            NavigationGoalRequest request = CreateCompletionRequest(targetBounds, arrivalTolerance);
-            planningOperation = NavigationRuntime.PlanJumpAsync(startBody, request, jumpParameters, NavigationPlanningExtent.NextAction, ExecutionCancellation);
+            planningOperation = NavigationRuntime.PlanJumpAsync(startBody, completionGoal, jumpParameters, NavigationPlanningExtent.NextAction, ExecutionCancellation);
         }
 
         private NavigationGoalRequest CreateCompletionRequest(AABB targetBounds, float arrivalTolerance)
         {
-            bool requiresLineOfSight = goal == MovementGoal.Confront
-                || goal == MovementGoal.FiringPosition;
+            bool requiresLineOfSight = goal == MovementGoal.Confront || goal == MovementGoal.FiringPosition;
             return goal == MovementGoal.Confront
                 ? NavigationGoalRequest.GroundRange(targetBounds, arrivalTolerance, true)
-                : NavigationGoalRequest.Proximity(targetBounds, distanceMetric, arrivalTolerance,
-                    requiresLineOfSight);
+                : NavigationGoalRequest.Proximity(targetBounds, distanceMetric, arrivalTolerance, requiresLineOfSight);
         }
 
         private bool IsReached(NavigationGoalRequest completionGoal, AABB body)
@@ -177,9 +174,7 @@ namespace Aethiumian.AI.Nodes
                 if (route.Count == 0)
                 {
                     AABB currentBody = NavigationBodyGeometry.GetMergedAabb(NavigationColliders);
-                    bool currentlyReached = IsReached(
-                        CreateCompletionRequest(capturedTargetBounds, GetArrivalTolerance()),
-                        currentBody);
+                    bool currentlyReached = IsReached(CreateCompletionRequest(capturedTargetBounds, GetArrivalTolerance()), currentBody);
                     if (skipReached && currentlyReached)
                     {
                         CompleteAction(true);
@@ -198,14 +193,22 @@ namespace Aethiumian.AI.Nodes
                     return;
                 }
 
-                if (route[0] is not JumpRouteSegment)
+                if (route[0] is not JumpRouteSegment jump)
                 {
-                    CompleteActionException(new InvalidOperationException(
-                        "FixedJump PlannedStep requires a Jump route segment."));
+                    CompleteActionException(new InvalidOperationException("FixedJump PlannedStep requires a Jump route segment."));
                     return;
                 }
 
-                if (!TryStartPlannedJump(route))
+                AABB plannedBody = NavigationBodyGeometry.GetMergedAabb(NavigationColliders);
+                Vector2 plannedStart = plannedBody.LowerCenter;
+                if (!NavigationRuntime.TryResolvePlanningGroundSupport(plannedBody, out _, out NavigationSupport currentSupport)
+                    || !NavigationRuntime.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(jump.Start, bodySize), out _, out NavigationSupport plannedSupport)
+                    || currentSupport.Surface != plannedSupport.Surface)
+                {
+                    CompleteAction(false);
+                    return;
+                }
+                if (!TryStartDirectJump(NavigationWorld, plannedStart, jump.End))
                 {
                     CompleteAction(false);
                     return;
@@ -223,7 +226,7 @@ namespace Aethiumian.AI.Nodes
             else if (result.Status == ExecutionStatus.Failed) CompleteAction(false);
         }
 
-        /// <summary>Releases pending planning, the traversal executor, and its collision lease.</summary>
+        /// <summary>Resets the executor's progress baseline when execution is paused.</summary>
         protected override void ResetActionProgress() => executor?.ResetProgressBaseline();
 
         private bool TryReadParameters(out JumpNavigationParameters parameters, out Vector2 targetOffset)
@@ -330,38 +333,9 @@ namespace Aethiumian.AI.Nodes
                 return false;
             }
 
-            BeginExecutor(solved, lease);
-            return true;
-        }
-
-        private bool TryStartPlannedJump(NavigationRoute route)
-        {
-            if (route[0] is not JumpRouteSegment jump) return false;
-            INavigationWorld world = NavigationWorld;
-
-            AABB body = NavigationBodyGeometry.GetMergedAabb(NavigationColliders);
-            Vector2 start = body.LowerCenter;
-            if (!NavigationRuntime.TryResolvePlanningGroundSupport(body, out _, out NavigationSupport currentSupport)
-                || !NavigationRuntime.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(jump.Start, bodySize), out _, out NavigationSupport plannedSupport)
-                || currentSupport.Surface != plannedSupport.Surface)
-                return false;
-
-            GroundJumpParameters parameters = jumpParameters.GetJumpParameters(bodySize);
-            if (!NavigationRuntime.TryGetJumpSolver(out GroundJumpSolver jumpSolver) || !jumpSolver.TrySolve(start, jump.End, parameters, out JumpTrajectorySolution solved))
-                return false;
-
-            JumpRouteSegment segment = GroundJumpGeometry.CreateSegment(world, solved, bodySize);
-            if (!OneWayPlatformCollisionLease.TryCreateForSegment(Collider, segment, NavigationRuntime, out OneWayPlatformCollisionLease lease))
-                return false;
-
-            BeginExecutor(solved, lease);
-            return true;
-        }
-
-        private void BeginExecutor(JumpTrajectorySolution solved, OneWayPlatformCollisionLease lease)
-        {
             executor = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, NavigationRuntime.CreateTerrainFilter(), solved, lease);
             ReportMovementState(MovementState.Jumping);
+            return true;
         }
 
         protected override void ReleaseActionResources()
