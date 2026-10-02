@@ -400,7 +400,8 @@ namespace Aethiumian.AI.Nodes
         {
             if (NaiveConfigurationRejected)
             {
-                Debug.LogError($"Naive {GetType().Name} cannot retreat or use line-of-sight goals.", tree?.prefab);
+                // The tree asset is available as a log context in both Editor and Player builds.
+                Debug.LogError($"Naive {GetType().Name} cannot retreat or use line-of-sight goals.", tree);
                 return false;
             }
 #if UNITY_EDITOR
