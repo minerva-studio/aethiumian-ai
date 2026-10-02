@@ -102,16 +102,19 @@ namespace Aethiumian.AI.Navigation.Tests
 
         protected static IEnumerator WaitForTreeCreated(MovementHarness harness)
         {
-            for (int frame = 0; frame < RuntimeContractTickLimit; frame++)
+            // Background initialization needs elapsed time; headless frames can exhaust a frame budget immediately.
+            float deadline = Time.realtimeSinceStartup + 5f;
+            while (Time.realtimeSinceStartup < deadline)
             {
-                if (harness.AI.BehaviourTree != null && harness.AI.BehaviourTree.IsInitialized)
-                    yield break;
+                if (harness.AI.BehaviourTree != null
+                    && (harness.AI.BehaviourTree.IsInitialized || harness.AI.BehaviourTree.IsFaulted))
+                    break;
                 yield return null;
             }
 
             Assert.That(harness.AI.BehaviourTree, Is.Not.Null);
-            Assert.That(harness.AI.BehaviourTree.IsInitialized, Is.True);
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False);
+            Assert.That(harness.AI.BehaviourTree.IsInitialized, Is.True, "Tree did not finish initializing within five seconds.");
         }
 
         protected static IEnumerator WaitForTerminal(MovementHarness harness, int limit)
