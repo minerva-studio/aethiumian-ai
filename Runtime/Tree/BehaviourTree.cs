@@ -223,8 +223,6 @@ namespace Aethiumian.AI
         {
             try
             {
-                // Variable conversion accesses Unity objects and must run before leaving the main thread.
-                GenerateVariableTable();
 #if UNITY_WEBGL
             InitializationTask();
 #elif UNITY_2023_1_OR_NEWER
@@ -251,6 +249,7 @@ namespace Aethiumian.AI
 
         private void InitializationTask()
         {
+            GenerateVariableTable();
             GenerateNodeReferenceTable();
 
             var behaviourTreeData = Prototype;
