@@ -227,6 +227,13 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
                 var runtimeSubtree = fixture.GetRuntimeNode<Subtree>(subtree);
                 Assert.That(runtimeSubtree.RuntimeTree, Is.Not.Null);
+                BehaviourTree nestedTree = runtimeSubtree.RuntimeTree!;
+
+                // Parent readiness does not include asynchronous subtree initialization.
+                // Keep the shared host alive until the nested initializer has completed.
+                yield return fixture.WaitUntil(() => nestedTree.IsInitialized || nestedTree.IsFaulted);
+                Assert.That(nestedTree.IsFaulted, Is.False, nestedTree.InitializationException?.ToString());
+                Assert.That(nestedTree.IsInitialized, Is.True, "Nested tree did not finish initializing within the timeout.");
                 Assert.That(fixture.Tree.RunningSubtrees, Does.Contain(runtimeSubtree));
             }
             finally
