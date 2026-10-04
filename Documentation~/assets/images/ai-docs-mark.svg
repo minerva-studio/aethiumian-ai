@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Aethiumian.AI">
+  <defs>
+    <linearGradient id="g" x1="24" y1="4" x2="104" y2="124" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B87AEB"/>
+      <stop offset="1" stop-color="#409EFF"/>
+    </linearGradient>
+  </defs>
+  <path d="M64 7 109 34v60l-45 27-45-27V34z" fill="none" stroke="url(#g)" stroke-width="8" stroke-linejoin="round"/>
+  <g stroke="url(#g)" stroke-width="10.12" stroke-linecap="round">
+    <path d="M59.16 41.12 44.99 86.79M68.84 41.12l14.17 45.67"/>
+    <path d="M50.45 69.28h27.1"/>
+  </g>
+  <g fill="url(#g)">
+    <rect x="35.49" y="80.46" width="19.01" height="16.63" rx="4.75"/>
+    <rect x="73.5" y="80.46" width="19.01" height="16.63" rx="4.75"/>
+  </g>
+  <path d="M64 22.64l9.68 12.32-9.68 12.32-9.68-12.32z" fill="#DAA649" stroke="url(#g)" stroke-width="3.52" stroke-linejoin="round"/>
+</svg>

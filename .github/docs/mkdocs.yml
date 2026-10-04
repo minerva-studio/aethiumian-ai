@@ -13,7 +13,7 @@ theme:
     - toc.follow
     - search.highlight
     - search.suggest
-  logo: assets/images/ai-docs-favicon.svg
+  logo: assets/images/ai-docs-mark.svg
   favicon: assets/images/ai-docs-favicon.svg
   palette:
     - scheme: default

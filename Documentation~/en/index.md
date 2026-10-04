@@ -1,6 +1,7 @@
 <div class="aeth-home">
   <section class="aeth-home__hero">
-    <img class="aeth-home__brand" src="assets/images/ai-docs-logo.svg" alt="Aethiumian.AI" />
+    <img class="aeth-home__brand" src="assets/images/ai-docs-logo.svg#only-light" alt="Aethiumian.AI" />
+    <img class="aeth-home__brand" src="assets/images/ai-docs-logo-dark.svg#only-dark" alt="Aethiumian.AI" />
   </section>
 
   <section class="aeth-home__section">
