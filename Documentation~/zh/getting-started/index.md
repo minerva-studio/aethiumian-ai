@@ -1,8 +1,8 @@
 # 开始使用
 
-## 开始使用
+本页介绍如何创建行为树、在 AI Editor 中打开它，并让它在 GameObject 上运行。请先安装包，见[安装](../installation/index.md)。
 
-### 创建 BehaviourTreeData
+## 创建 BehaviourTreeData
 
 常用方式有两种：
 
@@ -11,7 +11,7 @@
 
 如果在 AI Editor 中创建新资产时当前选中了一个 GameObject，编辑器会尝试自动添加或复用该对象上的 `AI` 组件，并在 `AI.Data` 为空时绑定新建的行为树。
 
-### 打开 AI Editor
+## 打开 AI Editor
 
 可以从以下入口打开：
 
@@ -21,7 +21,7 @@
 
 打开后，在顶部 `Behaviour Tree` 对象栏选择要编辑的 `BehaviourTreeData`。重复打开同一棵 tree 会聚焦已有 AI Editor 窗口；打开另一棵 tree 会创建或聚焦属于那棵 tree 的窗口。
 
-### 绑定并运行
+## 绑定并运行
 
 1. 给需要运行 AI 的 GameObject 添加 `AI` 组件。
 2. 把 `BehaviourTreeData` 资产赋给 `AI.Data`。
@@ -29,7 +29,7 @@
 4. 需要进场自动启动时保持 `awakeStart` 开启；需要树结束后循环执行时保持 `autoRestart` 开启。
 5. 运行中可以通过 AI 组件右键菜单或 Inspector 控制启动、重载、暂停、继续和结束。
 
-### 创建第一棵树
+## 创建第一棵树
 
 1. 在 AI Editor 中选择或创建一个 `BehaviourTreeData`。
 2. 如果还没有根节点，创建一个流程节点作为 head，例如 `Sequence`、`Decision` 或 `Loop`。

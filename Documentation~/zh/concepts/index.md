@@ -1,8 +1,8 @@
 # 核心概念
 
-## 重要概念
+在 Aethiumian.AI 中，行为树以资产的形式编写，由组件转换为运行时实例，再在调用栈上逐个节点执行。本页介绍每个部分；如何在自己的代码中驱动它们，见[运行时集成](../runtime-integration/index.md)。
 
-### AI (MonoBehaviour)
+## AI (MonoBehaviour)
 
 [Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/AI.cs)
 
@@ -17,7 +17,7 @@
 
 `AI` 的 Inspector 和组件右键菜单提供运行时控制入口，包括 `Start Behaviour Tree`、`Reload Behaviour Tree`、`Pause`、`Resume`、`End`。`AI.IsPaused` 只控制 Unity 自动生命周期转发，不会冻结物理、协程或动画。
 
-### BehaviourTreeData (ScriptableObject)
+## BehaviourTreeData (ScriptableObject)
 
 [Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Tree/BehaviourTreeData.cs)
 
@@ -31,13 +31,13 @@
 
 请优先通过 AI Editor 编辑该资产。Inspector 里的序列化字段主要用于调试；Inspector 顶部提供 `Open AI Editor` 按钮，可以直接打开当前资产。
 
-### AIEditorWindow (Editor Window)
+## AIEditorWindow (Editor Window)
 
 [Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Editor/AIEditorWindow/AIEditorWindow.cs)
 
-AI Editor 的入口是 `Window/Aethiumian AI/AI Editor`。窗口外层使用 UI Toolkit，提供行为树选择栏、Nodes、Graph、Variables、Properties 四个页面标签、锁定选择按钮和维护工具。Nodes、Variables、Properties 仍通过 Unity 官方支持的 `IMGUIContainer` 承载；Graph 使用自研 UI Toolkit canvas，并只为单个选中节点建立 IMGUI 属性面板。Graph 现在支持中键或 Alt+左键平移、缩放、单选与框选多选、成组拖动布局、节点搜索与创建、从兼容端口插入并连接、批量删除与复制、共享子图 clipboard 粘贴、右键菜单和显式 Auto Layout。Sequence、Parallel 等控制流节点显示为带有有序输出端口的紧凑分发门，Decision、Condition、Probability 等显示为分支门，Service 及其子树位于宿主侧轨，只有 Action、Call 等普通节点保留卡片形态。Graph 坐标保存在独立的版本化编辑器布局中，生命周期命令会保留已有节点坐标，只为新节点写入位置；打开或刷新行为树不会产生 asset diff。Graph 已支持 Entrance/Exit 边界、Set as Head 和有序引用 Reorder；已有的 Service→Service 数据仍可读取，但编辑器不允许再创建或替换出新的 Service→Service 引用。编辑器偏好设置可以从 `Edit/Preferences/Aethiumian AI/AI Editor` 打开，也可以通过 AI Editor 工具栏里的 `Settings` 按钮跳转。打开指定 `BehaviourTreeData` 时会复用该 tree 已有的 editor window，不同 tree 可以同时打开在不同窗口中。节点 clipboard 在所有 AI Editor 窗口之间共享，因此可以跨 tree 复制粘贴节点。没有选中行为树时，可以在窗口中使用 `Create New Behaviour Tree` 创建新资产；如果当前 Unity Selection 是 GameObject，编辑器会尝试给它添加或复用 `AI` 组件并绑定新资产。
+AI Editor 用于编写 `BehaviourTreeData` 资产，每棵树在各自的窗口中打开。页面和操作见 [AI 编辑器](../editor/index.md)。
 
-### BehaviourTree (Runtime Class)
+## BehaviourTree (Runtime Class)
 
 [Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Tree/BehaviourTree.cs)
 
@@ -45,13 +45,13 @@ AI Editor 的入口是 `Window/Aethiumian AI/AI Editor`。窗口外层使用 UI 
 
 行为树不会直接运行资产中的节点实例，因此运行时状态应放在运行时节点、变量或组件上，而不是假设资产节点本身会被修改。
 
-### NodeCallStack
+## NodeCallStack
 
 [Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Tree/BehaviourTree.NodeCallStack.cs)
 
 `NodeCallStack` 是实际执行栈。它负责推进当前节点、接收子节点返回值、等待 Action、处理中断和结束。主行为由 main stack 执行；Service 和 `Parallel` 等辅助分支会使用额外的 stack。
 
-### TreeNode (Class)
+## TreeNode (Class)
 
 [Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/TreeNode.cs)
 
@@ -61,38 +61,10 @@ AI Editor 的入口是 `Window/Aethiumian AI/AI Editor`。窗口外层使用 UI 
 - `false`：节点失败或判断为假。
 - `Yield` / `NONE_RETURN`：节点尚未给出最终返回值，行为树会继续等待或在后续帧推进。
 
-#### 头(根节点)
+### 头(根节点)
 
 根节点由 `BehaviourTreeData.headNodeUUID` 指定。每次行为树启动时，主执行栈都会从根节点开始。
 
-### Variable 变量
+## Variable 变量
 
-变量定义位于 [VariableType](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Fields/Variables/VariableType.cs)。当前主要变量类型如下：
-
-| 类型                 | VariableType  | 作用           |
-| :------------------- | :------------ | :------------- |
-| `string`             | `String`      | 文本           |
-| `int`                | `Int`         | 整数           |
-| `float`              | `Float`       | 小数           |
-| `bool`               | `Bool`        | 状态           |
-| `Vector2`            | `Vector2`     | 二维向量       |
-| `Vector3`            | `Vector3`     | 三维向量       |
-| `Vector4` / `Color`  | `Vector4`     | 四维向量或颜色 |
-| `UnityEngine.Object` | `UnityObject` | Unity 对象引用 |
-| `object`             | `Generic`     | 任意对象       |
-
-`Invalid` 和 `Node` 是内部/隐藏类型，通常不在普通变量表中手动选择。
-
-同一个行为树中不允许出现同名变量，即使类型不同。变量的初始定义来自资产，运行时 `BehaviourTree` 会为执行实例构建变量表；节点可以读取、写入或引用这些运行时变量。
-
-Variable 在节点字段中常见的几种写法：
-
-| 声明                       | 解释                                       |
-| :------------------------- | :----------------------------------------- |
-| `float`                    | 固定常量                                   |
-| `VariableField<float>`     | float 变量或常量                           |
-| `VariableReference<float>` | float 变量引用                             |
-| `VariableField`            | 任意变量或常量，实际可用类型由节点逻辑决定 |
-| `VariableReference`        | 任意变量引用，实际可用类型由节点逻辑决定   |
-
-即使 Non-Generic 字段允许选择任意变量，节点自身仍可能只支持某些类型。例如布尔运算节点不能把 `string` 当作布尔参数使用。
+每棵树声明一张带名称和类型的变量表。运行时 `BehaviourTree` 会根据资产构建自己的变量表，节点通过 `VariableField` 和 `VariableReference` 字段读取、写入或引用这些运行时变量。支持的类型和字段写法见[变量系统](../variables/index.md)。

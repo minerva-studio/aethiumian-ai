@@ -1,8 +1,8 @@
 # Getting Started
 
-## Get Started
+This walks through creating a tree, opening it in AI Editor, and running it on a GameObject. Install the package first; see [Installation](../installation/index.md).
 
-### Create BehaviourTreeData
+## Create BehaviourTreeData
 
 There are two common ways:
 
@@ -11,7 +11,7 @@ There are two common ways:
 
 When a new asset is created from AI Editor and the current Unity Selection is a GameObject, the editor tries to add or reuse an `AI` component on that object and assign the new tree when `AI.Data` is empty.
 
-### Open AI Editor
+## Open AI Editor
 
 You can open it from:
 
@@ -21,7 +21,7 @@ You can open it from:
 
 After opening the window, choose the target `BehaviourTreeData` in the top `Behaviour Tree` object field. Reopening the same tree focuses its existing AI Editor window; opening another tree creates or focuses that tree's own window.
 
-### Bind And Run
+## Bind and run
 
 1. Add an `AI` component to the GameObject that should run the tree.
 2. Assign the `BehaviourTreeData` asset to `AI.Data`.
@@ -29,7 +29,7 @@ After opening the window, choose the target `BehaviourTreeData` in the top `Beha
 4. Keep `awakeStart` enabled when the tree should start automatically on scene entry; keep `autoRestart` enabled when the tree should loop after it ends.
 5. During Play Mode, use the AI component context menu or Inspector controls to start, reload, pause, continue, or end execution.
 
-### Create The First Tree
+## Build the first tree
 
 1. Select or create a `BehaviourTreeData` in AI Editor.
 2. If there is no root node, create a flow node as the head, such as `Sequence`, `Decision`, or `Loop`.

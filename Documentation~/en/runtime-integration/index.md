@@ -1,96 +1,87 @@
 # Runtime Integration
 
-### AI (MonoBehaviour)
+This page covers driving a behaviour tree from your own game code: setting up the `AI` component, controlling execution, and passing values into the tree. See [Core Concepts](../concepts/index.md) for what each runtime type is.
+
+## Set up the AI component
 
 [Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/AI.cs)
 
-`AI` is the runtime component attached to a GameObject. It holds a `BehaviourTreeData`, creates a runtime `BehaviourTree` in `Start()`, and forwards `Update`, `LateUpdate`, and `FixedUpdate` to the tree.
+Add an `AI` component to the GameObject that should run the tree, then set:
 
-Common fields:
+| Field | Purpose |
+| :---- | :------ |
+| `data` | The `BehaviourTreeData` asset to run. Without it, the component disables itself in `Awake`. |
+| `controlTarget` | The script that component-call nodes operate on. In the Editor, `OnValidate()` fills it from the same GameObject when the tree asset sets `targetScript`. |
+| `awakeStart` | Start the tree automatically when the object enters the scene. |
+| `autoRestart` | Start another run after the current run ends. |
 
-- `BehaviourTreeData data`: the behaviour tree asset to run.
-- `MonoBehaviour controlTarget`: the control script used by component-call nodes and component access. `OnValidate()` tries to bind it from the same GameObject according to the tree asset's `targetScript`.
-- `awakeStart`: whether to start automatically when the object enters the scene.
-- `autoRestart`: whether to start another tree run from `FixedUpdate` after the current run ends.
+The same values are available from code through `AI.Data`, `AI.ControlTarget`, and the public `awakeStart` / `autoRestart` fields.
 
-The AI Inspector and component context menu provide runtime controls such as `Start Behaviour Tree`, `Reload Behaviour Tree`, `Pause`, `Resume`, and `End`. `AI.IsPaused` gates only automatic Unity lifecycle forwarding; it does not freeze physics, coroutines, or animation.
+## Lifecycle
 
-### BehaviourTreeData (ScriptableObject)
+1. In `Start()`, the component creates a runtime `BehaviourTree` from the asset.
+2. The tree initializes asynchronously. On Unity 2023.1 or later, most of the work runs on a background thread and returns to the main thread before nodes are initialized; on WebGL it runs synchronously. A start request made before initialization finishes is kept and runs once the tree is ready.
+3. While the tree is running and the component is not paused, `Update`, `LateUpdate`, and `FixedUpdate` are forwarded to it.
+4. When a run ends and auto-restart is active, the next `FixedUpdate` starts a new run.
+5. Destroying the component ends a running tree.
 
-[Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Tree/BehaviourTreeData.cs)
+Use `AI.IsRunning` to check whether a run is in progress, and `AI.BehaviourTree.IsInitialized` to check whether initialization has finished.
 
-`BehaviourTreeData` is the behaviour tree asset. Create it through `Create/Aethiumian AI/Behaviour Tree`. It stores:
+## Control execution from code
 
-- `headNodeUUID`: root node UUID.
-- `nodes`: all serialized nodes.
-- `variables`: the tree variable table.
-- `targetScript`, `animatorController`, `prefab`: editor helper data.
-- `noActionMaximumDurationLimit`, `actionMaximumDuration`, and error-handling settings.
+| Method | Effect |
+| :----- | :----- |
+| `StartBehaviourTree()` | Start a run, using the `autoRestart` field for later runs. |
+| `Start(bool autoRestart)` | Start a run and set whether later runs restart automatically. |
+| `Reload()` | End the current run and rebuild the tree from its asset. Starts again when `autoRestart` is enabled. |
+| `Reload(BehaviourTreeData data)` / `Reload(data, bool autoRestart)` | Switch to another tree asset and rebuild. |
+| `Pause()` / `Resume()` | Stop or restore lifecycle forwarding. The execution state is kept. |
+| `End()` | End the current run. If auto-restart is active, the next `FixedUpdate` starts a new run. |
+| `End(bool autoRestart)` | End the current run and set auto-restart. Use `End(false)` to stop for good; it also cancels a pending automatic start. |
 
-Edit this asset through AI Editor whenever possible. Inspector serialization is mainly for debugging; the asset Inspector provides an `Open AI Editor` button.
+`Pause()` only stops the component from forwarding Unity callbacks to the tree. It does not freeze physics, coroutines, or animation. `Start Behaviour Tree`, `Reload Behaviour Tree`, `Pause`, `Resume`, and `End` are also available from the component's context menu in Play Mode.
 
-### AIEditorWindow (Editor Window)
+```csharp
+using Aethiumian.AI;
+using UnityEngine;
 
-[Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Editor/AIEditorWindow/AIEditorWindow.cs)
+public class EnemyAlert : MonoBehaviour
+{
+    [SerializeField] private AI ai;
 
-Open AI Editor from `Window/Aethiumian AI/AI Editor`. The outer shell uses UI Toolkit and provides the behaviour tree selector, four pages—Nodes, Graph, Variables, and Properties—a selection lock, and maintenance tools. Nodes, Variables, and Properties remain hosted by Unity's supported `IMGUIContainer`; Graph uses a custom UI Toolkit canvas and one IMGUI inspector for a single selected node. The Graph page supports middle-button or Alt-left pan, zoom, single and box multi-selection, grouped dragging, node search and creation, compatible-port insertion and connection, grouped deletion and duplication, shared subgraph clipboard commands, context menus, and explicit Auto Layout. Control-flow nodes are rendered as compact ordered distributors, branch nodes use branch-gate shapes and separate output ports, services and their subtrees use a side rail, and ordinary action/call nodes remain cards. Graph positions are stored in a separate versioned editor-only layout and lifecycle commands preserve existing coordinates while assigning positions only to new nodes; opening or refreshing a tree does not create an asset diff. Editor preferences are available from `Edit/Preferences/Aethiumian AI/AI Editor` or the AI Editor toolbar `Settings` button. Opening a specific `BehaviourTreeData` reuses the existing editor window for that tree, while different trees can be open in separate editor windows. Node clipboard content is shared between AI Editor windows so copied nodes can be pasted across trees. When no tree is selected, use `Create New Behaviour Tree` to create an asset. If the Unity Selection is a GameObject, the editor tries to add or reuse its `AI` component and assign the new tree when `AI.Data` is empty.
+    public void OnPlayerSpotted(Transform player)
+    {
+        ai.SetObject("target", player);
+        ai.SetBool("alerted", true);
+    }
 
-### BehaviourTree (Runtime Class)
+    public void OnCutsceneStarted() => ai.Pause();
+    public void OnCutsceneEnded() => ai.Resume();
+}
+```
 
-[Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Tree/BehaviourTree.cs)
+## Pass values into the tree
 
-`BehaviourTree` is the runtime instance. It clones nodes from `BehaviourTreeData`, builds UUID-to-node references, variable tables, and Unity object references, then executes through `NodeCallStack`.
+Variables are looked up by name. A tree's variables exist once initialization has finished; before that, a lookup finds nothing.
 
-The runtime tree does not execute asset node instances directly. Put runtime state in runtime nodes, variables, or components instead of assuming the asset nodes are mutated.
+- `SetVariable(name, value)` and `SetVariable<T>(name, value)` set a tree variable. The generic overload logs a warning when the name does not exist.
+- `SetBool`, `SetInt`, `SetFloat`, `SetVector2`, `SetVector3`, `SetVector4`, `SetColor`, and `SetObject` are typed shortcuts.
+- `SetGlobalVariable(name, value)` and the `SetGlobal...` shortcuts set a global variable shared by every tree. Global variables are declared in `Project Settings > Aethiumian AI > AI Settings`, stored in `Assets/Resources/AI/AISettings.asset`.
 
-### NodeCallStack
+See [Variables](../variables/index.md) for the supported types.
 
-[Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Tree/BehaviourTree.NodeCallStack.cs)
+### From animation events
 
-`NodeCallStack` is the actual execution stack. It advances the current node, receives child returns, waits for actions, handles interruptions, and ends execution. The main behaviour runs on the main stack; services and helper branches such as `Parallel` use additional stacks.
+Add an animation event that calls `AnimationEvent_SetVariable` on the `AI` component. The event's string parameter names the variable; prefix it with `#` to target a global variable. The value comes from the event parameter that matches the variable type:
 
-### TreeNode (Class)
+| Variable type | Value source |
+| :------------ | :----------- |
+| `Int` | int parameter |
+| `Float` | float parameter |
+| `Bool` | int parameter (non-zero is `true`) |
+| `UnityObject` | object parameter |
+| `Vector2` / `Vector3` / `Vector4` | text after `=` in the string parameter, such as `aim=(1, 0)` |
 
-[Code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/TreeNode.cs)
+## Errors
 
-`TreeNode` is the base class for all nodes. Node execution uses `State`, which is eventually folded into a boolean return for the parent:
-
-- `true`: the node succeeds or the condition is true.
-- `false`: the node fails or the condition is false.
-- `Yield` / `NONE_RETURN`: the node has not produced a final result yet, so the tree waits or continues in a later frame.
-
-#### head (root node)
-
-The root node is defined by `BehaviourTreeData.headNodeUUID`. Every tree run starts the main execution stack from this node.
-
-### Variable
-
-Variable definitions live in [VariableType](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Fields/Variables/VariableType.cs). The main variable types are:
-
-| Type                 | VariableType  | Use                    |
-| :------------------- | :------------ | :--------------------- |
-| `string`             | `String`      | text                   |
-| `int`                | `Int`         | integer                |
-| `float`              | `Float`       | decimal number         |
-| `bool`               | `Bool`        | state                  |
-| `Vector2`            | `Vector2`     | 2D vector              |
-| `Vector3`            | `Vector3`     | 3D vector              |
-| `Vector4` / `Color`  | `Vector4`     | 4D vector or color     |
-| `UnityEngine.Object` | `UnityObject` | Unity object reference |
-| `object`             | `Generic`     | arbitrary object       |
-
-`Invalid` and `Node` are hidden/internal types and are usually not selected manually in a normal variable table.
-
-Variables with the same name are not allowed in the same tree, even if they have different types. Initial definitions come from the asset; a runtime `BehaviourTree` builds the variable table for the executing instance. Nodes can read, write, or reference those runtime variables.
-
-Common variable field forms:
-
-| Declaration                | Meaning                                                           |
-| :------------------------- | :---------------------------------------------------------------- |
-| `float`                    | fixed constant                                                    |
-| `VariableField<float>`     | float variable or constant                                        |
-| `VariableReference<float>` | float variable reference                                          |
-| `VariableField`            | any variable or constant; actual valid types depend on node logic |
-| `VariableReference`        | any variable reference; actual valid types depend on node logic   |
-
-Even when a non-generic field allows any variable, the node itself may only support specific types. For example, a boolean arithmetic node cannot use a `string` as a boolean argument.
+`BehaviourTree.IsFaulted` reports a failed initialization or a runtime fault. The cause is in `InitializationException` or `RuntimeFault`; check the Console for the original exception. A faulted tree does not run until it is reloaded. See [Troubleshooting](../debugging/index.md).

@@ -64,6 +64,7 @@ plugins:
             Custom Nodes: 自定义节点
             Troubleshooting: 故障排查
             Development Workflow: 开发流程
+            Contributing: 参与开发
             Index: 索引页
             Base Types: 基础类型
             Actions: 行动节点
@@ -104,7 +105,6 @@ nav:
       - Runtime Integration: runtime-integration/index.md
       - Custom Nodes: custom-nodes/index.md
       - Troubleshooting: debugging/index.md
-      - Development Workflow: development/workflow.md
   - Node Reference:
       - Index: reference/index.md
       - Base Types: reference/base-types.md
@@ -246,4 +246,6 @@ nav:
           - Countdown: reference/service/countdown/index.md
           - Update: reference/service/update/index.md
       - Editor: reference/editor.md
+  - Contributing:
+      - Development Workflow: development/workflow.md
   - GitHub: https://github.com/Minerva-Studio/aethiumian-ai

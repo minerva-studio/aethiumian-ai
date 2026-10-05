@@ -1,9 +1,8 @@
 # Variables
 
-See [Timers and admission nodes](timers.md) for Timer sources, Cooldown, Throttle,
-Countdown Services, and historical name migration.
+A tree declares named, typed variables in the AI Editor's Variables page. Nodes read and write them while the tree runs, and your code can set them through the `AI` component (see [Runtime Integration](../runtime-integration/index.md#pass-values-into-the-tree)).
 
-### Variable
+## Types
 
 Variable definitions live in [VariableType](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Fields/Variables/VariableType.cs). The main variable types are:
 
@@ -21,9 +20,23 @@ Variable definitions live in [VariableType](https://github.com/minerva-studio/ae
 
 `Invalid` and `Node` are hidden/internal types and are usually not selected manually in a normal variable table.
 
-Variables with the same name are not allowed in the same tree, even if they have different types. Initial definitions come from the asset; a runtime `BehaviourTree` builds the variable table for the executing instance. Nodes can read, write, or reference those runtime variables.
+Variables with the same name are not allowed in the same tree, even if they have different types.
 
-Common variable field forms:
+## Scope
+
+Initial definitions come from the asset; each runtime `BehaviourTree` builds its own variable table when it initializes.
+
+| Scope | Shared by |
+| :---- | :-------- |
+| Local (default) | Nothing; each runtime tree has its own value. |
+| Static | Every runtime instance of the same tree asset. |
+| Global | Every tree. Declared in `Project Settings > Aethiumian AI > AI Settings`. |
+
+A local Float variable can also use a Timer source; see [Timers and admission nodes](timers.md) for Timer sources, Cooldown, Throttle, Countdown services, and historical name migration.
+
+## Variables in node fields
+
+Nodes refer to variables through these field forms:
 
 | Declaration                | Meaning                                                           |
 | :------------------------- | :---------------------------------------------------------------- |

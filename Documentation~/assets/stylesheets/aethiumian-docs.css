@@ -182,6 +182,16 @@ body,
   width: 100%;
 }
 
+/* Material's default table text (0.64rem) reads small next to body copy. */
+.md-typeset table:not([class]) {
+  font-size: 0.72rem;
+}
+
+/* Keep identifiers in the first column on one line. */
+.md-typeset table td:first-child code {
+  white-space: nowrap;
+}
+
 .md-typeset table th,
 .md-typeset table td {
   border-color: color-mix(in oklab, var(--md-default-fg-color--light) 35%, transparent);
