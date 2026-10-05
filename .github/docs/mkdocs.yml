@@ -10,6 +10,8 @@ theme:
     - navigation.tabs.sticky
     - navigation.tabs
     - navigation.top
+    - navigation.footer
+    - content.code.copy
     - toc.follow
     - search.highlight
     - search.suggest
@@ -17,14 +19,14 @@ theme:
   favicon: assets/images/ai-docs-favicon.svg
   palette:
     - scheme: default
-      primary: indigo
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to light mode
@@ -57,6 +59,7 @@ plugins:
             Core Concepts: 核心概念
             AI Editor: AI 编辑器
             Variables: 变量系统
+            Timers: 计时与准入
             Runtime Integration: 运行时集成
             Custom Nodes: 自定义节点
             Troubleshooting: 故障排查
@@ -97,6 +100,7 @@ nav:
       - Core Concepts: concepts/index.md
       - AI Editor: editor/index.md
       - Variables: variables/index.md
+      - Timers: variables/timers.md
       - Runtime Integration: runtime-integration/index.md
       - Custom Nodes: custom-nodes/index.md
       - Troubleshooting: debugging/index.md
@@ -108,15 +112,19 @@ nav:
           - Overview: reference/actions.md
           - Await: reference/actions/await/index.md
           - FixedJump: reference/actions/fixed-jump/index.md
+          - Fly: reference/actions/fly/index.md
           - FunctionAction: reference/actions/function-action/index.md
           - Idle: reference/actions/idle/index.md
+          - Jump: reference/actions/jump/index.md
           - ObjectAction: reference/actions/object-action/index.md
           - PlayAnimationWait: reference/actions/play-animation-wait/index.md
           - ScriptStartCoroutine: reference/actions/script-start-coroutine/index.md
+          - Sprint: reference/actions/sprint/index.md
           - Stop: reference/actions/stop/index.md
           - Subtree: reference/actions/subtree/index.md
           - WaitForAnimationEnd: reference/actions/wait-for-animation-end/index.md
           - WaitForDestroy: reference/actions/wait-for-destroy/index.md
+          - Walk: reference/actions/walk/index.md
       - Arithmetic:
           - Overview: reference/arithmetic.md
           - Absolute: reference/arithmetic/absolute/index.md
@@ -128,22 +136,28 @@ nav:
           - Arctangent2: reference/arithmetic/arctangent-2/index.md
           - Assign: reference/arithmetic/assign/index.md
           - Boolean: reference/arithmetic/boolean/index.md
+          - Ceil: reference/arithmetic/ceil/index.md
           - Compare: reference/arithmetic/compare/index.md
           - Constant: reference/arithmetic/constant/index.md
           - Copy: reference/arithmetic/copy/index.md
           - Cosine: reference/arithmetic/cosine/index.md
           - CreateVector2: reference/arithmetic/create-vector-2/index.md
           - CreateVector3: reference/arithmetic/create-vector-3/index.md
+          - CreateVector4: reference/arithmetic/create-vector-4/index.md
           - Cross: reference/arithmetic/cross/index.md
           - DirectionTo: reference/arithmetic/direction-to/index.md
           - Divide: reference/arithmetic/divide/index.md
           - Dot: reference/arithmetic/dot/index.md
+          - Floor: reference/arithmetic/floor/index.md
           - Magnitude: reference/arithmetic/magnitude/index.md
+          - Max: reference/arithmetic/max/index.md
+          - Min: reference/arithmetic/min/index.md
           - Multiply: reference/arithmetic/multiply/index.md
           - Normalize: reference/arithmetic/normalize/index.md
           - Not: reference/arithmetic/not/index.md
           - Or: reference/arithmetic/or/index.md
           - Random: reference/arithmetic/random/index.md
+          - Round: reference/arithmetic/round/index.md
           - SetVector: reference/arithmetic/set-vector/index.md
           - SignChange: reference/arithmetic/sign-change/index.md
           - Sine: reference/arithmetic/sine/index.md
@@ -170,6 +184,7 @@ nav:
           - GetComponentValue: reference/calls/get-component-value/index.md
           - GetObjectValue: reference/calls/get-object-value/index.md
           - Instantiate: reference/calls/instantiate/index.md
+          - MotionFlip: reference/calls/motion-flip/index.md
           - ObjectCall: reference/calls/object-call/index.md
           - PlayAnimation: reference/calls/play-animation/index.md
           - Raycast: reference/calls/raycast/index.md
@@ -195,15 +210,20 @@ nav:
           - NameOfGameObject: reference/determines/name-of-game-object/index.md
           - Position: reference/determines/position/index.md
           - RaycastDistance: reference/determines/raycast-distance/index.md
+          - ValueChanged: reference/determines/value-changed/index.md
       - Decorators:
           - Overview: reference/decorator.md
           - Always: reference/decorator/always/index.md
           - Capture: reference/decorator/capture/index.md
+          - Cooldown: reference/decorator/cooldown/index.md
           - Inverter: reference/decorator/inverter/index.md
           - ResultChanged: reference/decorator/result-changed/index.md
           - Repeat: reference/decorator/repeat/index.md
+          - Retry: reference/decorator/retry/index.md
+          - Throttle: reference/decorator/throttle/index.md
       - Flow:
           - Overview: reference/flow.md
+          - Aggregate: reference/flow/aggregate/index.md
           - Condition: reference/flow/condition/index.md
           - Decision: reference/flow/decision/index.md
           - ForEach: reference/flow/for-each/index.md
