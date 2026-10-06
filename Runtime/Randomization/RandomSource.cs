@@ -259,37 +259,37 @@ namespace Aethiumian.AI.Randomization
 
         private int CreateGlobalSeedSalt(RandomSourceAsset asset)
         {
-            return HashSeed((int)RandomSourceScope.Global, GetUnityObjectId(asset));
+            return HashSeed((int)RandomSourceScope.Global, GetUnityObjectHash(asset));
         }
 
         private int CreateTreeEntrySeedSalt(RandomSourceAsset asset)
         {
-            return HashSeed((int)RandomSourceScope.Entry, treeInstanceId, treeRunId, GetUnityObjectId(asset));
+            return HashSeed((int)RandomSourceScope.Entry, treeInstanceId, treeRunId, GetUnityObjectHash(asset));
         }
 
         private int CreateTreeLocalSeedSalt(RandomSourceAsset asset)
         {
-            return HashSeed((int)RandomSourceScope.Local, treeInstanceId, GetUnityObjectId(asset));
+            return HashSeed((int)RandomSourceScope.Local, treeInstanceId, GetUnityObjectHash(asset));
         }
 
         private int CreateTreeStaticSeedSalt(RandomSourceAsset asset)
         {
-            return HashSeed((int)RandomSourceScope.Static, GetUnityObjectId(tree.Prototype), GetUnityObjectId(asset));
+            return HashSeed((int)RandomSourceScope.Static, GetUnityObjectHash(tree.Prototype), GetUnityObjectHash(asset));
         }
 
         private int CreateNodeEntrySeedSalt(TreeNode node, RandomSourceAsset asset)
         {
-            return HashSeed((int)RandomSourceScope.Entry, treeInstanceId, GetNodeId(node), GetNodeActivationId(node), GetUnityObjectId(asset));
+            return HashSeed((int)RandomSourceScope.Entry, treeInstanceId, GetNodeId(node), GetNodeActivationId(node), GetUnityObjectHash(asset));
         }
 
         private int CreateNodeLocalSeedSalt(TreeNode node, RandomSourceAsset asset)
         {
-            return HashSeed((int)RandomSourceScope.Local, treeInstanceId, GetNodeId(node), GetUnityObjectId(asset));
+            return HashSeed((int)RandomSourceScope.Local, treeInstanceId, GetNodeId(node), GetUnityObjectHash(asset));
         }
 
         private int CreateNodeStaticSeedSalt(TreeNode node, RandomSourceAsset asset)
         {
-            return HashSeed((int)RandomSourceScope.Static, GetUnityObjectId(tree.Prototype), GetPrototypeNodeUUID(node).GetHashCode(), GetUnityObjectId(asset));
+            return HashSeed((int)RandomSourceScope.Static, GetUnityObjectHash(tree.Prototype), GetPrototypeNodeUUID(node).GetHashCode(), GetUnityObjectHash(asset));
         }
 
         private int GetNodeActivationId(TreeNode node)
@@ -313,7 +313,8 @@ namespace Aethiumian.AI.Randomization
             return node?.Prototype != null ? node.Prototype.UUID : node?.UUID ?? UUID.Empty;
         }
 
-        private static int GetUnityObjectId(UnityEngine.Object unityObject)
+        /// <summary>Session-local identity hash of a Unity object; 0 for null or destroyed objects. Not unique and not stable across sessions.</summary>
+        private static int GetUnityObjectHash(UnityEngine.Object unityObject)
         {
             return unityObject ? unityObject.GetEntityId().GetHashCode() : 0;
         }
@@ -355,7 +356,7 @@ namespace Aethiumian.AI.Randomization
 
             public override int GetHashCode()
             {
-                return HashSeed(RuntimeHelpers.GetHashCode(Node), GetUnityObjectId(source));
+                return HashSeed(RuntimeHelpers.GetHashCode(Node), GetUnityObjectHash(source));
             }
         }
 
@@ -382,7 +383,7 @@ namespace Aethiumian.AI.Randomization
 
             public override int GetHashCode()
             {
-                return HashSeed(GetUnityObjectId(treeData), GetUnityObjectId(source));
+                return HashSeed(GetUnityObjectHash(treeData), GetUnityObjectHash(source));
             }
         }
 
@@ -411,7 +412,7 @@ namespace Aethiumian.AI.Randomization
 
             public override int GetHashCode()
             {
-                return HashSeed(GetUnityObjectId(treeData), prototypeNodeUUID.GetHashCode(), GetUnityObjectId(source));
+                return HashSeed(GetUnityObjectHash(treeData), prototypeNodeUUID.GetHashCode(), GetUnityObjectHash(source));
             }
         }
 
