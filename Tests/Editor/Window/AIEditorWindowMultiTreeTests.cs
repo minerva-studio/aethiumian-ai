@@ -18,7 +18,7 @@ namespace Aethiumian.AI.Editor.Tests.Window
         private readonly List<AIInspector> openedInspectors = new();
         private readonly List<BehaviourTreeData> createdTrees = new();
         private readonly List<GameObject> createdGameObjects = new();
-        private readonly HashSet<int> baselineWindowIds = new();
+        private readonly HashSet<EntityId> baselineWindowIds = new();
 
         [SetUp]
         public void SetUp()
@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Editor.Tests.Window
             {
                 if (window)
                 {
-                    baselineWindowIds.Add(window.GetInstanceID());
+                    baselineWindowIds.Add(window.GetEntityId());
                 }
             }
         }
@@ -122,7 +122,7 @@ namespace Aethiumian.AI.Editor.Tests.Window
             yield return null;
 
             AIEditorWindow[] leaked = Resources.FindObjectsOfTypeAll<AIEditorWindow>()
-                .Where(window => window && !baselineWindowIds.Contains(window.GetInstanceID()))
+                .Where(window => window && !baselineWindowIds.Contains(window.GetEntityId()))
                 .ToArray();
             Assert.That(leaked, Is.Empty);
         }
