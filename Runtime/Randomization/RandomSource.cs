@@ -315,7 +315,7 @@ namespace Aethiumian.AI.Randomization
 
         private static int GetUnityObjectId(UnityEngine.Object unityObject)
         {
-            return unityObject ? unityObject.GetInstanceID() : 0;
+            return unityObject ? unityObject.GetEntityId().GetHashCode() : 0;
         }
 
         private static int HashSeed(params int[] values)

@@ -235,7 +235,12 @@ namespace Aethiumian.AI.Editor
             AdvancedDropdownItem existingRoot = new("Existing Nodes");
             AddExistingEntries(existingRoot, nodes.Where(reachable.Contains));
             AddExistingGroup(existingRoot, "Non-reachables", nodes.Where(node => !reachable.Contains(node)));
+#if UNITY_6000_7_OR_NEWER
+            // AdvancedDropdownItem.children is a compile error from Unity 6.7; childList does not exist before it.
+            if (existingRoot.childList.Any())
+#else
             if (existingRoot.children.Any())
+#endif
             {
                 root.AddChild(existingRoot);
             }

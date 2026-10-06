@@ -233,7 +233,12 @@ namespace Aethiumian.AI.Editor
 
         private static void AddSection(AdvancedDropdownItem root, AdvancedDropdownItem section)
         {
+#if UNITY_6000_7_OR_NEWER
+            // AdvancedDropdownItem.children is a compile error from Unity 6.7; childList does not exist before it.
+            if (section?.childList.Count() > 0)
+#else
             if (section?.children.Count() > 0)
+#endif
             {
                 root.AddChild(section);
             }

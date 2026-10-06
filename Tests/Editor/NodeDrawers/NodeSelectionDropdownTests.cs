@@ -41,14 +41,14 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
 
             AdvancedDropdownItem root = BuildRoot(dropdown);
             List<string> names = Flatten(root).Select(item => item.name).ToList();
-            AdvancedDropdownItem existingRoot = root.children.First(item => item.name == "Existing Nodes");
-            List<AdvancedDropdownItem> existingChildren = existingRoot.children.ToList();
+            AdvancedDropdownItem existingRoot = ChildrenOf(root).First(item => item.name == "Existing Nodes");
+            List<AdvancedDropdownItem> existingChildren = ChildrenOf(existingRoot).ToList();
 
             Assert.That(root.name, Is.EqualTo("Nodes"));
             Assert.That(names, Does.Contain("Existing Nodes"));
-            Assert.That(existingRoot.children.Select(item => item.name), Is.EqualTo(new[] { "Head — Sequence", "Non-reachables" }));
-            Assert.That(existingRoot.children.Select(item => item.name), Does.Not.Contain("Reachables"));
-            Assert.That(existingChildren[1].children.Select(item => item.name), Is.EqualTo(new[] { "Orphan — Sequence" }));
+            Assert.That(ChildrenOf(existingRoot).Select(item => item.name), Is.EqualTo(new[] { "Head — Sequence", "Non-reachables" }));
+            Assert.That(ChildrenOf(existingRoot).Select(item => item.name), Does.Not.Contain("Reachables"));
+            Assert.That(ChildrenOf(existingChildren[1]).Select(item => item.name), Is.EqualTo(new[] { "Orphan — Sequence" }));
             Assert.That(names, Does.Contain("Control Flow"));
         }
 
@@ -63,13 +63,13 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
 
             AdvancedDropdownItem root = BuildRoot(dropdown);
             List<string> names = Flatten(root).Select(item => item.name).ToList();
-            AdvancedDropdownItem existingRoot = root.children.First(item => item.name == "Existing Nodes");
+            AdvancedDropdownItem existingRoot = ChildrenOf(root).First(item => item.name == "Existing Nodes");
             string existingServiceName = "Existing Service — "+NodeMenuCache.Shared.GetDisplayName(serviceType);
 
             Assert.That(root.name, Is.EqualTo("Services"));
             Assert.That(names, Does.Contain("Existing Nodes"));
-            Assert.That(existingRoot.children.Select(item => item.name), Is.EqualTo(new[] { existingServiceName }));
-            Assert.That(existingRoot.children.Select(item => item.name), Does.Not.Contain("Reachables"));
+            Assert.That(ChildrenOf(existingRoot).Select(item => item.name), Is.EqualTo(new[] { existingServiceName }));
+            Assert.That(ChildrenOf(existingRoot).Select(item => item.name), Does.Not.Contain("Reachables"));
             Assert.That(names, Does.Contain(NodeMenuCache.Shared.GetDisplayName(serviceType)));
             Assert.That(names, Does.Not.Contain("Control Flow"));
         }
@@ -106,7 +106,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             List<string> names = Flatten(root).Select(item => item.name).ToList();
 
             Assert.That(root.name, Is.EqualTo("Select Existing Node"));
-            Assert.That(root.children.Select(item => item.name), Is.EqualTo(new[] { "Head — Sequence", "Non-reachables" }));
+            Assert.That(ChildrenOf(root).Select(item => item.name), Is.EqualTo(new[] { "Head — Sequence", "Non-reachables" }));
             Assert.That(names, Does.Not.Contain("Existing Nodes"));
             Assert.That(names, Does.Not.Contain("Reachables"));
             Assert.That(names, Does.Not.Contain("Control Flow"));
@@ -242,10 +242,21 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             itemSelected.Invoke(dropdown, new object[] { item });
         }
 
+        /// <summary>Returns the direct children of a dropdown item across Unity versions.</summary>
+        private static IEnumerable<AdvancedDropdownItem> ChildrenOf(AdvancedDropdownItem item)
+        {
+#if UNITY_6000_7_OR_NEWER
+            // AdvancedDropdownItem.children is a compile error from Unity 6.7; childList does not exist before it.
+            return item.childList;
+#else
+            return item.children;
+#endif
+        }
+
         private static IEnumerable<AdvancedDropdownItem> Flatten(AdvancedDropdownItem item)
         {
             yield return item;
-            foreach (AdvancedDropdownItem child in item.children)
+            foreach (AdvancedDropdownItem child in ChildrenOf(item))
             {
                 foreach (AdvancedDropdownItem descendant in Flatten(child))
                 {
