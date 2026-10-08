@@ -42,6 +42,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Corrected dynamic numeric variable-field conversions and nested-condition behavior.
 - Corrected graph entrance attachment and interactions, service-hosting constraints, creation-palette navigation, and selection behavior.
 - Ground jump planning keeps a flight margin of two Physics2D contact offsets around geometry away from the launch and landing supports, so planned jumps no longer graze obstacle corners or depend on the host project's Physics2D solver iterations.
+- Fly planning accepts a body resting within one Physics2D contact offset inside the support below it, and a single Fly step leaves from the nearest clear lattice cell as full search does, so a flyer resting on a floor no longer fails to start when its center sits just below a lattice row boundary.
 
 ### Deprecated
 

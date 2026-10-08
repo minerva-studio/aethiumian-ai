@@ -147,6 +147,13 @@ namespace Aethiumian.AI.Navigation
         public static float SupportResidual => ContactGap + Epsilon;
 
         /// <summary>
+        /// Depth by which a physical body may overlap the support below it and still count as clear.
+        /// Physics leaves a body at rest within one contact gap of its support, so a clearance query taken
+        /// from a resting pose must not read that overlap as embedded geometry.
+        /// </summary>
+        public static float SupportContactTolerance => ContactGap + Epsilon;
+
+        /// <summary>
         /// Guard for float noise in navigation comparisons.
         /// </summary>
         public const float Epsilon = 0.0001f;

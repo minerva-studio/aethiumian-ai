@@ -152,11 +152,11 @@ namespace Aethiumian.AI.Navigation
             return QueueWork(new PendingRequest<FlyNavigationPlanner, FlyNavigationParameters>(body, goalRequest, parameters, extent), cancellationToken);
         }
 
-        /// <summary>Checks a body-clear aerial sweep against the published immutable world.</summary>
+        /// <summary>Checks a body-clear aerial sweep against the published immutable world, as the fly planner does.</summary>
         public bool IsBodyClearFlySegment(AABB startBody, Vector2 displacement)
         {
             ThrowIfDisposed();
-            return world != null && world.IsBodyPathClear(startBody, displacement, 0f);
+            return world != null && world.IsBodyPathClear(startBody, displacement, NavigationConstant.SupportContactTolerance);
         }
 
         /// <summary>Cancels pending requests and releases the published world at the Map cleanup boundary.</summary>

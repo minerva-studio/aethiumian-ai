@@ -978,6 +978,62 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(result.Route.HasValue, Is.False);
         }
 
+        /// <summary>
+        /// Verifies a Fly body resting slightly inside its support, as physics leaves a body at rest,
+        /// still plans around an obstacle from its real center, both as a full search and as one step.
+        /// </summary>
+        [Test]
+        public void FlyPlannerStartsFromBodyRestingInSupportContact()
+        {
+            TestNavigationWorld world = new(new AABBInt(0, 0, 7, 5),
+                new List<Vector2Int>(Floor(0, 7)) { new(3, 1) }, Array.Empty<Vector2Int>());
+            FlyNavigationPlanner planner = new(world, 128);
+            Vector2 bodySize = new(0.6f, 0.6f);
+            AABB body = AABB.FromLowerCenter(new Vector2(1.5f, 1f - NavigationConstant.SupportContactTolerance * 0.5f), bodySize);
+            NavigationGoalRequest goal = Goal(new Vector2(5.5f, 1.5f), 0.1f);
+            Assert.That(world.IsBodyClear(body, 0f), Is.False, "The start must overlap its support.");
+
+            Assert.That(planner.TryPlan(body, goal, new FlyNavigationParameters(), out NavigationRoute route), Is.True);
+            Assert.That(route.Start, Is.EqualTo(body.Center));
+            Assert.That(route.Count, Is.GreaterThan(1), "The obstacle must force a lattice search.");
+
+            NavigationPlanResult step = planner.PlanSingleStep(body, goal, new FlyNavigationParameters());
+            Assert.That(step.Route.HasValue, Is.True);
+            Assert.That(step.Route.Start, Is.EqualTo(body.Center));
+        }
+
+        /// <summary>Verifies a Fly body embedded deeper than a resting contact is still rejected.</summary>
+        [Test]
+        public void FlyPlannerRejectsStartEmbeddedBeyondRestingContact()
+        {
+            TestNavigationWorld world = new(new AABBInt(0, 0, 7, 5), Floor(0, 7), Array.Empty<Vector2Int>());
+            AABB body = AABB.FromLowerCenter(new Vector2(1.5f, 1f - NavigationConstant.SupportContactTolerance * 2f), new Vector2(0.6f, 0.6f));
+
+            NavigationPlanResult result = new FlyNavigationPlanner(world, 128).Plan(
+                body, Goal(new Vector2(5.5f, 1.5f), 0.1f), new FlyNavigationParameters());
+
+            Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
+        }
+
+        /// <summary>
+        /// Verifies a Fly single step leaves from the nearest clear lattice cell. A body resting on the
+        /// floor with its center just below a row boundary sits in a cell whose row it does not fit.
+        /// </summary>
+        [Test]
+        public void FlyPlannerSingleStepStepsFromClearConnectorCell()
+        {
+            TestNavigationWorld world = new(new AABBInt(0, 0, 7, 5),
+                new List<Vector2Int>(Floor(0, 7)) { new(3, 2) }, Array.Empty<Vector2Int>());
+            AABB body = AABB.FromLowerCenter(new Vector2(1.5f, 1f), new Vector2(0.6f, 1.98f));
+            NavigationGoalRequest goal = Goal(new Vector2(5.5f, body.Center.y), 0.1f);
+
+            NavigationPlanResult step = new FlyNavigationPlanner(world, 128).PlanSingleStep(body, goal, new FlyNavigationParameters());
+
+            Assert.That(step.Route.HasValue, Is.True);
+            Assert.That(step.Route.Start, Is.EqualTo(body.Center));
+            Assert.That(step.Route.Endpoint, Is.EqualTo(new Vector2(2.5f, 2.5f)));
+        }
+
         [Test]
         public void FlyGoalResolutionObservesCancellationAfterClearanceQuery()
         {

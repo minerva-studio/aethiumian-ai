@@ -87,9 +87,11 @@ namespace Aethiumian.AI.Navigation
             }
             if (World.IsGoalComplete(goal, CenteredBody(direct, bodySize)) && LocalStepAllowed(start, direct, goal, parameters, bodySize))
                 return NavigationPlanResult.ResultProduced(NavigationRoute.CreateSingleSegment(new FlyRouteSegment(start, direct), true));
+            // Step from the connector cell, as full search does: the cell containing the center can lie in a
+            // row the body does not fit, as when a resting body's center sits just below a row boundary.
+            if (!TryFindConnectorCell(World, start, bodySize, out Vector2Int cell)) return NavigationPlanResult.NoResult;
             Vector2? best = null;
             float bestDistance = goal.GuidanceDistance(body);
-            Vector2Int cell = ToLattice(World, start);
             foreach (Vector2Int direction in Directions)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -111,13 +113,16 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Expresses one center-space fly position as the body box the world queries expect.</summary>
         private static AABB CenteredBody(Vector2 center, Vector2 bodySize) => AABB.FromCenterAndSize(center, bodySize);
 
-        /// <summary>Checks one center-space fly position against captured solid geometry.</summary>
+        /// <summary>
+        /// Checks one center-space fly position against captured solid geometry. A body resting on its
+        /// support is clear; the overlap allowed is within the fly executor's arrival distance.
+        /// </summary>
         private static bool IsFlyBodyClear(INavigationWorld world, Vector2 center, Vector2 bodySize)
-            => world.IsBodyClear(CenteredBody(center, bodySize), 0f);
+            => world.IsBodyClear(CenteredBody(center, bodySize), NavigationConstant.SupportContactTolerance);
 
         /// <summary>Checks one center-space fly sweep against captured solid geometry.</summary>
         private static bool IsFlyBodyPathClear(INavigationWorld world, Vector2 start, Vector2 end, Vector2 bodySize)
-            => world.IsBodyPathClear(CenteredBody(start, bodySize), end - start, 0f);
+            => world.IsBodyPathClear(CenteredBody(start, bodySize), end - start, NavigationConstant.SupportContactTolerance);
 
         private bool LocalStepAllowed(Vector2 start, Vector2 end, NavigationGoalRequest goal, FlyNavigationParameters parameters, Vector2 bodySize)
             => IsFlyBodyClear(World, end, bodySize)
