@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
@@ -13,29 +12,9 @@ namespace Aethiumian.AI.Navigation
     public static class NavigationWorldQueries
     {
         public const float GeometryEpsilon = NavigationConstant.Epsilon;
-        private static float supportSnapDistance;
-        private static int supportSnapDistanceCaptured;
 
-        /// <summary>
-        /// Gets the standard support distance captured from the Unity physics policy.
-        /// The cached managed value keeps background planning from reading Unity physics state.
-        /// </summary>
-        public static float SupportSnapDistance
-        {
-            get
-            {
-                CaptureSupportSnapDistance();
-                return supportSnapDistance;
-            }
-        }
-
-        /// <summary>Captures Unity physics policy on the main-thread owner boundary.</summary>
-        internal static void CaptureSupportSnapDistance()
-        {
-            if (Volatile.Read(ref supportSnapDistanceCaptured) != 0) return;
-            supportSnapDistance = NavigationConstant.SupportSnap;
-            Volatile.Write(ref supportSnapDistanceCaptured, 1);
-        }
+        /// <summary>Gets the standard support distance; see <see cref="NavigationConstant.SupportSnap"/>.</summary>
+        public static float SupportSnapDistance => NavigationConstant.SupportSnap;
 
         /// <summary>Finds physical support among candidates selected by the caller's terrain filter.</summary>
         public static bool TryGetGroundSupportPoint(Collider2D bodyCollider, ContactFilter2D supportFilter, out Vector2 supportPoint)

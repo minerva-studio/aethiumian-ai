@@ -44,8 +44,7 @@ namespace Aethiumian.AI.Navigation
         {
             if (groundExpansionLimit <= 0) throw new ArgumentOutOfRangeException(nameof(groundExpansionLimit));
             if (flyExpansionLimit <= 0) throw new ArgumentOutOfRangeException(nameof(flyExpansionLimit));
-            NavigationWorldQueries.CaptureSupportSnapDistance();
-            GroundTraversalEndpointPolicy.CaptureVerticalSupportTolerance();
+            NavigationConstant.CapturePhysicsPolicy();
             this.groundExpansionLimit = groundExpansionLimit;
             this.flyExpansionLimit = flyExpansionLimit;
             PhysicsLayers = physicsLayers;

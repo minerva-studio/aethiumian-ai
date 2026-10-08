@@ -1,3 +1,4 @@
+using System.Threading;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
@@ -105,10 +106,32 @@ namespace Aethiumian.AI.Navigation
 
         // Error tolerances.
 
+        private static float contactGap;
+        private static int contactGapCaptured;
+
         /// <summary>
-        /// Contact offset Unity keeps between two resting colliders. Read from physics, not authored.
+        /// Contact offset Unity keeps between two resting colliders. Read from physics, not authored. The
+        /// value is captured on the main thread so background planning never reads Unity physics state;
+        /// it is the only physics input, and every tolerance below derives from it.
         /// </summary>
-        public static float ContactGap => Physics2D.defaultContactOffset;
+        public static float ContactGap
+        {
+            get
+            {
+                if (Volatile.Read(ref contactGapCaptured) == 0) CapturePhysicsPolicy();
+                return contactGap;
+            }
+        }
+
+        /// <summary>
+        /// Re-reads the Unity physics policy behind <see cref="ContactGap"/>. Main thread only; a navigation
+        /// runtime calls it on creation so a changed physics setting reaches the next runtime.
+        /// </summary>
+        internal static void CapturePhysicsPolicy()
+        {
+            contactGap = Physics2D.defaultContactOffset;
+            Volatile.Write(ref contactGapCaptured, 1);
+        }
 
         /// <summary>
         /// How far a probed anchor may sit from the support surface and still resolve to it. Covers the
