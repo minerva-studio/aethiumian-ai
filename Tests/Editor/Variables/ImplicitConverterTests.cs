@@ -7,6 +7,154 @@ namespace Aethiumian.AI.Editor.Tests.Variables
 {
     public sealed class ImplicitConverterTests
     {
+        [TestCase(typeof(int), typeof(float), true)]
+        [TestCase(typeof(float), typeof(int), true)]
+        [TestCase(typeof(string), typeof(float), false)]
+        [TestCase(typeof(float), typeof(string), true)]
+        [TestCase(typeof(float), typeof(Vector2), true)]
+        [TestCase(typeof(Vector2), typeof(float), false)]
+        [TestCase(typeof(LayerMask), typeof(int), true)]
+        [TestCase(typeof(int), typeof(LayerMask), true)]
+        [TestCase(typeof(TestEnum), typeof(int), true)]
+        [TestCase(typeof(string), typeof(TestEnum), true)]
+        [TestCase(typeof(GameObject), typeof(TestComponent), true)]
+        [TestCase(typeof(CustomStruct), typeof(CustomStruct), true)]
+        public void TypeQueriesReportRuntimeRuleSupport(Type source, Type target, bool supported)
+        {
+            Assert.That(ConversionRegistry.CanConvert(source, target), Is.EqualTo(supported));
+            ConversionDefinition definition = ConversionRegistry.Find(source, target);
+            Assert.That(definition != null, Is.EqualTo(supported));
+            if (supported) Assert.That(definition.Matches(source, target), Is.True);
+        }
+
+        [TestCase(typeof(float), typeof(int), "fractional")]
+        [TestCase(typeof(int), typeof(float), "precision")]
+        [TestCase(typeof(Vector3), typeof(Vector2), "discard Z")]
+        [TestCase(typeof(float), typeof(Vector2), "X and Y")]
+        [TestCase(typeof(object), typeof(float), "runtime type")]
+        [TestCase(typeof(GameObject), typeof(TestComponent), "missing component")]
+        [TestCase(typeof(CustomStruct), typeof(CustomStruct), "unchanged")]
+        [TestCase(typeof(string), typeof(TestEnum), "invalid text")]
+        [TestCase(typeof(TestEnum), typeof(int), "underlying enum")]
+        public void MatchedDefinitionsExplainTheSelectedOperation(Type source, Type target, string explanation)
+        {
+            ConversionDefinition definition = ConversionRegistry.Find(source, target);
+            Assert.That(definition, Is.Not.Null);
+            Assert.That(definition.Describe(source, target), Does.Contain(explanation));
+        }
+
+        [TestCase(typeof(int), typeof(float), true, true)]
+        [TestCase(typeof(string), typeof(float), false, true)]
+        [TestCase(typeof(float), typeof(string), true, false)]
+        [TestCase(typeof(float), typeof(Vector2), true, false)]
+        [TestCase(typeof(Vector2), typeof(float), false, true)]
+        public void AccessCompatibilityUsesTheRequestedDirections(Type variableType, Type fieldType, bool readable, bool writable)
+        {
+            Assert.That(VariableTypeCatalog.SupportsAccess(variableType, fieldType, VariableAccessFlag.Read), Is.EqualTo(readable));
+            Assert.That(VariableTypeCatalog.SupportsAccess(variableType, fieldType, VariableAccessFlag.Write), Is.EqualTo(writable));
+            Assert.That(VariableTypeCatalog.SupportsAccess(variableType, fieldType, VariableAccessFlag.All), Is.EqualTo(readable && writable));
+            Assert.That(VariableTypeCatalog.SupportsAccess(variableType, fieldType), Is.EqualTo(readable && writable));
+            Assert.That(VariableTypeCatalog.SupportsAccess(variableType, fieldType, VariableAccessFlag.None), Is.EqualTo(readable && writable));
+        }
+
+        [Test]
+        public void RuleSupportDoesNotGuaranteeEveryDynamicValueConverts()
+        {
+            Assert.That(ConversionRegistry.CanConvert(typeof(object), typeof(float)), Is.True);
+            Assert.That(ImplicitConverter<float>.TryFrom<object>(4, out float number), Is.True);
+            Assert.That(number, Is.EqualTo(4f));
+            Assert.That(ImplicitConverter<float>.TryFrom<object>("4", out _), Is.False);
+            Assert.That(ConversionRegistry.CanConvert(typeof(string), typeof(TestEnum)), Is.True);
+            Assert.That(ImplicitConverter<TestEnum>.TryFrom("missing-enum-value", out _), Is.False);
+        }
+
+        [Test]
+        public void TypeQueriesRejectInvalidTypeArgumentsAndAccessFlags()
+        {
+            Assert.Throws<ArgumentNullException>(() => ConversionRegistry.CanConvert(null, typeof(float)));
+            Assert.Throws<ArgumentNullException>(() => ConversionRegistry.CanConvert(typeof(float), null));
+            Assert.Throws<ArgumentException>(() => ConversionRegistry.CanConvert(typeof(VariableField<>), typeof(float)));
+            Assert.Throws<ArgumentException>(() => ConversionRegistry.CanConvert(typeof(void), typeof(float)));
+            Assert.Throws<ArgumentException>(() => ConversionRegistry.CanConvert(typeof(int).MakeByRefType(), typeof(float)));
+            Assert.Throws<ArgumentException>(() => ConversionRegistry.CanConvert(typeof(float), typeof(Span<int>)));
+            Assert.Throws<ArgumentOutOfRangeException>(() => VariableTypeCatalog.SupportsAccess(typeof(float), typeof(float), (VariableAccessFlag)8));
+        }
+
+        [Test]
+        public void CatalogListsDeriveFromTheRuntimeRulesAndPreserveControlCategories()
+        {
+            Assert.That(VariableTypeCatalog.GetCompatibleTypes(VariableType.Float), Is.EquivalentTo(new[] {
+                VariableType.Int, VariableType.Float, VariableType.Bool, VariableType.UnityObject, VariableType.Generic }));
+            Assert.That(VariableTypeCatalog.GetCompatibleTypes(VariableType.String), Does.Contain(VariableType.Float));
+            Assert.That(VariableTypeCatalog.GetCompatibleTypes(VariableType.Node), Is.EqualTo(new[] { VariableType.Node }));
+            Assert.That(VariableTypeCatalog.GetCompatibleTypes(VariableType.Invalid), Is.Empty);
+            Assert.That(VariableTypeCatalog.IsCompatible(VariableType.Node, VariableType.String), Is.False);
+            Assert.That(VariableTypeCatalog.IsCompatible(VariableType.Invalid, VariableType.Invalid), Is.False);
+        }
+
+        [Test]
+        public void RepeatedTypeQueriesAndCategoryListsDoNotAllocate()
+        {
+            _ = ConversionRegistry.CanConvert(typeof(int), typeof(float));
+            _ = VariableTypeCatalog.GetCompatibleTypes(VariableType.Float);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            bool supported = true;
+            for (int i = 0; i < 1000; i++)
+            {
+                supported &= ConversionRegistry.CanConvert(typeof(int), typeof(float));
+                _ = VariableTypeCatalog.GetCompatibleTypes(VariableType.Float);
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.That(supported, Is.True);
+            Assert.That(allocated, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void StructuralValueOperationsShareQueryAndExecutionRules()
+        {
+            AssertConversion(2f, "2");
+            AssertConversion(2f, true);
+            AssertConversion(new Vector2(0f, 1f), true);
+            AssertConversion(new Vector4(1.9f, 2.1f, 3.8f, 4.2f), new Rect(1.9f, 2.1f, 3.8f, 4.2f));
+            AssertConversion(new Vector4(1.9f, 2.1f, 3.8f, 4.2f), new RectInt(1, 2, 3, 4));
+            AssertConversion(TestEnum.Two, 2);
+            AssertConversion("Two", TestEnum.Two);
+            AssertConversion<object, float>(4, 4f);
+            CustomStruct value = new(17);
+            AssertConversion(value, value);
+            CustomClass instance = new();
+            AssertConversion<CustomClass, object>(instance, instance);
+        }
+
+        [Test]
+        public void UnityValueOperationsShareQueryAndExecutionRules()
+        {
+            GameObject gameObject = new("ConversionRegistryTest");
+            try
+            {
+                TestComponent component = gameObject.AddComponent<TestComponent>();
+                AssertConversion(gameObject, true);
+                AssertConversion(gameObject, 1);
+                AssertConversion(gameObject, 1f);
+                AssertConversion(gameObject, Vector2.one);
+                AssertConversion<GameObject, TestComponent>(gameObject, component);
+                AssertConversion<TestComponent, GameObject>(component, gameObject);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
+        public void CatalogCompatibilityFollowsRuntimeConversionDirections()
+        {
+            Assert.That(VariableTypeCatalog.IsCompatible(VariableType.String, VariableType.Float), Is.False);
+            Assert.That(VariableTypeCatalog.IsCompatible(VariableType.Float, VariableType.String), Is.True);
+            Assert.That(VariableTypeCatalog.IsCompatible(VariableType.Vector2, VariableType.Float), Is.False);
+            Assert.That(VariableTypeCatalog.IsCompatible(VariableType.Float, VariableType.Vector2), Is.True);
+        }
+
         [Test]
         public void BuiltInNumericAndVectorEdgesUseTheRegisteredRules()
         {
@@ -109,24 +257,6 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
-        public void RegistryRejectsRegistrationAfterBuiltInsAreFrozen()
-        {
-            _ = ImplicitConverter<int>.CanConvertFrom<int>();
-
-            Assert.Throws<InvalidOperationException>(
-                () => ConversionPair<CustomStruct, CustomClass>.Register(ConvertCustom));
-        }
-
-        [Test]
-        public void RegistryRejectsDuplicateRegistration()
-        {
-            _ = ImplicitConverter<float>.CanConvertFrom<int>();
-
-            Assert.Throws<InvalidOperationException>(
-                () => ConversionPair<int, float>.Register(ConvertIntToFloat));
-        }
-
-        [Test]
         public void UnsupportedPairQueriesDoNotAllocateARejectionDelegate()
         {
             _ = ImplicitConverter<bool>.CanConvertFrom<string>();
@@ -143,16 +273,16 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(allocated, Is.EqualTo(0));
         }
 
-        private static bool ConvertCustom(CustomStruct source, out CustomClass result)
+        /// <summary>Checks a declared conversion against both the type query and its executable generic operation.</summary>
+        private static void AssertConversion<TSource, TTarget>(TSource source, TTarget expected)
         {
-            result = new CustomClass();
-            return true;
-        }
-
-        private static bool ConvertIntToFloat(int source, out float result)
-        {
-            result = source;
-            return true;
+            ConversionDefinition definition = ConversionRegistry.Find(typeof(TSource), typeof(TTarget));
+            Assert.That(definition, Is.Not.Null);
+            Assert.That(definition.Matches(typeof(TSource), typeof(TTarget)), Is.True);
+            Assert.That(definition.Describe(typeof(TSource), typeof(TTarget)), Is.Not.Empty);
+            Assert.That(ImplicitConverter<TTarget>.CanConvertFrom<TSource>(), Is.True);
+            Assert.That(ImplicitConverter<TTarget>.TryFrom(source, out TTarget result), Is.True);
+            Assert.That(result, Is.EqualTo(expected));
         }
 
         [Serializable]

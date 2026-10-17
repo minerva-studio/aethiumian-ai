@@ -50,7 +50,7 @@ namespace Aethiumian.AI.Editor
 
             metadata = new MemberMetadata(
                 ResolveAllowedTypes(member),
-                ResolveAccessFlag(member));
+                VariableUtility.GetAccessFlag(member));
             MetadataByMember.Add(member, metadata);
             return metadata;
         }
@@ -87,25 +87,6 @@ namespace Aethiumian.AI.Editor
 
             Array.Resize(ref filtered, count);
             return Array.AsReadOnly(filtered);
-        }
-
-        private static VariableAccessFlag ResolveAccessFlag(MemberInfo member)
-        {
-            Attribute[] attributes = Attribute.GetCustomAttributes(member, typeof(AccessAttribute));
-            VariableAccessFlag result = VariableAccessFlag.None;
-            for (int i = 0; i < attributes.Length; i++)
-            {
-                if (attributes[i] is ReadableAttribute)
-                {
-                    result |= VariableAccessFlag.Read;
-                }
-                else if (attributes[i] is WritableAttribute)
-                {
-                    result |= VariableAccessFlag.Write;
-                }
-            }
-
-            return result;
         }
 
         private static IReadOnlyList<VariableType> ReadOnlyCopy(VariableType[] values)

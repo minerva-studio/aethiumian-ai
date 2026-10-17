@@ -139,6 +139,18 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(ReferenceEquals(fixedTypes, VariableTypeCatalog.GetSingleType(VariableType.Int)), Is.True);
         }
 
+        [TestCase(nameof(MetadataHost.dynamicDefault), VariableAccessFlag.All)]
+        [TestCase(nameof(MetadataHost.fixedValue), VariableAccessFlag.All)]
+        [TestCase(nameof(MetadataHost.constrained), VariableAccessFlag.All)]
+        [TestCase(nameof(MetadataHost.readOnly), VariableAccessFlag.Read)]
+        [TestCase(nameof(MetadataHost.writeOnly), VariableAccessFlag.Write)]
+        public void VariableFieldEditorMetadata_UsesTheSharedAccessContract(string memberName, VariableAccessFlag expected)
+        {
+            FieldInfo member = GetMetadataMember(memberName);
+            Assert.That(VariableUtility.GetAccessFlag(member), Is.EqualTo(expected));
+            Assert.That(VariableFieldEditorMetadata.GetAccessFlag(member), Is.EqualTo(expected));
+        }
+
         [Test]
         public void VariableFieldEditorMetadata_CombinesAccessFlagsAndCachesWarmLookups()
         {
@@ -373,6 +385,8 @@ namespace Aethiumian.AI.Editor.Tests.Variables
 
             public VariableField dynamicDefault;
             public VariableField<int> fixedValue;
+            [Readable] public VariableField<float> readOnly;
+            [Writable] public VariableReference<float> writeOnly;
         }
     }
 }

@@ -1,7 +1,5 @@
 using System;
-using System.Globalization;
 using System.Runtime.CompilerServices;
-using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace Aethiumian.AI.Variables
@@ -9,11 +7,6 @@ namespace Aethiumian.AI.Variables
     /// <summary>Converts a value to a requested variable target type.</summary>
     public static class ImplicitConverter<TTarget>
     {
-        static ImplicitConverter()
-        {
-            BuiltInConversionRegistration.EnsureInitialized();
-        }
-
         /// <summary>Checks whether a source type has a conversion rule for this target type.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool CanConvertFrom<TSource>()
@@ -25,7 +18,7 @@ namespace Aethiumian.AI.Variables
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryFrom<TSource>(TSource source, out TTarget result)
         {
-            return ConversionPair<TSource, TTarget>.TryConvert(source, out result);
+            return ConversionPair<TSource, TTarget>.Rule.TryConvert(source, out result);
         }
 
         /// <summary>Converts a value or throws when the conversion is unsupported or fails.</summary>
@@ -37,8 +30,7 @@ namespace Aethiumian.AI.Variables
                 return result;
             }
 
-            throw new InvalidCastException(
-                $"Cannot convert {typeof(TSource).FullName} to {typeof(TTarget).FullName}.");
+            throw new InvalidCastException($"Cannot convert {typeof(TSource).FullName} to {typeof(TTarget).FullName}.");
         }
     }
 
@@ -70,113 +62,100 @@ namespace Aethiumian.AI.Variables
 
     internal static class ConversionPair<TSource, TTarget>
     {
-        private static ConversionRule<TSource, TTarget> registeredRule;
-
-        private static class Finalized
-        {
-            internal static readonly ConversionRule<TSource, TTarget> Rule =
-                registeredRule.IsSupported
-                    ? registeredRule
-                    : StructuralConversion<TSource, TTarget>.Create();
-        }
-
-        internal static ConversionRule<TSource, TTarget> Rule => Finalized.Rule;
-
-        internal static void Register(TryConversion<TSource, TTarget> converter)
-        {
-            ConversionRegistry.ThrowIfFrozen();
-            if (registeredRule.IsSupported)
-            {
-                throw new InvalidOperationException(
-                    $"Conversion from {typeof(TSource).FullName} to {typeof(TTarget).FullName} is already registered.");
-            }
-
-            registeredRule = new ConversionRule<TSource, TTarget>(converter);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool TryConvert(TSource source, out TTarget result)
-        {
-            return Finalized.Rule.TryConvert(source, out result);
-        }
+        internal static readonly ConversionRule<TSource, TTarget> Rule = ConversionRegistry.Resolve<TSource, TTarget>();
     }
 
-    internal static class ConversionRegistry
+    /// <summary>Finds immutable conversion definitions shared by support queries, execution, and authoring explanations.</summary>
+    public static class ConversionRegistry
     {
-        private static bool frozen;
+        // Exact pairs precede structural families so support queries and execution select the same definition.
+        private static readonly ConversionDefinition[] Definitions = {
+            new ConversionDefinition<int, float>(NumericConversions.IntToFloat, "Convert the integer to Float; large integers can lose precision."),
+            new ConversionDefinition<float, int>(NumericConversions.FloatToInt, "Convert Float to Int by discarding the fractional part."),
+            new ConversionDefinition<bool, int>(NumericConversions.BoolToInt, "Use 1 for true and 0 for false."),
+            new ConversionDefinition<bool, float>(NumericConversions.BoolToFloat, "Use 1 for true and 0 for false."),
+            new ConversionDefinition<LayerMask, int>(NumericConversions.LayerMaskToInt, "Read the layer mask's integer bit pattern."),
+            new ConversionDefinition<int, LayerMask>(NumericConversions.IntToLayerMask, "Use the integer as the layer mask's bit pattern."),
+            new ConversionDefinition<int, Vector2>(VectorConversions.IntToVector2, "Use the integer for X and Y; large integers can lose precision."),
+            new ConversionDefinition<int, Vector3>(VectorConversions.IntToVector3, "Use the integer for X, Y, and Z; large integers can lose precision."),
+            new ConversionDefinition<int, Vector4>(VectorConversions.IntToVector4, "Use the integer for X, Y, Z, and W; large integers can lose precision."),
+            new ConversionDefinition<float, Vector2>(VectorConversions.FloatToVector2, "Use the Float value for X and Y."),
+            new ConversionDefinition<float, Vector3>(VectorConversions.FloatToVector3, "Use the Float value for X, Y, and Z."),
+            new ConversionDefinition<float, Vector4>(VectorConversions.FloatToVector4, "Use the Float value for X, Y, Z, and W."),
+            new ConversionDefinition<bool, Vector2>(VectorConversions.BoolToVector2, "Fill X and Y with 1 for true or 0 for false."),
+            new ConversionDefinition<bool, Vector3>(VectorConversions.BoolToVector3, "Fill X, Y, and Z with 1 for true or 0 for false."),
+            new ConversionDefinition<bool, Vector4>(VectorConversions.BoolToVector4, "Fill X, Y, Z, and W with 1 for true or 0 for false."),
+            new ConversionDefinition<Vector2, Vector3>(VectorConversions.Vector2ToVector3, "Preserve X and Y; set Z to 0."),
+            new ConversionDefinition<Vector2, Vector4>(VectorConversions.Vector2ToVector4, "Preserve X and Y; set Z and W to 0."),
+            new ConversionDefinition<Vector3, Vector2>(VectorConversions.Vector3ToVector2, "Preserve X and Y; discard Z."),
+            new ConversionDefinition<Vector3, Vector4>(VectorConversions.Vector3ToVector4, "Preserve X, Y, and Z; set W to 0."),
+            new ConversionDefinition<Vector4, Vector2>(VectorConversions.Vector4ToVector2, "Preserve X and Y; discard Z and W."),
+            new ConversionDefinition<Vector4, Vector3>(VectorConversions.Vector4ToVector3, "Preserve X, Y, and Z; discard W."),
+            new ConversionDefinition<Color, Vector2>(ColorConversions.ColorToVector2, "Use R and G as X and Y; discard B and A."),
+            new ConversionDefinition<Color, Vector3>(ColorConversions.ColorToVector3, "Use R, G, and B as X, Y, and Z; discard A."),
+            new ConversionDefinition<Color, Vector4>(ColorConversions.ColorToVector4, "Use R, G, B, and A as X, Y, Z, and W."),
+            new ConversionDefinition<Vector2, Color>(ColorConversions.Vector2ToColor, "Use X and Y as R and G; set B and A to 0."),
+            new ConversionDefinition<Vector3, Color>(ColorConversions.Vector3ToColor, "Use X, Y, and Z as R, G, and B; set A to 0."),
+            new ConversionDefinition<Vector4, Color>(ColorConversions.Vector4ToColor, "Use X, Y, Z, and W as R, G, B, and A."),
+            new ConversionDefinition<Vector2Int, Vector2>(VectorConversions.Vector2IntToVector2, "Convert X and Y to Float; large integers can lose precision."),
+            new ConversionDefinition<Vector3Int, Vector2>(VectorConversions.Vector3IntToVector2, "Convert X and Y to Float and discard Z; large integers can lose precision."),
+            new ConversionDefinition<Vector2Int, Vector3>(VectorConversions.Vector2IntToVector3, "Convert X and Y to Float and set Z to 0; large integers can lose precision."),
+            new ConversionDefinition<Vector3Int, Vector3>(VectorConversions.Vector3IntToVector3, "Convert X, Y, and Z to Float; large integers can lose precision."),
+            new ConversionDefinition<Vector2Int, Vector4>(VectorConversions.Vector2IntToVector4, "Convert X and Y to Float and set Z and W to 0; large integers can lose precision."),
+            new ConversionDefinition<Vector3Int, Vector4>(VectorConversions.Vector3IntToVector4, "Convert X, Y, and Z to Float and set W to 0; large integers can lose precision."),
 
-        internal static void Freeze() => frozen = true;
+            new StructuralConversions.IdentityDefinition(),
+            new StructuralConversions.ObjectDispatchDefinition(),
+            new StructuralConversions.StringDefinition(),
+            new StructuralConversions.BooleanDefinition(),
+            new StructuralConversions.RectangleDefinition(),
+            new StructuralConversions.IntegerRectangleDefinition(),
+            new StructuralConversions.EnumNumericDefinition(),
+            new StructuralConversions.EnumDefinition(),
+            new StructuralConversions.UnityNumericDefinition(),
+            new StructuralConversions.UnityVectorDefinition(),
+            new StructuralConversions.UnityReferenceDefinition(),
+            new StructuralConversions.ReferenceDefinition()
+        };
 
-        internal static void ThrowIfFrozen()
+        /// <summary>Checks whether a definition supports a source-to-target conversion.</summary>
+        /// <returns>Whether a definition exists; individual values can still fail object dispatch, enum parsing, or component lookup.</returns>
+        /// <inheritdoc cref="Find(Type, Type)" path="/param"/>
+        /// <inheritdoc cref="Find(Type, Type)" path="/exception"/>
+        public static bool CanConvert(Type source, Type target) => Find(source, target) != null;
+
+        /// <summary>Finds the complete definition that will bind this source-to-target conversion.</summary>
+        /// <param name="source">The closed CLR source type, usable as a generic type argument.</param>
+        /// <param name="target">The closed CLR target type, usable as a generic type argument.</param>
+        /// <returns>The shared immutable definition, or null when the conversion is unsupported. Describe must receive the same matching types.</returns>
+        /// <remarks>Exact definitions take precedence, followed by structural definitions in their declared order. Finding a definition does not guarantee every value converts successfully.</remarks>
+        /// <exception cref="ArgumentNullException">Either type is null.</exception>
+        /// <exception cref="ArgumentException">Either type is open, void, a pointer, a by-reference type, or a by-reference-like type.</exception>
+        public static ConversionDefinition Find(Type source, Type target)
         {
-            if (frozen)
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (target == null) throw new ArgumentNullException(nameof(target));
+            if (source.ContainsGenericParameters || target.ContainsGenericParameters
+                || source == typeof(void) || target == typeof(void)
+                || source.IsPointer || target.IsPointer || source.IsByRef || target.IsByRef
+                || source.IsByRefLike || target.IsByRefLike)
+                throw new ArgumentException("Conversion queries require closed CLR types usable as generic arguments.");
+
+            for (int i = 0; i < Definitions.Length; i++)
             {
-                throw new InvalidOperationException("Variable conversion registry is frozen.");
+                ConversionDefinition definition = Definitions[i];
+                if (definition.Matches(source, target)) return definition;
             }
+            return null;
         }
-    }
 
-    internal static class BuiltInConversionRegistration
-    {
-        private static readonly bool initialized = Initialize();
-
-        internal static void EnsureInitialized()
+        /// <summary>Binds the matching definition once for a closed generic conversion pair.</summary>
+        internal static ConversionRule<TSource, TTarget> Resolve<TSource, TTarget>()
         {
-            _ = initialized;
+            ConversionDefinition definition = Find(typeof(TSource), typeof(TTarget));
+            return definition == null ? default : definition.Bind<TSource, TTarget>();
         }
 
-        private static bool Initialize()
-        {
-            RegisterBuiltIns();
-            ConversionRegistry.Freeze();
-            return true;
-        }
-
-        private static void RegisterBuiltIns()
-        {
-            Register<int, float>(NumericConversions.IntToFloat);
-            Register<float, int>(NumericConversions.FloatToInt);
-            Register<bool, int>(NumericConversions.BoolToInt);
-            Register<bool, float>(NumericConversions.BoolToFloat);
-            Register<LayerMask, int>(NumericConversions.LayerMaskToInt);
-            Register<int, LayerMask>(NumericConversions.IntToLayerMask);
-
-            Register<int, Vector2>(VectorConversions.IntToVector2);
-            Register<int, Vector3>(VectorConversions.IntToVector3);
-            Register<int, Vector4>(VectorConversions.IntToVector4);
-            Register<float, Vector2>(VectorConversions.FloatToVector2);
-            Register<float, Vector3>(VectorConversions.FloatToVector3);
-            Register<float, Vector4>(VectorConversions.FloatToVector4);
-            Register<bool, Vector2>(VectorConversions.BoolToVector2);
-            Register<bool, Vector3>(VectorConversions.BoolToVector3);
-            Register<bool, Vector4>(VectorConversions.BoolToVector4);
-
-            Register<Vector2, Vector3>(VectorConversions.Vector2ToVector3);
-            Register<Vector2, Vector4>(VectorConversions.Vector2ToVector4);
-            Register<Vector3, Vector2>(VectorConversions.Vector3ToVector2);
-            Register<Vector3, Vector4>(VectorConversions.Vector3ToVector4);
-            Register<Vector4, Vector2>(VectorConversions.Vector4ToVector2);
-            Register<Vector4, Vector3>(VectorConversions.Vector4ToVector3);
-
-            Register<Color, Vector2>(ColorConversions.ColorToVector2);
-            Register<Color, Vector3>(ColorConversions.ColorToVector3);
-            Register<Color, Vector4>(ColorConversions.ColorToVector4);
-            Register<Vector2, Color>(ColorConversions.Vector2ToColor);
-            Register<Vector3, Color>(ColorConversions.Vector3ToColor);
-            Register<Vector4, Color>(ColorConversions.Vector4ToColor);
-
-            Register<Vector2Int, Vector2>(VectorConversions.Vector2IntToVector2);
-            Register<Vector3Int, Vector2>(VectorConversions.Vector3IntToVector2);
-            Register<Vector2Int, Vector3>(VectorConversions.Vector2IntToVector3);
-            Register<Vector3Int, Vector3>(VectorConversions.Vector3IntToVector3);
-            Register<Vector2Int, Vector4>(VectorConversions.Vector2IntToVector4);
-            Register<Vector3Int, Vector4>(VectorConversions.Vector3IntToVector4);
-        }
-
-        private static void Register<TSource, TTarget>(TryConversion<TSource, TTarget> converter)
-        {
-            ConversionPair<TSource, TTarget>.Register(converter);
-        }
     }
 
     internal static class NumericConversions
@@ -224,365 +203,4 @@ namespace Aethiumian.AI.Variables
         internal static bool Vector4ToColor(Vector4 source, out Color result) { result = source; return true; }
     }
 
-    internal static class StructuralConversion<TSource, TTarget>
-    {
-        internal static ConversionRule<TSource, TTarget> Create()
-        {
-            if (typeof(TSource) == typeof(TTarget))
-            {
-                return new ConversionRule<TSource, TTarget>(Identity);
-            }
-
-            if (typeof(TSource) == typeof(object))
-            {
-                return new ConversionRule<TSource, TTarget>(FromObject);
-            }
-
-            if (typeof(TTarget) == typeof(string))
-            {
-                return new ConversionRule<TSource, TTarget>(ToStringValue);
-            }
-
-            if (typeof(TTarget) == typeof(bool) &&
-                (typeof(TSource) == typeof(int) || typeof(TSource) == typeof(float) ||
-                 typeof(TSource) == typeof(Vector2) || typeof(TSource) == typeof(Vector3) ||
-                 typeof(TSource) == typeof(Vector4) ||
-                 typeof(UnityEngine.Object).IsAssignableFrom(typeof(TSource))))
-            {
-                return typeof(UnityEngine.Object).IsAssignableFrom(typeof(TSource))
-                    ? new ConversionRule<TSource, TTarget>(UnityObjectToBool)
-                    : new ConversionRule<TSource, TTarget>(ToBoolValue);
-            }
-
-            if (typeof(TTarget) == typeof(Color) &&
-                (typeof(TSource) == typeof(Vector2) || typeof(TSource) == typeof(Vector3) ||
-                 typeof(TSource) == typeof(Vector4)))
-            {
-                return new ConversionRule<TSource, TTarget>(VectorToColor);
-            }
-
-            if (typeof(TTarget) == typeof(Rect) && SupportsVector4Source())
-                return new ConversionRule<TSource, TTarget>(ToRect);
-
-            if (typeof(TTarget) == typeof(RectInt) && SupportsVector4Source())
-                return new ConversionRule<TSource, TTarget>(ToRectInt);
-
-            if (typeof(TSource).IsEnum && IsNumericType(typeof(TTarget)))
-            {
-                return new ConversionRule<TSource, TTarget>(EnumToNumeric);
-            }
-
-            if (typeof(TTarget).IsEnum &&
-                (IsNumericType(typeof(TSource)) || typeof(TSource) == typeof(string)))
-            {
-                return new ConversionRule<TSource, TTarget>(NumericOrStringToEnum);
-            }
-
-            if (typeof(UnityEngine.Object).IsAssignableFrom(typeof(TSource)))
-            {
-                if (typeof(TTarget) == typeof(int) || typeof(TTarget) == typeof(float))
-                {
-                    return new ConversionRule<TSource, TTarget>(UnityObjectToNumeric);
-                }
-                if (typeof(TTarget) == typeof(Vector2) || typeof(TTarget) == typeof(Vector3) || typeof(TTarget) == typeof(Vector4))
-                {
-                    return new ConversionRule<TSource, TTarget>(UnityObjectToVector);
-                }
-                if (typeof(UnityEngine.Object).IsAssignableFrom(typeof(TTarget)))
-                {
-                    return new ConversionRule<TSource, TTarget>(UnityObjectToUnityObject);
-                }
-            }
-
-            if (typeof(TTarget) == typeof(UnityEngine.Object) ||
-                typeof(UnityEngine.Object).IsAssignableFrom(typeof(TTarget)))
-            {
-                if (typeof(UnityEngine.Object).IsAssignableFrom(typeof(TSource)))
-                {
-                    return new ConversionRule<TSource, TTarget>(UnityObjectToUnityObject);
-                }
-            }
-
-            if (!typeof(TSource).IsValueType && !typeof(TTarget).IsValueType &&
-                typeof(TTarget).IsAssignableFrom(typeof(TSource)))
-            {
-                return new ConversionRule<TSource, TTarget>(ReferenceCast);
-            }
-
-            return default;
-        }
-
-        private static bool SupportsVector4Source()
-        {
-            return typeof(TSource) == typeof(object)
-                || typeof(TSource) == typeof(int)
-                || typeof(TSource) == typeof(float)
-                || typeof(TSource) == typeof(bool)
-                || typeof(TSource) == typeof(Vector2)
-                || typeof(TSource) == typeof(Vector3)
-                || typeof(TSource) == typeof(Vector4)
-                || typeof(TSource) == typeof(Color)
-                || typeof(TSource) == typeof(Vector2Int)
-                || typeof(TSource) == typeof(Vector3Int)
-                || typeof(UnityEngine.Object).IsAssignableFrom(typeof(TSource));
-        }
-
-        private static bool IsNumericType(Type type)
-        {
-            return type == typeof(byte)
-                || type == typeof(sbyte)
-                || type == typeof(short)
-                || type == typeof(ushort)
-                || type == typeof(int)
-                || type == typeof(uint)
-                || type == typeof(long)
-                || type == typeof(ulong)
-                || type == typeof(float)
-                || type == typeof(double)
-                || type == typeof(decimal)
-                || type == typeof(char);
-        }
-
-        private static bool Identity(TSource source, out TTarget result)
-        {
-            result = UnsafeUtility.As<TSource, TTarget>(ref source);
-            return true;
-        }
-
-        private static bool ReferenceCast(TSource source, out TTarget result)
-        {
-            result = (TTarget)(object)source;
-            return true;
-        }
-
-        private static bool FromObject(TSource source, out TTarget result)
-        {
-            object value = source;
-            if (value is null)
-            {
-                result = default;
-                return !typeof(TTarget).IsValueType;
-            }
-
-            if (typeof(TTarget) == typeof(string))
-            {
-                result = (TTarget)(object)value.ToString();
-                return true;
-            }
-
-            if (value is TTarget direct)
-            {
-                result = direct;
-                return true;
-            }
-
-            if (value is int intValue)
-                return ImplicitConverter<TTarget>.TryFrom(intValue, out result);
-            if (value is float floatValue)
-                return ImplicitConverter<TTarget>.TryFrom(floatValue, out result);
-            if (value is bool boolValue)
-                return ImplicitConverter<TTarget>.TryFrom(boolValue, out result);
-            if (value is Vector2 vector2Value)
-                return ImplicitConverter<TTarget>.TryFrom(vector2Value, out result);
-            if (value is Vector3 vector3Value)
-                return ImplicitConverter<TTarget>.TryFrom(vector3Value, out result);
-            if (value is Vector4 vector4Value)
-                return ImplicitConverter<TTarget>.TryFrom(vector4Value, out result);
-            if (value is Color colorValue)
-                return ImplicitConverter<TTarget>.TryFrom(colorValue, out result);
-            if (value is Vector2Int vector2IntValue)
-                return ImplicitConverter<TTarget>.TryFrom(vector2IntValue, out result);
-            if (value is Vector3Int vector3IntValue)
-                return ImplicitConverter<TTarget>.TryFrom(vector3IntValue, out result);
-            if (value is LayerMask layerMaskValue)
-                return ImplicitConverter<TTarget>.TryFrom(layerMaskValue, out result);
-            if (value is string stringValue)
-                return ImplicitConverter<TTarget>.TryFrom(stringValue, out result);
-            if (value is UnityEngine.Object unityObjectValue)
-                return ImplicitConverter<TTarget>.TryFrom(unityObjectValue, out result);
-
-            result = default;
-            return false;
-        }
-
-        private static bool ToStringValue(TSource source, out TTarget result)
-        {
-            object value = source;
-            result = (TTarget)(object)(value?.ToString() ?? string.Empty);
-            return true;
-        }
-
-        private static bool ToBoolValue(TSource source, out TTarget result)
-        {
-            bool value;
-            if (typeof(TSource) == typeof(int)) value = UnsafeUtility.As<TSource, int>(ref source) != 0;
-            else if (typeof(TSource) == typeof(float)) value = UnsafeUtility.As<TSource, float>(ref source) != 0;
-            else if (typeof(TSource) == typeof(Vector2)) value = UnsafeUtility.As<TSource, Vector2>(ref source) != Vector2.zero;
-            else if (typeof(TSource) == typeof(Vector3)) value = UnsafeUtility.As<TSource, Vector3>(ref source) != Vector3.zero;
-            else value = UnsafeUtility.As<TSource, Vector4>(ref source) != Vector4.zero;
-            result = UnsafeUtility.As<bool, TTarget>(ref value);
-            return true;
-        }
-
-        private static bool UnityObjectToBool(TSource source, out TTarget result)
-        {
-            UnityEngine.Object value = (UnityEngine.Object)(object)source;
-            bool converted = value;
-            result = UnsafeUtility.As<bool, TTarget>(ref converted);
-            return true;
-        }
-
-        private static bool VectorToColor(TSource source, out TTarget result)
-        {
-            Color color;
-            if (typeof(TSource) == typeof(Vector2))
-                color = (Color)(Vector4)UnsafeUtility.As<TSource, Vector2>(ref source);
-            else if (typeof(TSource) == typeof(Vector3))
-                color = (Color)(Vector4)UnsafeUtility.As<TSource, Vector3>(ref source);
-            else
-                color = (Color)UnsafeUtility.As<TSource, Vector4>(ref source);
-
-            result = UnsafeUtility.As<Color, TTarget>(ref color);
-            return true;
-        }
-
-        private static bool ToRect(TSource source, out TTarget result)
-        {
-            if (!ImplicitConverter<Vector4>.TryFrom(source, out Vector4 vector))
-            {
-                result = default;
-                return false;
-            }
-
-            Rect rect = new(vector.x, vector.y, vector.z, vector.w);
-            result = UnsafeUtility.As<Rect, TTarget>(ref rect);
-            return true;
-        }
-
-        private static bool ToRectInt(TSource source, out TTarget result)
-        {
-            if (!ImplicitConverter<Vector4>.TryFrom(source, out Vector4 vector))
-            {
-                result = default;
-                return false;
-            }
-
-            RectInt rect = new((int)vector.x, (int)vector.y, (int)vector.z, (int)vector.w);
-            result = UnsafeUtility.As<RectInt, TTarget>(ref rect);
-            return true;
-        }
-
-        private static bool EnumToNumeric(TSource source, out TTarget result)
-        {
-            try
-            {
-                object converted = Convert.ChangeType(source, typeof(TTarget), CultureInfo.InvariantCulture);
-                result = (TTarget)converted;
-                return true;
-            }
-            catch
-            {
-                result = default;
-                return false;
-            }
-        }
-
-        private static bool NumericOrStringToEnum(TSource source, out TTarget result)
-        {
-            try
-            {
-                object converted = typeof(TSource) == typeof(string)
-                    ? Enum.Parse(typeof(TTarget), (string)(object)source)
-                    : Enum.ToObject(
-                        typeof(TTarget),
-                        Convert.ChangeType(
-                            source,
-                            Enum.GetUnderlyingType(typeof(TTarget)),
-                            CultureInfo.InvariantCulture));
-                result = (TTarget)converted;
-                return true;
-            }
-            catch
-            {
-                result = default;
-                return false;
-            }
-        }
-
-        private static bool UnityObjectToNumeric(TSource source, out TTarget result)
-        {
-            UnityEngine.Object value = (UnityEngine.Object)(object)source;
-            if (typeof(TTarget) == typeof(int))
-            {
-                int intValue = value ? 1 : 0;
-                result = UnsafeUtility.As<int, TTarget>(ref intValue);
-            }
-            else
-            {
-                float floatValue = value ? 1f : 0f;
-                result = UnsafeUtility.As<float, TTarget>(ref floatValue);
-            }
-            return true;
-        }
-
-        private static bool UnityObjectToVector(TSource source, out TTarget result)
-        {
-            UnityEngine.Object value = (UnityEngine.Object)(object)source;
-            if (typeof(TTarget) == typeof(Vector2))
-            {
-                Vector2 vector = value ? Vector2.one : Vector2.zero;
-                result = UnsafeUtility.As<Vector2, TTarget>(ref vector);
-            }
-            else if (typeof(TTarget) == typeof(Vector3))
-            {
-                Vector3 vector = value ? Vector3.one : Vector3.zero;
-                result = UnsafeUtility.As<Vector3, TTarget>(ref vector);
-            }
-            else
-            {
-                Vector4 vector = value ? Vector4.one : Vector4.zero;
-                result = UnsafeUtility.As<Vector4, TTarget>(ref vector);
-            }
-            return true;
-        }
-
-        private static bool UnityObjectToUnityObject(TSource source, out TTarget result)
-        {
-            UnityEngine.Object value = (UnityEngine.Object)(object)source;
-            if (value == null)
-            {
-                result = default;
-                return true;
-            }
-
-            if (typeof(TTarget) == typeof(GameObject))
-            {
-                if (value is GameObject go)
-                {
-                    result = (TTarget)(object)go;
-                    return true;
-                }
-                if (value is Component comp)
-                {
-                    result = (TTarget)(object)comp.gameObject;
-                    return true;
-                }
-                result = default;
-                return false;
-            }
-
-            if (typeof(Component).IsAssignableFrom(typeof(TTarget)))
-            {
-                Component component = value as Component;
-                Component converted = component != null && typeof(TTarget).IsInstanceOfType(component)
-                    ? component
-                    : (value as GameObject)?.GetComponent(typeof(TTarget));
-                result = (TTarget)(object)converted;
-                return converted != null;
-            }
-
-            result = (TTarget)(object)value;
-            return typeof(TTarget).IsInstanceOfType(value);
-        }
-    }
 }

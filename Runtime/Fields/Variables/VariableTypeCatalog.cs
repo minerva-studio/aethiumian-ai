@@ -15,27 +15,7 @@ namespace Aethiumian.AI.Variables
             VariableType.Float, VariableType.Bool, VariableType.Vector2, VariableType.Vector3,
             VariableType.Vector4, VariableType.UnityObject, VariableType.Generic });
         private static readonly IReadOnlyDictionary<VariableType, IReadOnlyList<VariableType>> SingleTypeLists = CreateSingleTypeLists();
-        private static readonly IReadOnlyList<VariableType> AllTypes = ReadOnly(new[] {
-            VariableType.Int, VariableType.Float, VariableType.String, VariableType.Bool,
-            VariableType.Vector2, VariableType.Vector3, VariableType.Vector4,
-            VariableType.Generic, VariableType.UnityObject });
-        private static readonly IReadOnlyList<VariableType> NodeTypes = ReadOnly(new[] { VariableType.Node });
-        private static readonly IReadOnlyList<VariableType> EmptyTypes = Array.Empty<VariableType>();
-        private static readonly IReadOnlyList<VariableType> StringTypes = ReadOnly(new[] { VariableType.String, VariableType.Int, VariableType.Generic });
-        private static readonly IReadOnlyList<VariableType> IntTypes = ReadOnly(new[] {
-            VariableType.String, VariableType.Int, VariableType.Float, VariableType.Bool,
-            VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.Generic });
-        private static readonly IReadOnlyList<VariableType> FloatTypes = IntTypes;
-        private static readonly IReadOnlyList<VariableType> BoolTypes = ReadOnly(new[] {
-            VariableType.String, VariableType.Bool, VariableType.Float, VariableType.Int,
-            VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.Generic });
-        private static readonly IReadOnlyList<VariableType> VectorTypes = ReadOnly(new[] {
-            VariableType.String, VariableType.Bool, VariableType.Vector2,
-            VariableType.Vector3, VariableType.Vector4, VariableType.Generic });
-        private static readonly IReadOnlyList<VariableType> UnityObjectTypes = ReadOnly(new[] {
-            VariableType.String, VariableType.Int, VariableType.Float, VariableType.Bool,
-            VariableType.Vector2, VariableType.Vector3, VariableType.Vector4,
-            VariableType.UnityObject, VariableType.Generic });
+        private static readonly IReadOnlyDictionary<VariableType, IReadOnlyList<VariableType>> CompatibleTypeLists = CreateCompatibleTypeLists();
 
         /// <summary>Gets the cached variable type for a CLR type.</summary>
         public static VariableType Of<T>() => TypeCache<T>.Value;
@@ -67,45 +47,56 @@ namespace Aethiumian.AI.Variables
         /// <summary>Gets the cached single-item list for a variable type.</summary>
         public static IReadOnlyList<VariableType> GetSingleType(VariableType type) => SingleTypeLists[type];
 
-        /// <summary>Determines whether source is accepted by target in the current compatibility matrix.</summary>
+        /// <summary>Checks source-to-target conversion support using the canonical CLR types for the variable categories.</summary>
+        /// <remarks>Node is reserved for injected control values and only matches Node. Invalid never matches. Query ConversionRegistry with concrete CLR types when object, enum, or script-member types are known.</remarks>
         public static bool IsCompatible(VariableType source, VariableType target)
         {
-            return target switch
-            {
-                VariableType.Node => source == VariableType.Node,
-                VariableType.Invalid => false,
-                VariableType.String => source == VariableType.String || source == VariableType.Int || source == VariableType.Generic,
-                VariableType.Int or VariableType.Float => source == VariableType.String || source == VariableType.Int || source == VariableType.Float ||
-                    source == VariableType.Bool || source == VariableType.Vector2 || source == VariableType.Vector3 || source == VariableType.Vector4 || source == VariableType.Generic,
-                VariableType.Bool => source == VariableType.String || source == VariableType.Bool || source == VariableType.Float || source == VariableType.Int ||
-                    source == VariableType.Vector2 || source == VariableType.Vector3 || source == VariableType.Vector4 || source == VariableType.Generic,
-                VariableType.Vector2 or VariableType.Vector3 or VariableType.Vector4 => source == VariableType.String || source == VariableType.Bool ||
-                    source == VariableType.Vector2 || source == VariableType.Vector3 || source == VariableType.Vector4 || source == VariableType.Generic,
-                VariableType.UnityObject => source == VariableType.String || source == VariableType.Int || source == VariableType.Float || source == VariableType.Bool ||
-                    source == VariableType.Vector2 || source == VariableType.Vector3 || source == VariableType.Vector4 || source == VariableType.UnityObject || source == VariableType.Generic,
-                VariableType.Generic => source == VariableType.Int || source == VariableType.Float || source == VariableType.String ||
-                    source == VariableType.Bool || source == VariableType.Vector2 || source == VariableType.Vector3 ||
-                    source == VariableType.Vector4 || source == VariableType.UnityObject || source == VariableType.Generic,
-                _ => false,
-            };
+            if (source == VariableType.Invalid || target == VariableType.Invalid) return false;
+            if (source == VariableType.Node || target == VariableType.Node) return source == target;
+            Type sourceType = VariableUtility.GetType(source);
+            Type targetType = VariableUtility.GetType(target);
+            return sourceType != null && targetType != null && ConversionRegistry.CanConvert(sourceType, targetType);
         }
 
-        /// <summary>Gets the cached read-only list of source types accepted by target.</summary>
+        /// <summary>Checks the conversion directions needed to access a variable through a field's value type.</summary>
+        /// <param name="variableType">The variable's actual declared CLR type.</param>
+        /// <param name="fieldType">The CLR type read or written by the field's consumer.</param>
+        /// <param name="access">Read requires variable-to-field conversion; Write requires field-to-variable conversion. All and None require both directions.</param>
+        /// <returns>Whether all requested conversion rules exist. Member getter/setter availability and individual value validity are separate requirements.</returns>
+        /// <exception cref="ArgumentNullException">Either type is null.</exception>
+        /// <exception cref="ArgumentException">Either type cannot be used as a generic conversion argument.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Access contains unknown flags.</exception>
+        public static bool SupportsAccess(Type variableType, Type fieldType, VariableAccessFlag access = VariableAccessFlag.All)
+        {
+            if (variableType == null) throw new ArgumentNullException(nameof(variableType));
+            if (fieldType == null) throw new ArgumentNullException(nameof(fieldType));
+            if ((access & ~VariableAccessFlag.All) != 0) throw new ArgumentOutOfRangeException(nameof(access));
+            if (access == VariableAccessFlag.None) access = VariableAccessFlag.All;
+
+            return ((access & VariableAccessFlag.Read) == 0 || ConversionRegistry.CanConvert(variableType, fieldType))
+                && ((access & VariableAccessFlag.Write) == 0 || ConversionRegistry.CanConvert(fieldType, variableType));
+        }
+
+        /// <summary>Gets the cached read-only source categories derived from the runtime conversion rules for a target category.</summary>
         public static IReadOnlyList<VariableType> GetCompatibleTypes(VariableType target)
         {
-            return target switch
+            return CompatibleTypeLists.TryGetValue(target, out IReadOnlyList<VariableType> sources) ? sources : Array.Empty<VariableType>();
+        }
+
+        /// <summary>Builds immutable source lists for every category from the shared source-to-target rules during initialization.</summary>
+        private static IReadOnlyDictionary<VariableType, IReadOnlyList<VariableType>> CreateCompatibleTypeLists()
+        {
+            Dictionary<VariableType, IReadOnlyList<VariableType>> result = new();
+            foreach (VariableType target in AllVariableTypes)
             {
-                VariableType.Node => NodeTypes,
-                VariableType.Invalid => EmptyTypes,
-                VariableType.String => StringTypes,
-                VariableType.Int => IntTypes,
-                VariableType.Float => FloatTypes,
-                VariableType.Bool => BoolTypes,
-                VariableType.Vector2 or VariableType.Vector3 or VariableType.Vector4 => VectorTypes,
-                VariableType.UnityObject => UnityObjectTypes,
-                VariableType.Generic => AllTypes,
-                _ => EmptyTypes,
-            };
+                List<VariableType> sources = new();
+                foreach (VariableType source in AllVariableTypes)
+                {
+                    if (IsCompatible(source, target)) sources.Add(source);
+                }
+                result.Add(target, sources.AsReadOnly());
+            }
+            return new ReadOnlyDictionary<VariableType, IReadOnlyList<VariableType>>(result);
         }
 
         private static IReadOnlyList<VariableType> ReadOnly(VariableType[] values) => new ReadOnlyCollection<VariableType>(values);

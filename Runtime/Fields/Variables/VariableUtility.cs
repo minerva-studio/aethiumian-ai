@@ -242,6 +242,22 @@ namespace Aethiumian.AI.Variables
 
         public static IReadOnlyList<VariableType> GetCompatibleTypes(VariableType type) => VariableTypeCatalog.GetCompatibleTypes(type);
 
+        /// <summary>Resolves the read/write directions declared by a member's access attributes.</summary>
+        /// <param name="member">The field, property, or method declaring the variable access contract.</param>
+        /// <returns>The union of Readable and Writable; an unannotated member requires both directions.</returns>
+        /// <exception cref="ArgumentNullException">The member is null.</exception>
+        public static VariableAccessFlag GetAccessFlag(MemberInfo member)
+        {
+            if (member == null) throw new ArgumentNullException(nameof(member));
+            VariableAccessFlag access = VariableAccessFlag.None;
+            foreach (Attribute attribute in Attribute.GetCustomAttributes(member, typeof(AccessAttribute)))
+            {
+                if (attribute is ReadableAttribute) access |= VariableAccessFlag.Read;
+                else if (attribute is WritableAttribute) access |= VariableAccessFlag.Write;
+            }
+            return access == VariableAccessFlag.None ? VariableAccessFlag.All : access;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static VariableType GetVariableType<T>() => VariableTypeCatalog.Of<T>();
 
