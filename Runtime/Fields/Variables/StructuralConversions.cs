@@ -140,18 +140,31 @@ namespace Aethiumian.AI.Variables
             }
 
             /// <inheritdoc/>
-            internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
+            internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>()
+            {
+                // Select Unity lifetime semantics once instead of checking assignability on every conversion.
+                return typeof(UnityEngine.Object).IsAssignableFrom(typeof(TSource))
+                    ? new(TryConvertUnityObject<TSource, TTarget>)
+                    : new(TryConvertScalarOrVector<TSource, TTarget>);
+            }
 
-            /// <summary>Executes the operation for the generic pair already matched by this definition.</summary>
-            private static bool TryConvert<TSource, TTarget>(TSource source, out TTarget result)
+            /// <summary>Converts a matched scalar or vector using its zero-comparison semantics.</summary>
+            private static bool TryConvertScalarOrVector<TSource, TTarget>(TSource source, out TTarget result)
             {
                 bool value;
-                if (typeof(UnityEngine.Object).IsAssignableFrom(typeof(TSource))) value = (UnityEngine.Object)(object)source;
-                else if (typeof(TSource) == typeof(int)) value = UnsafeUtility.As<TSource, int>(ref source) != 0;
+                if (typeof(TSource) == typeof(int)) value = UnsafeUtility.As<TSource, int>(ref source) != 0;
                 else if (typeof(TSource) == typeof(float)) value = UnsafeUtility.As<TSource, float>(ref source) != 0;
                 else if (typeof(TSource) == typeof(Vector2)) value = UnsafeUtility.As<TSource, Vector2>(ref source) != Vector2.zero;
                 else if (typeof(TSource) == typeof(Vector3)) value = UnsafeUtility.As<TSource, Vector3>(ref source) != Vector3.zero;
                 else value = UnsafeUtility.As<TSource, Vector4>(ref source) != Vector4.zero;
+                result = UnsafeUtility.As<bool, TTarget>(ref value);
+                return true;
+            }
+
+            /// <summary>Converts a matched Unity object using its native lifetime semantics.</summary>
+            private static bool TryConvertUnityObject<TSource, TTarget>(TSource source, out TTarget result)
+            {
+                bool value = (UnityEngine.Object)(object)source;
                 result = UnsafeUtility.As<bool, TTarget>(ref value);
                 return true;
             }

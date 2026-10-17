@@ -177,6 +177,44 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
+        public void BooleanScalarAndVectorRulesPreserveZeroComparison()
+        {
+            Assert.That(ImplicitConverter<bool>.From(0), Is.False);
+            Assert.That(ImplicitConverter<bool>.From(-1), Is.True);
+            Assert.That(ImplicitConverter<bool>.From(0f), Is.False);
+            Assert.That(ImplicitConverter<bool>.From(-1f), Is.True);
+            Assert.That(ImplicitConverter<bool>.From(float.NaN), Is.True);
+            Assert.That(ImplicitConverter<bool>.From(Vector2.zero), Is.False);
+            Assert.That(ImplicitConverter<bool>.From(new Vector2(0.000001f, 0f)), Is.False);
+            Assert.That(ImplicitConverter<bool>.From(Vector2.one), Is.True);
+            Assert.That(ImplicitConverter<bool>.From(Vector3.zero), Is.False);
+            Assert.That(ImplicitConverter<bool>.From(Vector3.one), Is.True);
+            Assert.That(ImplicitConverter<bool>.From(Vector4.zero), Is.False);
+            Assert.That(ImplicitConverter<bool>.From(Vector4.one), Is.True);
+        }
+
+        [Test]
+        public void BooleanUnityObjectRulesObserveLifetimeAfterBinding()
+        {
+            Assert.That(ImplicitConverter<bool>.From<GameObject>(null), Is.False);
+            Assert.That(ImplicitConverter<bool>.From<TestComponent>(null), Is.False);
+            GameObject gameObject = new("BooleanConversionLifetimeTest");
+            TestComponent component = gameObject.AddComponent<TestComponent>();
+            try
+            {
+                Assert.That(ImplicitConverter<bool>.From(gameObject), Is.True);
+                Assert.That(ImplicitConverter<bool>.From(component), Is.True);
+                UnityEngine.Object.DestroyImmediate(gameObject);
+                Assert.That(ImplicitConverter<bool>.From(gameObject), Is.False);
+                Assert.That(ImplicitConverter<bool>.From(component), Is.False);
+            }
+            finally
+            {
+                if (gameObject != null) UnityEngine.Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
         public void StructuralRulesCoverIdentityReferencesEnumsAndObjectBoundaries()
         {
             CustomStruct value = new(11);
