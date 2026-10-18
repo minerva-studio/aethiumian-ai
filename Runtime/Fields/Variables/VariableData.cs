@@ -108,9 +108,14 @@ namespace Aethiumian.AI.Variables
                 case VariableType.UnityObject:
                 case VariableType.Generic:
                 default:
-                    Type referType = TypeReference.ReferType;
-                    referType ??= TypeReference.BaseType;
-                    return referType;
+                    {
+                        // Reading a type must not initialize or rewrite the serialized type reference.
+                        // ReferType caches its resolution in a non-serialized field owned by the reference.
+                        GenericTypeReference reference = typeReference;
+                        Type referType = reference?.ReferType;
+                        referType ??= reference?.BaseType;
+                        return referType ?? VariableUtility.GetType(type);
+                    }
             }
         }
 
@@ -197,27 +202,13 @@ namespace Aethiumian.AI.Variables
         public bool? IsReadable(Type type)
         {
             MemberInfo[] memberInfos = type.GetMember(Path);
-            if (memberInfos.Length > 0)
-            {
-                MemberInfo memberInfo = memberInfos[0];
-                var memberResultType = GetResultType(memberInfo);
-                VariableType selected = GetVariableType(memberResultType);
-                return CanRead(memberInfo);
-            }
-            return null;
+            return memberInfos.Length > 0 ? VariableMemberInfo.TryResolve(memberInfos[0], out VariableMemberInfo resolved) && resolved.CanRead : null;
         }
 
         public bool? IsWritable(Type type)
         {
             MemberInfo[] memberInfos = type.GetMember(Path);
-            if (memberInfos.Length > 0)
-            {
-                MemberInfo memberInfo = memberInfos[0];
-                var memberResultType = GetResultType(memberInfo);
-                VariableType selected = GetVariableType(memberResultType);
-                return CanWrite(memberInfo);
-            }
-            return null;
+            return memberInfos.Length > 0 ? VariableMemberInfo.TryResolve(memberInfos[0], out VariableMemberInfo resolved) && resolved.CanWrite : null;
         }
 
 

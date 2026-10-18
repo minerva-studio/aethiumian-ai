@@ -60,22 +60,14 @@ namespace Aethiumian.AI.Variables
         /// </summary>
         public void Init()
         {
-            objectType = GetAccessorType(member);
-            type = GetVariableType(objectType);
-            accessor = TargetScriptAccessorFactory.Create(member, targetInstance, objectType);
-        }
-
-        /// <summary>
-        /// Gets the value type for a readable member or the parameter type for a setter method.
-        /// </summary>
-        private static Type GetAccessorType(MemberInfo member)
-        {
-            if (member is MethodInfo method && method.GetParameters().Length == 1)
+            if (!VariableMemberInfo.TryResolve(member, out VariableMemberInfo resolved))
             {
-                return method.GetParameters()[0].ParameterType;
+                throw new InvalidOperationException($"Member '{member?.Name}' cannot back a variable because it has no supported value type.");
             }
 
-            return GetResultType(member);
+            objectType = resolved.Type;
+            type = GetVariableType(objectType);
+            accessor = TargetScriptAccessorFactory.Create(resolved, targetInstance);
         }
     }
 
@@ -161,27 +153,22 @@ namespace Aethiumian.AI.Variables
         /// <summary>
         /// Creates an accessor closed over the member's real CLR type.
         /// </summary>
-        internal static ITargetScriptAccessor Create(MemberInfo member, object target, Type sourceType)
+        internal static ITargetScriptAccessor Create(VariableMemberInfo member, object target)
         {
-            if (sourceType == null || sourceType == typeof(void))
-            {
-                throw new InvalidOperationException($"Member '{member?.Name}' has no readable value type.");
-            }
-
             MethodInfo factory = typeof(TargetScriptAccessorFactory).GetMethod(
                 nameof(CreateTyped), BindingFlags.NonPublic | BindingFlags.Static);
             return (ITargetScriptAccessor)factory
-                .MakeGenericMethod(sourceType)
+                .MakeGenericMethod(member.Type)
                 .Invoke(null, new object[] { member, target });
         }
 
         /// <summary>
         /// Creates the closed generic accessor after the real member type is known.
         /// </summary>
-        private static ITargetScriptAccessor CreateTyped<TSource>(MemberInfo member, object target)
+        private static ITargetScriptAccessor CreateTyped<TSource>(VariableMemberInfo member, object target)
         {
-            Func<TSource> getter = CreateGetter<TSource>(member, target);
-            Action<TSource> setter = CreateSetter<TSource>(member, target);
+            Func<TSource> getter = member.CanRead ? CreateGetter<TSource>(member.Member, target) : null;
+            Action<TSource> setter = member.CanWrite ? CreateSetter<TSource>(member.Member, target) : null;
             return new TargetScriptAccessor<TSource>(getter, setter);
         }
 
@@ -195,11 +182,6 @@ namespace Aethiumian.AI.Variables
                 case PropertyInfo property:
                     {
                         MethodInfo getter = property.GetGetMethod(true);
-                        if (getter == null || property.GetIndexParameters().Length != 0)
-                        {
-                            return null;
-                        }
-
                         if (getter.ReturnType == typeof(TSource))
                         {
                             try
@@ -215,7 +197,7 @@ namespace Aethiumian.AI.Variables
                         return CreateReflectionGetter<TSource>(property, target);
                     }
                 case MethodInfo method:
-                    if (method.GetParameters().Length == 0 && method.ReturnType == typeof(TSource))
+                    if (method.ReturnType == typeof(TSource))
                     {
                         try
                         {
@@ -227,9 +209,7 @@ namespace Aethiumian.AI.Variables
                         }
                     }
 
-                    return method.GetParameters().Length == 0
-                        ? CreateReflectionGetter<TSource>(method, target)
-                        : null;
+                    return CreateReflectionGetter<TSource>(method, target);
                 case FieldInfo field:
                     return CreateFieldGetter<TSource>(field, target);
                 default:
@@ -247,12 +227,7 @@ namespace Aethiumian.AI.Variables
                 case PropertyInfo property:
                     {
                         MethodInfo setter = property.GetSetMethod(true);
-                        if (setter == null || property.GetIndexParameters().Length != 0)
-                        {
-                            return null;
-                        }
-
-                        if (setter.GetParameters().Length == 1 && setter.GetParameters()[0].ParameterType == typeof(TSource))
+                        if (setter.GetParameters()[0].ParameterType == typeof(TSource))
                         {
                             try
                             {
@@ -267,11 +242,6 @@ namespace Aethiumian.AI.Variables
                         return CreateReflectionSetter<TSource>(property, target);
                     }
                 case MethodInfo method:
-                    if (method.GetParameters().Length != 1 || method.GetParameters()[0].ParameterType != typeof(TSource))
-                    {
-                        return null;
-                    }
-
                     try
                     {
                         return BindSetter<TSource>(method, target);
@@ -333,11 +303,6 @@ namespace Aethiumian.AI.Variables
         /// </summary>
         private static Action<TSource> CreateFieldSetter<TSource>(FieldInfo field, object target)
         {
-            if (field.IsInitOnly)
-            {
-                return null;
-            }
-
 #if !ENABLE_IL2CPP
             try
             {

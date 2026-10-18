@@ -69,7 +69,9 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] protected VariableType type;
 
-        public override Type FieldObjectType => typeof(object);
+        /// <inheritdoc/>
+        /// <remarks>This dynamic field stores its category in <see cref="Type"/>; null reports that it has no fixed consumer CLR type.</remarks>
+        public override Type FieldObjectType => null;
         public override VariableType Type { get => type; }
 
         public VariableField() { }

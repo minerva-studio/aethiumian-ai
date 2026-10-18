@@ -508,8 +508,10 @@ namespace Aethiumian.AI.Editor
                         MemberInfo member = targetClass.GetMember(options[next]).FirstOrDefault();
                         if (member != null)
                         {
-                            ApplyUsage(tree, vd, "Change script binding", item =>
-                                VariableAuthoring.ConfigureScriptBinding(item, options[next], GetResultType(member)));
+                            if (VariableMemberInfo.TryResolve(member, out VariableMemberInfo resolved))
+                            {
+                                ApplyUsage(tree, vd, "Change script binding", item => VariableAuthoring.ConfigureScriptBinding(item, options[next], resolved.Type));
+                            }
                         }
                     }
                 }
@@ -519,19 +521,25 @@ namespace Aethiumian.AI.Editor
                     if (memberInfos.Length > 0)
                     {
                         MemberInfo memberInfo = memberInfos[0];
-                        var memberResultType = GetResultType(memberInfo);
-                        VariableType selected = GetVariableType(memberResultType);
-                        EditorGUILayout.EnumPopup("Type", selected);
-                        if (vd.Type == VariableType.Generic || vd.Type == VariableType.UnityObject)
+                        if (!VariableMemberInfo.TryResolve(memberInfo, out VariableMemberInfo resolved))
                         {
-                            EditorGUILayout.LabelField("Object Type", memberResultType.FullName);
+                            EditorGUILayout.LabelField("Type", "Unknown (unsupported member signature)");
                         }
-                        EditorGUILayout.Space(20);
-                        EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
+                        else
+                        {
+                            VariableType selected = GetVariableType(resolved.Type);
+                            EditorGUILayout.EnumPopup("Type", selected);
+                            if (vd.Type == VariableType.Generic || vd.Type == VariableType.UnityObject)
+                            {
+                                EditorGUILayout.LabelField("Object Type", resolved.Type.FullName);
+                            }
+                            EditorGUILayout.Space(20);
+                            EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
 
-                        EditorGUILayout.Toggle("Read", CanRead(memberInfo));
-                        EditorGUILayout.Toggle("Write", CanWrite(memberInfo));
-                        EditorGUILayout.Toggle(new GUIContent("Static", "Whether the value is from a static field/property/methods"), IsStatic(memberInfo));
+                            EditorGUILayout.Toggle("Read", resolved.CanRead);
+                            EditorGUILayout.Toggle("Write", resolved.CanWrite);
+                            EditorGUILayout.Toggle(new GUIContent("Static", "Whether the value is from a static field/property/methods"), IsStatic(memberInfo));
+                        }
                     }
                     else EditorGUILayout.LabelField("Type", "Unknown (member not found)");
                 }
@@ -633,8 +641,10 @@ namespace Aethiumian.AI.Editor
             MemberInfo member = ownerTree.targetScript.GetClass().GetMember(memberName).FirstOrDefault();
             if (member == null) return;
 
+            if (!VariableMemberInfo.TryResolve(member, out VariableMemberInfo resolved)) return;
+
             ApplyUsage(ownerTree, variable, "Change script binding", item =>
-                VariableAuthoring.ConfigureScriptBinding(item, memberName, GetResultType(member)));
+                VariableAuthoring.ConfigureScriptBinding(item, memberName, resolved.Type));
         }
 
         private bool IsCurrentVariable(BehaviourTreeData ownerTree, VariableData variable)
@@ -669,11 +679,9 @@ namespace Aethiumian.AI.Editor
                 .Concat(targetClass.GetProperties())
                 .Where(member => !Attribute.IsDefined(member, typeof(ObsoleteAttribute)))
                 .Where(member => member is FieldInfo or PropertyInfo || member is MethodInfo method
-                    && method.GetParameters().Length == 0
-                    && !method.ContainsGenericParameters
-                    && !method.Name.StartsWith("get_")
-                    && !method.Name.StartsWith("set_")
-                    && method.ReturnType != typeof(void))
+                    && !method.IsSpecialName
+                    && !method.ContainsGenericParameters)
+                .Where(member => VariableMemberInfo.TryResolve(member, out _))
                 .Select(member => member.Name)
                 .Distinct()
                 .OrderBy(name => name)

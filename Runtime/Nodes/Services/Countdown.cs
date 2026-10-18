@@ -86,7 +86,7 @@ namespace Aethiumian.AI.Nodes
             if (variable is TreeVariable) return true;
             if (variable is not TargetScriptVariable scriptVariable) return false;
             MemberInfo member = scriptVariable.Member;
-            return member != null && VariableUtility.CanRead(member) && VariableUtility.CanWrite(member);
+            return VariableMemberInfo.TryResolve(member, out VariableMemberInfo resolved) && resolved.CanRead && resolved.CanWrite;
         }
     }
 }

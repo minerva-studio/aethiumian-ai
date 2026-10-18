@@ -120,8 +120,6 @@ namespace Aethiumian.AI.Editor
 
         private void DrawReceiver(SerializedProperty targetObjectProperty)
         {
-            VariableReference receiver = GetReceiver(targetObjectProperty);
-            ApplyBoxedValue(targetObjectProperty, receiver);
             DrawVariableProperty(new GUIContent("Receiver"), targetObjectProperty, new[] { VariableType.Generic, VariableType.UnityObject }, VariableAccessFlag.Read);
         }
 
@@ -239,7 +237,13 @@ namespace Aethiumian.AI.Editor
 
         private void DrawParameter(SerializedProperty parameterProperty, ParameterInfo parameterInfo)
         {
-            Parameter parameter = parameterProperty.boxedValue as Parameter ?? new Parameter(parameterInfo.ParameterType);
+            Parameter parameter = parameterProperty.boxedValue as Parameter;
+            if (parameter == null)
+            {
+                parameter = new Parameter(parameterInfo.ParameterType);
+                ApplyBoxedValue(parameterProperty, parameter);
+            }
+
             parameter.ParameterObjectType = parameterInfo.ParameterType;
 
             if (parameterInfo.ParameterType == typeof(NodeProgress) || parameterInfo.ParameterType == typeof(CancellationToken))
@@ -248,13 +252,10 @@ namespace Aethiumian.AI.Editor
                 {
                     EditorGUILayout.LabelField($"{parameterInfo.Name.ToTitleCase()} ({parameterInfo.ParameterType.Name})");
                 }
-                SetParameterType(parameterProperty, parameter, VariableType.Node);
                 return;
             }
 
-            VariableType variableType = VariableUtility.GetVariableType(parameterInfo.ParameterType);
-            SetParameterType(parameterProperty, parameter, variableType);
-            DrawVariableProperty(new GUIContent(parameterInfo.Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None, parameterInfo.ParameterType);
+            DrawVariableProperty(new GUIContent(parameterInfo.Name.ToTitleCase()), parameterProperty, null, VariableAccessFlag.Read, parameterInfo.ParameterType);
         }
 
         private void DrawResult(FunctionReference function, SerializedProperty resultProperty)
@@ -284,14 +285,12 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
-                if (resultProperty.boxedValue is not VariableReference result)
+                if (resultProperty.boxedValue is not VariableReference)
                 {
-                    result = new VariableReference();
-                    resultProperty.boxedValue = result;
+                    ApplyBoxedValue(resultProperty, new VariableReference());
                 }
 
-                ApplyBoxedValue(resultProperty, result);
-                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
+                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, null, VariableAccessFlag.Write, returnType);
             }
         }
 
@@ -308,31 +307,12 @@ namespace Aethiumian.AI.Editor
             {
                 Parameter parameter = parametersProperty.GetArrayElementAtIndex(i).boxedValue as Parameter ?? new Parameter();
                 parameter.ParameterObjectType = parameterInfos[i].ParameterType;
-                parameter.ForceSetConstantType(GetParameterVariableType(parameterInfos[i].ParameterType));
+                parameter.ForceSetConstantType(VariableUtility.GetVariableType(parameterInfos[i].ParameterType));
                 parametersProperty.GetArrayElementAtIndex(i).boxedValue = parameter;
             }
 
             parametersProperty.serializedObject.ApplyModifiedProperties();
             parametersProperty.serializedObject.Update();
-        }
-
-        private static VariableType GetParameterVariableType(Type parameterType)
-        {
-            return parameterType == typeof(NodeProgress) || parameterType == typeof(CancellationToken)
-                ? VariableType.Node
-                : VariableUtility.GetVariableType(parameterType);
-        }
-
-        private static void SetParameterType(SerializedProperty parameterProperty, Parameter parameter, VariableType type)
-        {
-            if (parameter.Type != type)
-            {
-                parameter.ForceSetConstantType(type);
-            }
-
-            parameterProperty.boxedValue = parameter;
-            parameterProperty.serializedObject.ApplyModifiedProperties();
-            parameterProperty.serializedObject.Update();
         }
 
         private static string BuildFunctionPath(FunctionReference function, MethodInfo method)
@@ -348,7 +328,7 @@ namespace Aethiumian.AI.Editor
 
         private static void ClearResult(SerializedProperty resultProperty)
         {
-            if (resultProperty.boxedValue is VariableReference result)
+            if (resultProperty.boxedValue is VariableReference result && result.HasEditorReference)
             {
                 result.SetReference(null);
                 resultProperty.boxedValue = result;

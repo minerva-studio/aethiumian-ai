@@ -2,6 +2,7 @@ using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor.Tests.Variables
@@ -285,6 +286,56 @@ namespace Aethiumian.AI.Editor.Tests.Variables
 
             Assert.That(vectorField.GetValue<Vector2>(), Is.EqualTo(new Vector2(1f, 2f)));
             Assert.That(customField.GetValue<CustomStruct>(), Is.EqualTo(new CustomStruct(17)));
+        }
+
+        [TestCase(nameof(MemberAccessHost.Read), true, false)]
+        [TestCase(nameof(MemberAccessHost.Write), false, true)]
+        [TestCase(nameof(MemberAccessHost.Readonly), true, false)]
+        [TestCase(nameof(MemberAccessHost.Constant), true, false)]
+        [TestCase(nameof(MemberAccessHost.ReadOnlyProperty), true, false)]
+        [TestCase(nameof(MemberAccessHost.Counter), true, true)]
+        [TestCase(nameof(MemberAccessHost.WriteOnlyProperty), false, true)]
+        [TestCase(nameof(MemberAccessHost.NoValue), false, false)]
+        [TestCase("Item", false, false)]
+        [TestCase(nameof(MemberAccessHost.OpenGenericRead), false, false)]
+        [TestCase(nameof(MemberAccessHost.ByRefWrite), false, false)]
+        public void ScriptMemberContractMatchesRuntimeAccessorDirections(string name, bool canRead, bool canWrite)
+        {
+            MemberInfo member = typeof(MemberAccessHost).GetMember(name)[0];
+            bool success = VariableMemberInfo.TryResolve(member, out VariableMemberInfo resolved);
+            if (!canRead && !canWrite)
+            {
+                Assert.That(success, Is.False);
+                return;
+            }
+
+            Assert.That(success, Is.True);
+            Assert.That(resolved.Member, Is.EqualTo(member));
+            Assert.That(resolved.Type, Is.EqualTo(typeof(int)));
+            Assert.That(resolved.CanRead, Is.EqualTo(canRead));
+            Assert.That(resolved.CanWrite, Is.EqualTo(canWrite));
+
+            TargetScriptVariable variable = CreateTargetScriptVariable(new MemberAccessHost(), name);
+            Assert.That(variable.ObjectType, Is.EqualTo(resolved.Type));
+            if (canRead) Assert.DoesNotThrow(() => variable.GetValue<int>());
+            else Assert.Throws<InvalidOperationException>(() => variable.GetValue<int>());
+            if (canWrite) Assert.DoesNotThrow(() => variable.SetValue(13));
+            else Assert.Throws<InvalidOperationException>(() => variable.SetValue(13));
+        }
+
+        private sealed class MemberAccessHost
+        {
+            public readonly int Readonly = 7;
+            public const int Constant = 8;
+            public int Counter { get; set; }
+            public int ReadOnlyProperty => Readonly;
+            public int WriteOnlyProperty { set { } }
+            public int Read() => Readonly;
+            public void Write(int value) { }
+            public void NoValue() { }
+            public T OpenGenericRead<T>() => default;
+            public void ByRefWrite(ref int value) { }
+            public int this[int index] { get => index; set { } }
         }
 
         [Test]

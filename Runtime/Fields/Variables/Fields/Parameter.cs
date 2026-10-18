@@ -18,6 +18,8 @@ namespace Aethiumian.AI.Variables
 
         /// <summary>Gets or sets the reflected CLR type used to render and convert this parameter.</summary>
         public Type ParameterObjectType { get; set; }
+        /// <inheritdoc/>
+        /// <remarks>The reflected signature supplies the consumer type; null means the signature has not been assigned and the stored <see cref="Type"/> category remains the only type information.</remarks>
         public override Type FieldObjectType => ParameterObjectType;
         public override VariableType Type => type;
 

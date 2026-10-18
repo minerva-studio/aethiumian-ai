@@ -248,29 +248,29 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         /// <param name="label">Label of the field.</param>
         /// <param name="variableProperty">Serialized variable property.</param>
-        /// <param name="possibleTypes">Allowed variable types.</param>
-        /// <param name="variableAccessFlag">Access constraint.</param>
-        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        /// <param name="possibleTypes">Visible variable types.</param>
+        /// <param name="variableAccessFlag">Access constraint; null resolves the reflected member metadata, while an explicit None requires both directions.</param>
+        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag? variableAccessFlag = null)
         {
             if (variableProperty?.boxedValue is not VariableFieldBase variable)
             {
                 return false;
             }
 
-            float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
+            float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag ?? VariableAccessFlag.All);
             Rect rect = EditorGUILayout.GetControlRect(true, height);
             return DrawVariableProperty(rect, label, variableProperty, possibleTypes, variableAccessFlag);
         }
 
         /// <summary>Draws a variable property with a transient reflected object type override.</summary>
-        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
+        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type objectTypeOverride)
         {
             if (variableProperty?.boxedValue is not VariableFieldBase variable)
             {
                 return false;
             }
 
-            float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
+            float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag ?? VariableAccessFlag.All);
             Rect rect = EditorGUILayout.GetControlRect(true, height);
             return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, objectTypeOverride);
         }
@@ -281,9 +281,9 @@ namespace Aethiumian.AI.Editor
         /// <param name="rect">Target draw rect.</param>
         /// <param name="label">Label of the field.</param>
         /// <param name="variableProperty">Serialized variable property.</param>
-        /// <param name="possibleTypes">Allowed variable types.</param>
-        /// <param name="variableAccessFlag">Access constraint.</param>
-        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        /// <param name="possibleTypes">Visible variable types.</param>
+        /// <param name="variableAccessFlag">Access constraint; null resolves the reflected member metadata, while an explicit None requires both directions.</param>
+        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag? variableAccessFlag = null)
         {
             if (variableProperty == null)
             {
@@ -294,7 +294,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Draws a variable property in a fixed rectangle with a transient reflected type override.</summary>
-        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
+        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type objectTypeOverride)
         {
             return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, objectTypeOverride);
         }

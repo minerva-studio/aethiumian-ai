@@ -3,6 +3,7 @@ using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using System;
 using System.Reflection;
+using System.Threading;
 using UnityEditor;
 using UnityEngine;
 
@@ -119,8 +120,6 @@ namespace Aethiumian.AI.Editor
 
         private void DrawReceiver(SerializedProperty targetObjectProperty)
         {
-            VariableReference receiver = GetReceiver(targetObjectProperty);
-            ApplyBoxedValue(targetObjectProperty, receiver);
             DrawVariableProperty(new GUIContent("Receiver"), targetObjectProperty, new[] { VariableType.Generic, VariableType.UnityObject }, VariableAccessFlag.Read);
         }
 
@@ -231,18 +230,45 @@ namespace Aethiumian.AI.Editor
 
                 for (int i = 0; i < parameterInfos.Length; i++)
                 {
+                    ParameterInfo parameterInfo = parameterInfos[i];
                     SerializedProperty parameterProperty = parametersProperty.GetArrayElementAtIndex(i);
-                    Parameter parameter = parameterProperty.boxedValue as Parameter ?? new Parameter(parameterInfos[i].ParameterType);
-                    parameter.ParameterObjectType = parameterInfos[i].ParameterType;
+                    Parameter parameter = parameterProperty.boxedValue as Parameter;
+                    bool changed = false;
+                    if (parameter == null)
+                    {
+                        parameter = new Parameter(VariableUtility.GetVariableType(parameterInfo.ParameterType));
+                        changed = true;
+                    }
 
-                    VariableType variableType = VariableUtility.GetVariableType(parameterInfos[i].ParameterType);
+                    parameter.ParameterObjectType = parameterInfo.ParameterType;
+
+                    if (parameterInfo.ParameterType == typeof(NodeProgress) || parameterInfo.ParameterType == typeof(CancellationToken))
+                    {
+                        if (changed)
+                        {
+                            ApplyBoxedValue(parameterProperty, parameter);
+                        }
+
+                        using (new EditorGUI.DisabledScope(true))
+                        {
+                            EditorGUILayout.LabelField($"{parameterInfo.Name.ToTitleCase()} ({parameterInfo.ParameterType.Name})");
+                        }
+                        continue;
+                    }
+
+                    VariableType variableType = VariableUtility.GetVariableType(parameterInfo.ParameterType);
                     if (parameter.Type != variableType)
                     {
                         parameter.ForceSetConstantType(variableType);
+                        changed = true;
                     }
 
-                    ApplyBoxedValue(parameterProperty, parameter);
-                    DrawVariableProperty(new GUIContent(parameterInfos[i].Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None, parameterInfos[i].ParameterType);
+                    if (changed)
+                    {
+                        ApplyBoxedValue(parameterProperty, parameter);
+                    }
+
+                    DrawVariableProperty(new GUIContent(parameterInfo.Name.ToTitleCase()), parameterProperty, null, VariableAccessFlag.Read, parameterInfo.ParameterType);
                 }
             }
         }
@@ -273,14 +299,12 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
-                if (resultProperty.boxedValue is not VariableReference result)
+                if (resultProperty.boxedValue is not VariableReference)
                 {
-                    result = new VariableReference();
-                    resultProperty.boxedValue = result;
+                    ApplyBoxedValue(resultProperty, new VariableReference());
                 }
 
-                ApplyBoxedValue(resultProperty, result);
-                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
+                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, null, VariableAccessFlag.Write, method.ReturnType);
             }
         }
 
@@ -318,7 +342,7 @@ namespace Aethiumian.AI.Editor
 
         private static void ClearResult(SerializedProperty resultProperty)
         {
-            if (resultProperty.boxedValue is VariableReference result)
+            if (resultProperty.boxedValue is VariableReference result && result.HasEditorReference)
             {
                 result.SetReference(null);
                 resultProperty.boxedValue = result;

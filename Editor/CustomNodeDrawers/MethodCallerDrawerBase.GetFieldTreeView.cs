@@ -215,7 +215,7 @@ namespace Aethiumian.AI.Editor
                     GraphInspectorLayout.FunctionSelectionRects layout = GraphInspectorLayout.CalculateFunctionSelectionRects(contentRect);
                     GUIContent memberLabel = CreateMemberLabel(memberName);
 
-                    owner.DrawVariableProperty(layout.ValueRect, memberLabel, dataProperty, new[] { item.VariableType }, VariableAccessFlag.Read);
+                    owner.DrawVariableProperty(layout.ValueRect, memberLabel, dataProperty, null, VariableAccessFlag.Write, item.ValueType);
 
                     if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
                     {
@@ -258,7 +258,7 @@ namespace Aethiumian.AI.Editor
                     GraphInspectorLayout.FunctionSelectionRects layout = GraphInspectorLayout.CalculateFunctionSelectionRects(contentRect);
 
                     EnsureParameterObjectType(dataProperty, item.ValueType);
-                    owner.DrawVariableProperty(layout.ValueRect, CreateMemberLabel(memberName), dataProperty, VariableUtility.GetCompatibleTypes(item.VariableType), VariableAccessFlag.None, item.ValueType);
+                    owner.DrawVariableProperty(layout.ValueRect, CreateMemberLabel(memberName), dataProperty, null, VariableAccessFlag.Read, item.ValueType);
 
                     if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
                     {
@@ -378,14 +378,11 @@ namespace Aethiumian.AI.Editor
                 if (TryGetEntryProperties(entryListProperty, item.MemberInfo.Name, out _, out SerializedProperty dataProperty)
                     && dataProperty?.boxedValue is VariableFieldBase variable)
                 {
-                    IReadOnlyList<VariableType> possibleTypes = mode == FieldTreeViewMode.Get
-                        ? new[] { item.VariableType }
-                        : VariableUtility.GetCompatibleTypes(item.VariableType);
                     VariableAccessFlag accessFlag = mode == FieldTreeViewMode.Get
-                        ? VariableAccessFlag.Read
-                        : VariableAccessFlag.None;
+                        ? VariableAccessFlag.Write
+                        : VariableAccessFlag.Read;
 
-                    float height = VariableFieldDrawers.GetVariableHeight(variable, owner.tree, possibleTypes, accessFlag);
+                    float height = VariableFieldDrawers.GetVariableHeight(variable, owner.tree, null, accessFlag);
                     return Mathf.Max(EditorGUIUtility.singleLineHeight, height) + 4f;
                 }
 
@@ -539,10 +536,8 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
+                // ParameterObjectType is transient display metadata; rendering already receives the reflected type explicitly.
                 parameter.ParameterObjectType = valueType;
-                dataProperty.boxedValue = parameter;
-                dataProperty.serializedObject.ApplyModifiedProperties();
-                dataProperty.serializedObject.Update();
             }
 
             /// <summary>

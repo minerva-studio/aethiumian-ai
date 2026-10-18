@@ -27,15 +27,15 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             if (supported) Assert.That(definition.Matches(source, target), Is.True);
         }
 
-        [TestCase(typeof(float), typeof(int), "fractional")]
+        [TestCase(typeof(float), typeof(int), "Fractional")]
         [TestCase(typeof(int), typeof(float), "precision")]
-        [TestCase(typeof(Vector3), typeof(Vector2), "discard Z")]
+        [TestCase(typeof(Vector3), typeof(Vector2), "Z discarded")]
         [TestCase(typeof(float), typeof(Vector2), "X and Y")]
-        [TestCase(typeof(object), typeof(float), "runtime type")]
+        [TestCase(typeof(object), typeof(float), "Runtime type")]
         [TestCase(typeof(GameObject), typeof(TestComponent), "missing component")]
-        [TestCase(typeof(CustomStruct), typeof(CustomStruct), "unchanged")]
+        [TestCase(typeof(CustomStruct), typeof(CustomStruct), "No conversion needed")]
         [TestCase(typeof(string), typeof(TestEnum), "invalid text")]
-        [TestCase(typeof(TestEnum), typeof(int), "underlying enum")]
+        [TestCase(typeof(TestEnum), typeof(int), "out-of-range")]
         public void MatchedDefinitionsExplainTheSelectedOperation(Type source, Type target, string explanation)
         {
             ConversionDefinition definition = ConversionRegistry.Find(source, target);

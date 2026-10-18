@@ -32,7 +32,10 @@ namespace Aethiumian.AI.Variables
     public class VariableReference : VariableReferenceBase, IDynamicVariableField
     {
         public VariableType type;
-        public override Type FieldObjectType => typeof(object);
+
+        /// <inheritdoc/>
+        /// <remarks>This dynamic reference stores its category in <see cref="type"/>; null reports that it has no fixed consumer CLR type.</remarks>
+        public override Type FieldObjectType => null;
         public override VariableType Type { get => type; }
 
 

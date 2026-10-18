@@ -275,8 +275,9 @@ namespace Aethiumian.AI.Variables
                 if (targetClass != null)
                 {
                     MemberInfo memberInfo = targetClass.GetMember(vd.Path)[0];
-                    var memberResultType = GetResultType(memberInfo);
-                    return GetVariableType(memberResultType);
+                    return VariableMemberInfo.TryResolve(memberInfo, out VariableMemberInfo resolved)
+                        ? GetVariableType(resolved.Type)
+                        : null;
                 }
                 return null;
             }
@@ -379,18 +380,15 @@ namespace Aethiumian.AI.Variables
             throw new NotSupportedException(message);
         }
 
-        public static bool CanRead(MemberInfo memberInfo)
+        /// <summary>Checks whether a member value type can be used as a conversion generic argument.</summary>
+        internal static bool IsSupportedAccessorType(Type type)
         {
-            return (memberInfo is MethodInfo m && m.ReturnType == typeof(void))
-                || (memberInfo is PropertyInfo p && p.CanRead)
-                || memberInfo is FieldInfo;
-        }
-
-        public static bool CanWrite(MemberInfo memberInfo)
-        {
-            return (memberInfo is MethodInfo m1 && m1.GetParameters().Length == 0)
-                || (memberInfo is PropertyInfo p2 && p2.CanWrite)
-                || memberInfo is FieldInfo;
+            return type != null
+                && type != typeof(void)
+                && !type.ContainsGenericParameters
+                && !type.IsPointer
+                && !type.IsByRef
+                && !type.IsByRefLike;
         }
 
     }

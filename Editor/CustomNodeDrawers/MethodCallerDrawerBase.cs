@@ -446,15 +446,22 @@ namespace Aethiumian.AI.Editor
             if (parameterInfo.Length == 0)
             {
                 EditorGUILayout.LabelField("Parameters", "None");
-                parametersProperty.arraySize = 0;
+                if (parametersProperty.arraySize != 0)
+                {
+                    parametersProperty.arraySize = 0;
+                    parametersProperty.serializedObject.ApplyModifiedProperties();
+                    parametersProperty.serializedObject.Update();
+                }
                 goto validation;
             }
 
             EditorGUILayout.LabelField("Parameters:");
 
+            bool parametersChanged = false;
             if (parametersProperty.arraySize != parameterInfo.Length)
             {
                 parametersProperty.arraySize = parameterInfo.Length;
+                parametersChanged = true;
             }
 
             EditorGUI.indentLevel++;
@@ -462,7 +469,14 @@ namespace Aethiumian.AI.Editor
             {
                 ParameterInfo item = parameterInfo[i];
                 SerializedProperty parameterProperty = parametersProperty.GetArrayElementAtIndex(i);
-                Parameter parameter = parameterProperty.GetAIValue() as Parameter ?? new Parameter();
+                Parameter parameter = parameterProperty.boxedValue as Parameter;
+                if (parameter == null)
+                {
+                    parameter = new Parameter(VariableUtility.GetVariableType(item.ParameterType));
+                    parameterProperty.boxedValue = parameter;
+                    parametersChanged = true;
+                }
+
                 parameter.ParameterObjectType = item.ParameterType;
 
                 if (item.ParameterType == typeof(NodeProgress))
@@ -470,7 +484,6 @@ namespace Aethiumian.AI.Editor
                     using (new EditorGUI.DisabledScope(true))
                     {
                         EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                        ForceSetParameterType(parameterProperty, parameter, VariableType.Node);
                     }
                     continue;
                 }
@@ -479,18 +492,27 @@ namespace Aethiumian.AI.Editor
                     using (new EditorGUI.DisabledScope(true))
                     {
                         EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Cancellation Token)");
-                        ForceSetParameterType(parameterProperty, parameter, VariableType.Node);
                     }
                     continue;
                 }
 
                 VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
-                ForceSetParameterType(parameterProperty, parameter, variableType);
-                ApplyVariableProperty(parameterProperty, parameter);
+                if (parameter.Type != variableType)
+                {
+                    parameter.ForceSetConstantType(variableType);
+                    parameterProperty.boxedValue = parameter;
+                    parametersChanged = true;
+                }
 
-                DrawVariableProperty(new GUIContent(item.Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None, item.ParameterType);
+                DrawVariableProperty(new GUIContent(item.Name.ToTitleCase()), parameterProperty, null, VariableAccessFlag.Read, item.ParameterType);
             }
             EditorGUI.indentLevel--;
+
+            if (parametersChanged)
+            {
+                parametersProperty.serializedObject.ApplyModifiedProperties();
+                parametersProperty.serializedObject.Update();
+            }
 
         validation:
             if (node is ObjectActionBase action && action.endType == ObjectActionBase.UpdateEndType.byMethod)
@@ -509,15 +531,6 @@ namespace Aethiumian.AI.Editor
                 {
                     EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress/CancellationToken as its first parameter.", MessageType.Warning);
                 }
-            }
-
-            static void ForceSetParameterType(SerializedProperty parameterProperty, Parameter parameter, VariableType type)
-            {
-                if (parameter.Type == type) return;
-
-                parameter.ForceSetConstantType(type);
-                parameterProperty.boxedValue = parameter;
-                parameterProperty.serializedObject.ApplyModifiedProperties();
             }
         }
 
@@ -642,7 +655,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="resultProperty">Serialized property to clear.</param>
         private void ClearVariableReference(SerializedProperty resultProperty)
         {
-            if (resultProperty?.GetAIValue() is VariableReference resultReference)
+            if (resultProperty?.GetAIValue() is VariableReference resultReference && resultReference.HasEditorReference)
             {
                 resultReference.SetReference(null);
                 ApplyVariableProperty(resultProperty, resultReference);
@@ -824,9 +837,11 @@ namespace Aethiumian.AI.Editor
             VariableType variableType = VariableUtility.GetVariableType(returnType);
             if (variableType != VariableType.Invalid)
             {
-                VariableFieldBase resultVariable = EnsureVariableProperty(resultProperty, () => new VariableReference());
-                ApplyVariableProperty(resultProperty, resultVariable);
-                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
+                if (resultProperty.GetAIValue() is not VariableFieldBase)
+                {
+                    ApplyVariableProperty(resultProperty, new VariableReference());
+                }
+                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, null, VariableAccessFlag.Write, returnType);
             }
             else
             {

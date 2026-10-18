@@ -1,10 +1,10 @@
 using Aethiumian.AI.Nodes;
-using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Variables;
 using System;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+
 namespace Aethiumian.AI.Editor
 {
     public class DetermineNodeDrawer : NodeDrawerBase
@@ -31,25 +31,21 @@ namespace Aethiumian.AI.Editor
             {
                 DrawCompareMode(comparableDetermine);
                 SerializedProperty expectProperty = property.FindPropertyRelative(nameof(ComparableDetermine<int>.expect));
-                ApplyBoxedValue(expectProperty, comparableDetermine.Expect);
                 DrawVariableProperty(
                     new GUIContent("Expect value:"),
-                    expectProperty);
+                    expectProperty,
+                    null,
+                    VariableAccessFlag.Read,
+                    comparableDetermine.ExpectType);
             }
             if (node.storeResult)
             {
                 SerializedProperty resultProperty = property.FindPropertyRelative(nameof(Determine.result));
-                ApplyBoxedValue(resultProperty, node.Result);
-                DrawVariableProperty(
-                    new GUIContent("Result store to:"),
-                    resultProperty);
+                DrawVariableProperty(new GUIContent("Result store to:"), resultProperty, null, VariableAccessFlag.Write);
                 if (compare)
                 {
                     SerializedProperty compareResultProperty = property.FindPropertyRelative(nameof(ComparableDetermine<int>.compareResult));
-                    ApplyBoxedValue(compareResultProperty, comparableDetermine.CompareResult);
-                    DrawVariableProperty(
-                        new GUIContent("Compare result store to:"),
-                        compareResultProperty);
+                    DrawVariableProperty(new GUIContent("Compare result store to:"), compareResultProperty, null, VariableAccessFlag.Write);
                 }
             }
 

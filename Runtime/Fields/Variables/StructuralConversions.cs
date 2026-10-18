@@ -30,7 +30,7 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => source == target;
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => "Use the value unchanged.";
+            public override string Describe(Type source, Type target) => "No conversion needed.";
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
@@ -49,7 +49,12 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => source == typeof(object);
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => $"Convert the Object value to {target.Name}; success depends on its runtime type and value.";
+            public override string Describe(Type source, Type target)
+            {
+                return target.IsValueType
+                    ? "Runtime type and value determine success; null fails."
+                    : "Runtime type and value determine success; null stays null.";
+            }
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
@@ -112,7 +117,7 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => target == typeof(string);
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => "Format the value using ToString(); null becomes an empty string.";
+            public override string Describe(Type source, Type target) => "Null becomes empty; other values use their text form.";
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
@@ -135,8 +140,8 @@ namespace Aethiumian.AI.Variables
             public override string Describe(Type source, Type target)
             {
                 return typeof(UnityEngine.Object).IsAssignableFrom(source)
-                    ? "Use true for a live Unity object and false for a null or destroyed object."
-                    : "Use false when the scalar or vector compares equal to zero; otherwise use true.";
+                    ? "True when the object is live; false when null or destroyed."
+                    : "False when zero; otherwise true.";
             }
 
             /// <inheritdoc/>
@@ -176,7 +181,7 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => target == typeof(Rect) && SupportsVector4Source(source);
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => "Convert to Vector4, then use X, Y, Z, and W as the rectangle position and size.";
+            public override string Describe(Type source, Type target) => "X, Y, Z, and W become the rectangle position and size.";
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
@@ -202,7 +207,7 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => target == typeof(RectInt) && SupportsVector4Source(source);
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => "Convert to Vector4 and discard each fractional part to obtain integer rectangle position and size.";
+            public override string Describe(Type source, Type target) => "Fractional parts are discarded to produce integer position and size.";
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
@@ -228,7 +233,7 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => source.IsEnum && IsNumericType(target);
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => $"Convert the underlying enum value to {target.Name}; precision can be lost and out-of-range values can fail.";
+            public override string Describe(Type source, Type target) => "Precision may be lost; out-of-range values fail.";
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
@@ -259,8 +264,8 @@ namespace Aethiumian.AI.Variables
             public override string Describe(Type source, Type target)
             {
                 return source == typeof(string)
-                    ? $"Parse an enum name or numeric text as {target.Name}; invalid text fails."
-                    : $"Convert to the underlying numeric type of {target.Name}; the value need not name a defined member.";
+                    ? "Enum name or numeric text; invalid text fails."
+                    : "Value need not name a defined member; out-of-range values fail.";
             }
 
             /// <inheritdoc/>
@@ -296,7 +301,7 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => typeof(UnityEngine.Object).IsAssignableFrom(source) && (target == typeof(int) || target == typeof(float));
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => "Use 1 for a live Unity object and 0 for a null or destroyed object.";
+            public override string Describe(Type source, Type target) => "1 for a live Unity object; 0 for null or destroyed.";
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
@@ -325,7 +330,7 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => typeof(UnityEngine.Object).IsAssignableFrom(source) && (target == typeof(Vector2) || target == typeof(Vector3) || target == typeof(Vector4));
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => "Fill the vector with 1 for a live Unity object or 0 for a null or destroyed object.";
+            public override string Describe(Type source, Type target) => "1 fills each component for a live Unity object; 0 for null or destroyed.";
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);
@@ -361,10 +366,10 @@ namespace Aethiumian.AI.Variables
             /// <inheritdoc/>
             public override string Describe(Type source, Type target)
             {
-                if (target == typeof(GameObject)) return "Use the GameObject or a component's owning GameObject; other live Unity objects cannot convert.";
+                if (target == typeof(GameObject)) return "GameObject or a component's GameObject; other live objects fail.";
                 if (typeof(Component).IsAssignableFrom(target))
-                    return $"Reuse a matching component or find {target.Name} on a GameObject; a missing component fails.";
-                return $"Use the Unity object as {target.Name}; a different actual object type can fail.";
+                    return $"Matching {target.Name} component reused, or found on a GameObject; a missing component fails.";
+                return $"Uses the Unity object as {target.Name}; a different runtime type fails.";
             }
 
             /// <inheritdoc/>
@@ -418,7 +423,7 @@ namespace Aethiumian.AI.Variables
             public override bool Matches(Type source, Type target) => !source.IsValueType && !target.IsValueType && target.IsAssignableFrom(source);
 
             /// <inheritdoc/>
-            public override string Describe(Type source, Type target) => $"Use the same object reference as {target.Name}; null remains null.";
+            public override string Describe(Type source, Type target) => $"Same object reference as {target.Name}; null remains null.";
 
             /// <inheritdoc/>
             internal override ConversionRule<TSource, TTarget> Bind<TSource, TTarget>() => new(TryConvert<TSource, TTarget>);

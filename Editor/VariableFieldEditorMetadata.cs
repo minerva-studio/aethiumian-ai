@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 
 namespace Aethiumian.AI.Editor
@@ -24,19 +25,9 @@ namespace Aethiumian.AI.Editor
 
         private static readonly Dictionary<MemberInfo, MemberMetadata> MetadataByMember = new();
 
-        /// <summary>Determines whether a field opts into authoring-time type selection.</summary>
-        internal static bool IsDynamic(VariableFieldBase field) => field is IDynamicVariableField;
-
-        /// <summary>Gets the cached allowed variable types for a field and reflected member.</summary>
-        internal static IReadOnlyList<VariableType> GetAllowedTypes(VariableFieldBase field, MemberInfo member)
-        {
-            if (!IsDynamic(field))
-            {
-                return VariableTypeCatalog.GetSingleType(field.Type);
-            }
-
-            return GetMetadata(member).AllowedTypes;
-        }
+        /// <summary>Gets the cached visible variable types for the reflected member.</summary>
+        /// <remarks>The member's constraint/exclude attributes are intersected with the category its authored node-field role requires. Compatibility with a field's consumer type is resolved separately through <see cref="VariableTypeCatalog.SupportsAccess"/>.</remarks>
+        internal static IReadOnlyList<VariableType> GetAllowedTypes(MemberInfo member) => GetMetadata(member).AllowedTypes;
 
         /// <summary>Gets the cached read/write access flags for a reflected member.</summary>
         internal static VariableAccessFlag GetAccessFlag(MemberInfo member) => GetMetadata(member).AccessFlag;
@@ -63,30 +54,61 @@ namespace Aethiumian.AI.Editor
                 : ReadOnlyCopy(constraint.VariableTypes);
 
             ExcludeAttribute exclude = Attribute.GetCustomAttribute(member, typeof(ExcludeAttribute)) as ExcludeAttribute;
-            if (exclude == null)
+            IReadOnlyList<VariableType> allowed = source;
+            if (exclude != null)
             {
-                return source;
+                HashSet<VariableType> excluded = new(exclude.VariableTypes ?? Array.Empty<VariableType>());
+                VariableType[] filtered = new VariableType[source.Count];
+                int count = 0;
+                for (int i = 0; i < source.Count; i++)
+                {
+                    VariableType candidate = source[i];
+                    if (!excluded.Contains(candidate))
+                    {
+                        filtered[count++] = candidate;
+                    }
+                }
+
+                if (count != filtered.Length)
+                {
+                    Array.Resize(ref filtered, count);
+                }
+
+                allowed = Array.AsReadOnly(filtered);
             }
 
-            HashSet<VariableType> excluded = new(exclude.VariableTypes ?? Array.Empty<VariableType>());
-            VariableType[] filtered = new VariableType[source.Count];
-            int count = 0;
-            for (int i = 0; i < source.Count; i++)
+            VariableType? requiredCategory = GetRequiredSourceCategory(member);
+            if (requiredCategory == null)
             {
-                VariableType candidate = source[i];
-                if (!excluded.Contains(candidate))
+                return allowed;
+            }
+
+            for (int i = 0; i < allowed.Count; i++)
+            {
+                if (allowed[i] == requiredCategory.Value)
                 {
-                    filtered[count++] = candidate;
+                    return allowed.Count == 1 ? allowed : ReadOnlyCopy(new[] { requiredCategory.Value });
                 }
             }
 
-            if (count == filtered.Length)
+            return Array.Empty<VariableType>();
+        }
+
+        /// <summary>Returns the only category an authored node field can consume, or null when the field accepts any category.</summary>
+        /// <remarks>Cooldown and Throttle timers must be Timer Floats, while Countdown updates only ordinary Float variables. Visibility must match the selector's candidate rule so the type menu cannot offer a category the field rejects.</remarks>
+        private static VariableType? GetRequiredSourceCategory(MemberInfo member)
+        {
+            if (member?.Name == "timer" && (member.DeclaringType == typeof(Cooldown) || member.DeclaringType == typeof(Throttle)))
             {
-                return Array.AsReadOnly(filtered);
+                return VariableType.Float;
             }
 
-            Array.Resize(ref filtered, count);
-            return Array.AsReadOnly(filtered);
+            if (member?.Name == "updatingVariable" && member.DeclaringType == typeof(Countdown))
+            {
+                return VariableType.Float;
+            }
+
+            return null;
         }
 
         private static IReadOnlyList<VariableType> ReadOnlyCopy(VariableType[] values)

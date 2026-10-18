@@ -1,5 +1,6 @@
 using Aethiumian.AI.Variables;
 using Aethiumian.AI.Editor;
+using Aethiumian.AI.References;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -37,7 +38,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             field.ForceSetConstantValue(2.5f);
 
             Assert.That(field.Type, Is.EqualTo(VariableType.Float));
-            Assert.That(field.FieldObjectType, Is.EqualTo(typeof(object)));
+            Assert.That(field.FieldObjectType, Is.Null);
             Assert.That(field, Is.InstanceOf<IDynamicVariableField>());
             Assert.That(field.FloatValue, Is.EqualTo(2.5f));
         }
@@ -67,30 +68,30 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
-        public void IntegerParameterOverride_ResolvesEnumTypeWithoutSerialization()
+        public void ConsumerTypeOverride_ResolvesEnumTypeWithoutSerialization()
         {
             Parameter parameter = new(VariableType.Int);
 
-            Assert.That(VariableFieldDrawers.ResolveIntegerObjectType(parameter, typeof(ParameterEnum)), Is.EqualTo(typeof(ParameterEnum)));
+            Assert.That(VariableFieldDrawers.ResolveConsumerType(parameter, typeof(ParameterEnum)), Is.EqualTo(typeof(ParameterEnum)));
         }
 
         [Test]
-        public void IntegerParameterOverride_ResolvesFlagsEnumType()
+        public void ConsumerTypeOverride_ResolvesFlagsEnumType()
         {
             Parameter parameter = new(VariableType.Int);
 
-            Type resolved = VariableFieldDrawers.ResolveIntegerObjectType(parameter, typeof(ParameterFlags));
+            Type resolved = VariableFieldDrawers.ResolveConsumerType(parameter, typeof(ParameterFlags));
 
             Assert.That(resolved, Is.EqualTo(typeof(ParameterFlags)));
             Assert.That(Attribute.IsDefined(resolved, typeof(FlagsAttribute)), Is.True);
         }
 
         [Test]
-        public void IntegerParameterOverride_ResolvesLayerMaskType()
+        public void ConsumerTypeOverride_ResolvesLayerMaskType()
         {
             Parameter parameter = new(VariableType.Int);
 
-            Assert.That(VariableFieldDrawers.ResolveIntegerObjectType(parameter, typeof(LayerMask)), Is.EqualTo(typeof(LayerMask)));
+            Assert.That(VariableFieldDrawers.ResolveConsumerType(parameter, typeof(LayerMask)), Is.EqualTo(typeof(LayerMask)));
         }
 
         [Test]
@@ -98,7 +99,24 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         {
             Parameter parameter = new(VariableType.Int);
 
-            Assert.That(VariableFieldDrawers.ResolveIntegerObjectType(parameter, null), Is.Null);
+            Assert.That(VariableFieldDrawers.ResolveConsumerType(parameter, null), Is.Null);
+        }
+
+        [Test]
+        public void ObjectTypeRead_DoesNotInitializeOrWriteTheSerializedTypeReference()
+        {
+            VariableData data = new("Uninitialized type reference", VariableType.Generic);
+            FieldInfo typeReferenceField = typeof(VariableData).GetField(
+                "typeReference", BindingFlags.Instance | BindingFlags.NonPublic);
+            GenericTypeReference reference = new();
+            reference.SetBaseType(typeof(object));
+            typeReferenceField.SetValue(data, reference);
+
+            Type objectType = data.ObjectType;
+
+            Assert.That(objectType, Is.EqualTo(typeof(object)));
+            Assert.That(reference.fullName, Is.Empty);
+            Assert.That(reference.assemblyName, Is.Empty);
         }
 
         [Test]
@@ -110,7 +128,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(fixedReference, Is.Not.InstanceOf<IDynamicVariableField>());
             Assert.That(fixedReference.FieldObjectType, Is.EqualTo(typeof(int)));
             Assert.That(dynamicReference, Is.InstanceOf<IDynamicVariableField>());
-            Assert.That(dynamicReference.FieldObjectType, Is.EqualTo(typeof(object)));
+            Assert.That(dynamicReference.FieldObjectType, Is.Null);
         }
 
         [Test]
@@ -120,23 +138,39 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
-        public void VariableFieldEditorMetadata_PreservesFixedAndDynamicTypeRules()
+        public void VariableFieldEditorMetadata_UsesOnlyExplicitMemberRestrictions()
         {
             FieldInfo constrainedMember = GetMetadataMember(nameof(MetadataHost.constrained));
             FieldInfo defaultMember = GetMetadataMember(nameof(MetadataHost.dynamicDefault));
             FieldInfo fixedMember = GetMetadataMember(nameof(MetadataHost.fixedValue));
+            FieldInfo genericSentinelMember = GetMetadataMember(nameof(MetadataHost.genericSentinel));
 
-            IReadOnlyList<VariableType> constrained = VariableFieldEditorMetadata.GetAllowedTypes(new VariableField(VariableType.Int), constrainedMember);
-            IReadOnlyList<VariableType> constrainedAgain = VariableFieldEditorMetadata.GetAllowedTypes(new VariableField(VariableType.Int), constrainedMember);
-            IReadOnlyList<VariableType> defaultTypes = VariableFieldEditorMetadata.GetAllowedTypes(new VariableField(VariableType.Int), defaultMember);
-            IReadOnlyList<VariableType> fixedTypes = VariableFieldEditorMetadata.GetAllowedTypes(new VariableField<int>(), fixedMember);
+            IReadOnlyList<VariableType> constrained = VariableFieldEditorMetadata.GetAllowedTypes(constrainedMember);
+            IReadOnlyList<VariableType> constrainedAgain = VariableFieldEditorMetadata.GetAllowedTypes(constrainedMember);
+            IReadOnlyList<VariableType> defaultTypes = VariableFieldEditorMetadata.GetAllowedTypes(defaultMember);
+            IReadOnlyList<VariableType> fixedTypes = VariableFieldEditorMetadata.GetAllowedTypes(fixedMember);
+            IReadOnlyList<VariableType> sentinelTypes = VariableFieldEditorMetadata.GetAllowedTypes(genericSentinelMember);
 
             Assert.That(constrained, Is.EqualTo(new[] { VariableType.Vector3, VariableType.Vector2 }));
             Assert.That(defaultTypes.Count, Is.EqualTo(Enum.GetValues(typeof(VariableType)).Length));
-            Assert.That(fixedTypes, Is.EqualTo(new[] { VariableType.Int }));
+            Assert.That(fixedTypes, Is.SameAs(defaultTypes));
             Assert.That(ReferenceEquals(constrained, constrainedAgain), Is.True);
             Assert.That(ReferenceEquals(defaultTypes, VariableTypeCatalog.GetAllVariableTypes()), Is.True);
-            Assert.That(ReferenceEquals(fixedTypes, VariableTypeCatalog.GetSingleType(VariableType.Int)), Is.True);
+            Assert.That(sentinelTypes, Is.EqualTo(new[] { VariableType.Generic }));
+        }
+
+        [Test]
+        public void ExplicitObjectConsumerTypeIsNotTheSameAsNoConsumerType()
+        {
+            VariableField<object> objectField = new();
+            VariableReference<object> objectReference = new();
+            VariableField dynamicField = new(VariableType.Int);
+            VariableReference dynamicReference = new();
+
+            Assert.That(objectField.FieldObjectType, Is.EqualTo(typeof(object)));
+            Assert.That(objectReference.FieldObjectType, Is.EqualTo(typeof(object)));
+            Assert.That(dynamicField.FieldObjectType, Is.Null);
+            Assert.That(dynamicReference.FieldObjectType, Is.Null);
         }
 
         [TestCase(nameof(MetadataHost.dynamicDefault), VariableAccessFlag.All)]
@@ -155,17 +189,16 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         public void VariableFieldEditorMetadata_CombinesAccessFlagsAndCachesWarmLookups()
         {
             FieldInfo member = GetMetadataMember(nameof(MetadataHost.constrained));
-            VariableField dynamicField = new(VariableType.Int);
             VariableAccessFlag expected = VariableAccessFlag.Read | VariableAccessFlag.Write;
 
             Assert.That(VariableFieldEditorMetadata.GetAccessFlag(member), Is.EqualTo(expected));
 
-            _ = VariableFieldEditorMetadata.GetAllowedTypes(dynamicField, member);
+            _ = VariableFieldEditorMetadata.GetAllowedTypes(member);
             _ = VariableFieldEditorMetadata.GetAccessFlag(member);
             long before = GC.GetAllocatedBytesForCurrentThread();
             for (int i = 0; i < 1000; i++)
             {
-                _ = VariableFieldEditorMetadata.GetAllowedTypes(dynamicField, member);
+                _ = VariableFieldEditorMetadata.GetAllowedTypes(member);
                 _ = VariableFieldEditorMetadata.GetAccessFlag(member);
             }
 
@@ -382,6 +415,10 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             [Readable]
             [Writable]
             public VariableField constrained;
+
+            [Constraint(VariableType.Generic, VariableType.Int)]
+            [Exclude(VariableType.Int)]
+            public VariableField genericSentinel;
 
             public VariableField dynamicDefault;
             public VariableField<int> fixedValue;

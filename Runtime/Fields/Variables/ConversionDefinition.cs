@@ -12,10 +12,10 @@ namespace Aethiumian.AI.Variables
         /// <returns>Whether this definition can bind the requested pair; individual values may still fail conversion.</returns>
         public abstract bool Matches(Type source, Type target);
 
-        /// <summary>Explains what this definition does for a matching pair, including loss or value-dependent failure.</summary>
+        /// <summary>Returns the short authoring explanation for a matching pair, prioritizing its result or the condition that can fail.</summary>
         /// <param name="source">The source type for which this definition was selected.</param>
         /// <param name="target">The target type for which this definition was selected.</param>
-        /// <returns>Authoring text; callers need not request it during runtime value conversion.</returns>
+        /// <returns>One short consequence-focused sentence; runtime value conversion does not request it.</returns>
         public abstract string Describe(Type source, Type target);
 
         /// <summary>Binds the executable delegate after the registry has established that this definition matches the generic pair.</summary>

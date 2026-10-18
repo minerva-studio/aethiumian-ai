@@ -60,7 +60,10 @@ namespace Aethiumian.AI
                     var attribute = field.GetCustomAttribute<AIVariableAttribute>(false);
                     if (attribute != null)
                     {
-                        AddVariable(variables, variableIDs, VariableData.AttributeVariableOf(attribute, field, field.FieldType, field.IsStatic));
+                        if (VariableMemberInfo.TryResolve(field, out VariableMemberInfo resolved))
+                        {
+                            AddVariable(variables, variableIDs, VariableData.AttributeVariableOf(attribute, field, resolved.Type, field.IsStatic));
+                        }
                     }
                 }
             }
@@ -84,8 +87,11 @@ namespace Aethiumian.AI
                     attribute ??= GetBasePropertyAttribute(property);
                     if (attribute != null)
                     {
-                        var isStatic = property.GetGetMethod(true)?.IsStatic ?? property.GetSetMethod(true)?.IsStatic ?? false;
-                        AddVariable(variables, variableIDs, VariableData.AttributeVariableOf(attribute, property, property.PropertyType, isStatic));
+                        if (VariableMemberInfo.TryResolve(property, out VariableMemberInfo resolved))
+                        {
+                            var isStatic = property.GetGetMethod(true)?.IsStatic ?? property.GetSetMethod(true)?.IsStatic ?? false;
+                            AddVariable(variables, variableIDs, VariableData.AttributeVariableOf(attribute, property, resolved.Type, isStatic));
+                        }
                     }
                 }
             }
@@ -109,7 +115,10 @@ namespace Aethiumian.AI
                     attribute ??= GetBaseMethodAttribute(method);
                     if (attribute != null)
                     {
-                        AddVariable(variables, variableIDs, VariableData.AttributeVariableOf(attribute, method, method.ReturnType, method.IsStatic));
+                        if (VariableMemberInfo.TryResolve(method, out VariableMemberInfo resolved))
+                        {
+                            AddVariable(variables, variableIDs, VariableData.AttributeVariableOf(attribute, method, resolved.Type, method.IsStatic));
+                        }
                     }
                 }
             }

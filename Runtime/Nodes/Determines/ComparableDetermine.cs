@@ -35,9 +35,11 @@ namespace Aethiumian.AI.Nodes
         public bool CanPerformComparison => ComparableResult<T>.IsComparable;
         public bool Compare { get => compare; set => compare = value; }
         public CompareSign Mode { get => mode; set => mode = value; }
-        public override sealed VariableReferenceBase Result => result;
+        /// <summary>Gets the CLR type required by this determine's expected value.</summary>
+        public Type ExpectType => typeof(T);
         public VariableFieldBase Expect => expect;
         public VariableReference<bool> CompareResult => compareResult;
+        public override sealed VariableReferenceBase Result => result;
         public virtual bool Yield => false;
 
 
@@ -84,6 +86,10 @@ namespace Aethiumian.AI.Nodes
     {
         bool Compare { get; set; }
         CompareSign Mode { get; set; }
+        /// <summary>
+        /// Gets the CLR type required by this determine's expected value.
+        /// </summary>
+        Type ExpectType { get; }
         VariableReference<bool> CompareResult { get; }
         VariableFieldBase Expect { get; }
         bool CanPerformComparison { get; }
