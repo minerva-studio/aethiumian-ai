@@ -16,7 +16,7 @@ namespace Aethiumian.AI.Variables
     [Serializable]
     public class VariableReference<T> : VariableReferenceBase
     {
-        public override Type FieldObjectType => typeof(T);
+        public override Type DeclaredValueType => typeof(T);
         public override VariableType Type => VariableUtility.GetVariableType<T>();
 
         public static implicit operator T([Readable] VariableReference<T> variableField)
@@ -34,8 +34,8 @@ namespace Aethiumian.AI.Variables
         public VariableType type;
 
         /// <inheritdoc/>
-        /// <remarks>This dynamic reference stores its category in <see cref="type"/>; null reports that it has no fixed consumer CLR type.</remarks>
-        public override Type FieldObjectType => null;
+        /// <remarks>This dynamic reference declares object; the binding determines its value type and usage context supplies consumer requirements.</remarks>
+        public override Type DeclaredValueType => typeof(object);
         public override VariableType Type { get => type; }
 
 

@@ -477,7 +477,6 @@ namespace Aethiumian.AI.Editor
                     parametersChanged = true;
                 }
 
-                parameter.ParameterObjectType = item.ParameterType;
 
                 if (item.ParameterType == typeof(NodeProgress))
                 {

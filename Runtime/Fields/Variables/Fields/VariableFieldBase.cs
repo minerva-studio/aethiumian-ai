@@ -15,9 +15,9 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] private UUID uuid;
         private RuntimeVariable variable;
-        /// <summary>Gets the CLR type this field consumes, or null when the field has no fixed consumer type.</summary>
-        /// <remarks>A null value marks a dynamically typed field; an explicit <see cref="object"/> is a real consumer type. Dynamic values are classified from their authored storage or bound variable instead of this property.</remarks>
-        public abstract Type FieldObjectType { get; }
+        /// <summary>Gets the non-null CLR declaration type of this field's value.</summary>
+        /// <remarks>Dynamic fields declare object. This declaration does not describe their stored value type or impose a consumer requirement; usage context supplies that requirement.</remarks>
+        public abstract Type DeclaredValueType { get; }
         /// <summary> Type of the variable field, invariant for non-generic and variant for generics </summary>
         public abstract VariableType Type { get; }
 

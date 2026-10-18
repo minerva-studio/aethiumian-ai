@@ -263,7 +263,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Draws a variable property with a transient reflected object type override.</summary>
-        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type objectTypeOverride)
+        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type consumerTypeOverride)
         {
             if (variableProperty?.boxedValue is not VariableFieldBase variable)
             {
@@ -272,7 +272,7 @@ namespace Aethiumian.AI.Editor
 
             float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag ?? VariableAccessFlag.All);
             Rect rect = EditorGUILayout.GetControlRect(true, height);
-            return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, objectTypeOverride);
+            return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, consumerTypeOverride);
         }
 
         /// <summary>
@@ -294,9 +294,9 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Draws a variable property in a fixed rectangle with a transient reflected type override.</summary>
-        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type objectTypeOverride)
+        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type consumerTypeOverride)
         {
-            return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, objectTypeOverride);
+            return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, consumerTypeOverride);
         }
 
         /// <summary>

@@ -193,6 +193,36 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
+        public void ResolveCurrentVariableType_KeepsDynamicStorageIndependentOfTheConsumer()
+        {
+            VariableField field = new(VariableType.Int);
+            field.ForceSetConstantValue(7);
+            string before = JsonUtility.ToJson(field);
+
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(field, typeof(float), out Type consumer), Is.True);
+            VariableFieldDrawers.CurrentVariableType current = VariableFieldDrawers.ResolveCurrentVariableType(null, field);
+            string tooltip = VariableFieldDrawers.BuildCurrentTypeTooltip(field, current, VariableTypeCatalog.GetAllVariableTypes(), consumer, VariableAccessFlag.Read);
+
+            Assert.That(field.DeclaredValueType, Is.EqualTo(typeof(object)));
+            Assert.That(current.ActualType, Is.EqualTo(typeof(int)));
+            Assert.That(tooltip, Does.Contain("Read: Int → Float"));
+            Assert.That(JsonUtility.ToJson(field), Is.EqualTo(before));
+        }
+
+        [Test]
+        public void ResolveCurrentVariableType_UsesGenericObjectStorageInsteadOfTheBoxedInstanceType()
+        {
+            VariableField<object> field = new();
+            field.ForceSetConstantValue(7);
+
+            VariableFieldDrawers.CurrentVariableType current = VariableFieldDrawers.ResolveCurrentVariableType(null, field);
+
+            Assert.That(current.ActualType, Is.EqualTo(typeof(object)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(field, null, out Type consumer), Is.True);
+            Assert.That(consumer, Is.EqualTo(typeof(object)));
+        }
+
+        [Test]
         public void ResolveCurrentVariableType_UsesTheBoundVariableClrInsteadOfTheConsumerType()
         {
             BehaviourTreeData tree = ScriptableObject.CreateInstance<BehaviourTreeData>();

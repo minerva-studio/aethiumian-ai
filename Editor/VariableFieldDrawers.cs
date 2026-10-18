@@ -42,9 +42,26 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>Resolves the CLR type a field consumes, or null when the field has no explicit consumer type.</summary>
-        internal static Type ResolveConsumerType(VariableFieldBase variable, Type objectTypeOverride)
-            => objectTypeOverride ?? variable?.FieldObjectType;
+        /// <summary>Resolves an explicit usage requirement or a fixed field declaration without constraining dynamic fields to object.</summary>
+        /// <param name="variable">The field whose fixed declaration can supply a default requirement.</param>
+        /// <param name="explicitConsumerType">The usage's CLR type, or null when no context was supplied.</param>
+        /// <param name="consumerType">The consumer type on success; null on failure. Inspect the return value before using it.</param>
+        /// <returns>True when a consumer is known, including an explicit object consumer; false for an unconstrained dynamic field.</returns>
+        internal static bool TryResolveConsumerType(VariableFieldBase variable, Type explicitConsumerType, out Type consumerType)
+        {
+            if (explicitConsumerType != null)
+            {
+                consumerType = explicitConsumerType;
+                return true;
+            }
+            if (variable != null && variable is not IDynamicVariableField)
+            {
+                consumerType = variable.DeclaredValueType;
+                return true;
+            }
+            consumerType = null;
+            return false;
+        }
 
         private static Rect GetRowRect(Rect position)
         {
@@ -209,8 +226,8 @@ namespace Aethiumian.AI.Editor
                 return new CurrentVariableType(ResolveVariableActualType(data, tree));
             }
 
-            Type declaredType = variable.FieldObjectType;
-            if (IsSupportedAccessorType(declaredType))
+            Type declaredType = variable.DeclaredValueType;
+            if (variable is not IDynamicVariableField && IsSupportedAccessorType(declaredType))
             {
                 return new CurrentVariableType(declaredType);
             }
@@ -463,7 +480,7 @@ namespace Aethiumian.AI.Editor
             => DrawVariable(position, label, property, possibleTypes, variableAccessFlag, null);
 
         /// <summary>Draws a variable field with a transient reflected object type override.</summary>
-        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type objectTypeOverride)
+        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type consumerTypeOverride)
         {
             if (property == null)
             {
@@ -497,7 +514,7 @@ namespace Aethiumian.AI.Editor
             EditorGUI.BeginProperty(position, label, property);
 
             EditorGUI.BeginChangeCheck();
-            DrawVariable(position, label, variable, tree, resolvedTypes, resolvedAccessFlag.Value, property, objectTypeOverride);
+            DrawVariable(position, label, variable, tree, resolvedTypes, resolvedAccessFlag.Value, property, consumerTypeOverride);
             if (EditorGUI.EndChangeCheck())
             {
                 property.serializedObject.Update();
@@ -522,18 +539,18 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableAccessFlag">Access constraint for the variable.</param>
         /// <param name="sourceProperty">Optional serialized property used to safely resolve menu mutations later.</param>
         /// <returns>True if any value changes occurred.</returns>
-        public static void DrawVariable(Rect position, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null, Type objectTypeOverride = null)
+        public static void DrawVariable(Rect position, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null, Type consumerTypeOverride = null)
         {
             possibleTypes ??= ALL_VARIABLES;
             Rect row = GetRowRect(position);
 
             Type type = variable.GetType();
             if ((type.IsGenericType && type.GetGenericTypeDefinition() == typeof(VariableReference<>)) || type == typeof(VariableReference))
-                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false, sourceProperty, objectTypeOverride);
+                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false, sourceProperty, consumerTypeOverride);
             else if (variable is VariableValueFieldBase valueField && valueField.IsConstant)
-                DrawVariableConstant(row, label, valueField, tree, possibleTypes, variableAccessFlag, sourceProperty, objectTypeOverride);
+                DrawVariableConstant(row, label, valueField, tree, possibleTypes, variableAccessFlag, sourceProperty, consumerTypeOverride);
             else
-                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true, sourceProperty, objectTypeOverride);
+                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true, sourceProperty, consumerTypeOverride);
         }
 
         /// <summary>
@@ -658,16 +675,16 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Draw constant variable field
         /// </summary>
-        private static void DrawVariableConstant(Rect row, GUIContent label, VariableValueFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, SerializedProperty sourceProperty, Type objectTypeOverride)
+        private static void DrawVariableConstant(Rect row, GUIContent label, VariableValueFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, SerializedProperty sourceProperty, Type consumerTypeOverride)
         {
-            Type consumerType = ResolveConsumerType(variable, objectTypeOverride);
+            Type consumerType = TryResolveConsumerType(variable, consumerTypeOverride, out Type resolvedConsumerType) ? resolvedConsumerType : null;
             List<VariableData> candidates = GetCompatibleVariables(
                 tree, possibleTypes, consumerType, variableAccessFlag, GetAllVariable(tree));
             VariableType? creationType = ResolveCreationType(variable, possibleTypes, consumerType, variableAccessFlag);
             VariableRowLayout layout = CalculateRowLayout(row, hasAction: true);
 
             DrawRowLabel(layout.LabelRect, label);
-            DrawConstantEditor(layout.ValueRect, variable, objectTypeOverride ?? variable.FieldObjectType);
+            DrawConstantEditor(layout.ValueRect, variable, consumerTypeOverride ?? (variable is IDynamicVariableField ? VariableUtility.GetType(variable.Type) : variable.DeclaredValueType));
             DrawTypeDropdown(layout.TypeRect, variable, possibleTypes, consumerType, variableAccessFlag, tree, sourceProperty);
 
             if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
@@ -1037,9 +1054,9 @@ namespace Aethiumian.AI.Editor
             return $"{direction}: {sourceLabel} → {targetLabel} — {description}";
         }
 
-        private static void DrawVariableSelection(Rect row, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant, SerializedProperty sourceProperty, Type objectTypeOverride)
+        private static void DrawVariableSelection(Rect row, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant, SerializedProperty sourceProperty, Type consumerTypeOverride)
         {
-            Type consumerType = ResolveConsumerType(variable, objectTypeOverride);
+            Type consumerType = TryResolveConsumerType(variable, consumerTypeOverride, out Type resolvedConsumerType) ? resolvedConsumerType : null;
             List<VariableData> allVariable = GetAllVariable(tree);
             VariableData boundVariable = variable.HasEditorReference
                 ? allVariable.Find(v => v.UUID == variable.UUID)

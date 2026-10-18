@@ -55,7 +55,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         {
             public int GetValueCalls { get; private set; }
 
-            public override Type FieldObjectType => typeof(object);
+            public override Type DeclaredValueType => typeof(object);
             public override VariableType Type => VariableType.Generic;
             public override object Value => null;
 

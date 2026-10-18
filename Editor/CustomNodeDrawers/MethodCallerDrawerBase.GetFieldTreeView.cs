@@ -257,7 +257,6 @@ namespace Aethiumian.AI.Editor
                 {
                     GraphInspectorLayout.FunctionSelectionRects layout = GraphInspectorLayout.CalculateFunctionSelectionRects(contentRect);
 
-                    EnsureParameterObjectType(dataProperty, item.ValueType);
                     owner.DrawVariableProperty(layout.ValueRect, CreateMemberLabel(memberName), dataProperty, null, VariableAccessFlag.Read, item.ValueType);
 
                     if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
@@ -520,27 +519,6 @@ namespace Aethiumian.AI.Editor
             }
 
             /// <summary>
-            /// Ensure the parameter object type matches the current field type.
-            /// </summary>
-            /// <param name="dataProperty">Serialized data property.</param>
-            /// <param name="valueType">Resolved field type.</param>
-            private void EnsureParameterObjectType(SerializedProperty dataProperty, Type valueType)
-            {
-                if (dataProperty?.boxedValue is not Parameter parameter)
-                {
-                    return;
-                }
-
-                if (parameter.ParameterObjectType == valueType)
-                {
-                    return;
-                }
-
-                // ParameterObjectType is transient display metadata; rendering already receives the reflected type explicitly.
-                parameter.ParameterObjectType = valueType;
-            }
-
-            /// <summary>
             /// Add a serialized get/set field entry.
             /// </summary>
             /// <param name="memberName">Member name.</param>
@@ -637,7 +615,6 @@ namespace Aethiumian.AI.Editor
                 if (mode == FieldTreeViewMode.Set)
                 {
                     Parameter parameter = dataProperty.boxedValue as Parameter ?? new Parameter(valueType);
-                    parameter.ParameterObjectType = valueType;
                     parameter.ForceSetConstantType(variableType);
                     dataProperty.boxedValue = parameter;
                 }

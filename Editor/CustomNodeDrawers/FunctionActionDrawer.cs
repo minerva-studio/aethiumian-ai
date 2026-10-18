@@ -244,7 +244,6 @@ namespace Aethiumian.AI.Editor
                 ApplyBoxedValue(parameterProperty, parameter);
             }
 
-            parameter.ParameterObjectType = parameterInfo.ParameterType;
 
             if (parameterInfo.ParameterType == typeof(NodeProgress) || parameterInfo.ParameterType == typeof(CancellationToken))
             {
@@ -306,7 +305,6 @@ namespace Aethiumian.AI.Editor
             for (int i = 0; i < parameterInfos.Length; i++)
             {
                 Parameter parameter = parametersProperty.GetArrayElementAtIndex(i).boxedValue as Parameter ?? new Parameter();
-                parameter.ParameterObjectType = parameterInfos[i].ParameterType;
                 parameter.ForceSetConstantType(VariableUtility.GetVariableType(parameterInfos[i].ParameterType));
                 parametersProperty.GetArrayElementAtIndex(i).boxedValue = parameter;
             }

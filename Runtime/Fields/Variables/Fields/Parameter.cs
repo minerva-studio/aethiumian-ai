@@ -16,11 +16,9 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] protected VariableType type;
 
-        /// <summary>Gets or sets the reflected CLR type used to render and convert this parameter.</summary>
-        public Type ParameterObjectType { get; set; }
         /// <inheritdoc/>
-        /// <remarks>The reflected signature supplies the consumer type; null means the signature has not been assigned and the stored <see cref="Type"/> category remains the only type information.</remarks>
-        public override Type FieldObjectType => ParameterObjectType;
+        /// <remarks>The method signature supplies consumer requirements; this dynamic carrier declares object.</remarks>
+        public override Type DeclaredValueType => typeof(object);
         public override VariableType Type => type;
 
         public Parameter() { }
@@ -30,14 +28,12 @@ namespace Aethiumian.AI.Variables
             type = VariableUtility.GetVariableType(value?.GetType());
             if (value is Enum)
             {
-                ParameterObjectType = value.GetType();
                 type = VariableType.Int;
             }
             SetConstantValue(value is Enum ? Convert.ToInt32(value) : value);
         }
         public Parameter(Type type)
         {
-            ParameterObjectType = type;
             this.type = VariableUtility.GetVariableType(type);
         }
 

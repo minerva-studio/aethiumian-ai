@@ -213,7 +213,7 @@ namespace Aethiumian.AI.Editor.Exporting
                     .Add("name", Scalar(variable.name))
                     .Add("type", Scalar(variable.Type))
                     .Add("source", Scalar(GetRuntimeSourceName(variable)))
-                    .Add("default", ProjectValue(variable.GetDefaultValue(), variable.ObjectType));
+                    .Add("default", ProjectValue(variable.GetDefaultValue()));
                 if (variable.IsGlobal) item.Add("global", Scalar(true));
                 if (variable.IsStatic) item.Add("static", Scalar(true));
                 if (variable.IsStandardVariable) item.Add("standard", Scalar(true));
@@ -400,7 +400,7 @@ namespace Aethiumian.AI.Editor.Exporting
                 return ProjectReferenceValue(owner, field.Name, -1, reference);
             }
 
-            return ProjectValue(value, field.FieldType);
+            return ProjectValue(value);
         }
 
         private DomValue ProjectReferenceCollectionOrValues(TreeNode owner, string fieldName, IList list)
@@ -415,7 +415,7 @@ namespace Aethiumian.AI.Editor.Exporting
                 }
                 else
                 {
-                    result.Add(ProjectValue(item, item?.GetType()));
+                    result.Add(ProjectValue(item));
                 }
             }
 
@@ -501,7 +501,7 @@ namespace Aethiumian.AI.Editor.Exporting
                     }
                     else
                     {
-                        result.Add(field.Name, ProjectValue(fieldValue, field.FieldType));
+                        result.Add(field.Name, ProjectValue(fieldValue));
                     }
                 }
                 finally
@@ -520,7 +520,7 @@ namespace Aethiumian.AI.Editor.Exporting
                 : UUID.Empty;
         }
 
-        private DomValue ProjectValue(object value, Type declaredType)
+        private DomValue ProjectValue(object value)
         {
             if (value == null)
             {
@@ -580,7 +580,7 @@ namespace Aethiumian.AI.Editor.Exporting
                 DomSequence result = new DomSequence();
                 foreach (object item in list)
                 {
-                    result.Add(ProjectValue(item, item?.GetType()));
+                    result.Add(ProjectValue(item));
                 }
 
                 return result;
@@ -649,7 +649,7 @@ namespace Aethiumian.AI.Editor.Exporting
                 return DomNull.Instance;
             }
 
-            return ProjectValue(constant, variable.FieldObjectType);
+            return ProjectValue(constant);
         }
 
         private DomMapping ProjectReferenceTarget(UUID uuid, bool raw)
@@ -767,7 +767,7 @@ namespace Aethiumian.AI.Editor.Exporting
                 object item = parameters[index];
                 if (item is not Parameter parameter)
                 {
-                    result.Add(ProjectValue(item, item?.GetType()));
+                    result.Add(ProjectValue(item));
                     continue;
                 }
 
@@ -792,15 +792,6 @@ namespace Aethiumian.AI.Editor.Exporting
                 else
                 {
                     entry.Add("name", Scalar("arg" + index));
-                    if (parameter.FieldObjectType != null)
-                    {
-                        DomTypeIdentity parameterType = metadata.GetTypeIdentity(parameter.FieldObjectType);
-                        entry.Add("type", Scalar(parameterType.ShortName));
-                        if (parameterType.IncludeClrType)
-                        {
-                            entry.Add("clrType", Scalar(parameterType.FullName));
-                        }
-                    }
                 }
 
                 try

@@ -204,6 +204,55 @@ namespace Aethiumian.AI.Editor.Tests.Exporting
             }
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ExportJson_UsesOnlyResolvedSignaturesForSerializedParameterTypes(bool resolveSignature)
+        {
+            ObjectAction action = CreateNode<ObjectAction>("Act");
+            action.methodName = resolveSignature ? nameof(ReferenceProbe.Act) : "MissingMethod";
+            action.type = new GenericTypeReference();
+            action.type.SetBaseType(typeof(object));
+            action.type.SetReferType(typeof(ReferenceProbe));
+            action.parameters = new List<Parameter>
+            {
+                new Parameter(VariableType.Node),
+                JsonUtility.FromJson<Parameter>(JsonUtility.ToJson(new Parameter(3))),
+                JsonUtility.FromJson<Parameter>(JsonUtility.ToJson(new Parameter(false))),
+            };
+            BehaviourTreeData tree = CreateTree(action);
+            try
+            {
+                BehaviourTreeDomExportResult result = BehaviourTreeDomExporter.ExportJson(tree);
+                JObject document = JObject.Parse(result.Content);
+                JArray arguments = (JArray)document["root"]?["fields"]?["parameters"];
+                Assert.That(result.HasErrors, Is.False);
+                Assert.That(arguments, Is.Not.Null);
+                Assert.That(arguments.Count, Is.EqualTo(3));
+                Assert.That(arguments[1]["value"]?.Value<int>(), Is.EqualTo(3));
+                Assert.That(arguments[2]["value"]?.Value<bool>(), Is.False);
+                if (resolveSignature)
+                {
+                    Assert.That(arguments[1]["name"]?.Value<string>(), Is.EqualTo("action"));
+                    Assert.That(arguments[1]["type"]?.Value<string>(), Is.EqualTo("Int32"));
+                    Assert.That(arguments[2]["name"]?.Value<string>(), Is.EqualTo("isBreakable"));
+                    Assert.That(arguments[2]["type"]?.Value<string>(), Is.EqualTo("Boolean"));
+                }
+                else
+                {
+                    Assert.That(arguments[1]["name"]?.Value<string>(), Is.EqualTo("arg1"));
+                    foreach (JObject argument in arguments)
+                    {
+                        Assert.That(argument.Property("type"), Is.Null);
+                        Assert.That(argument.Property("clrType"), Is.Null);
+                    }
+                }
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
         [Test]
         public void ExportYaml_IsDeterministic()
         {

@@ -26,7 +26,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             VariableField<int> field = 7;
 
             Assert.That(field.Type, Is.EqualTo(VariableType.Int));
-            Assert.That(field.FieldObjectType, Is.EqualTo(typeof(int)));
+            Assert.That(field.DeclaredValueType, Is.EqualTo(typeof(int)));
             Assert.That(field, Is.Not.InstanceOf<IDynamicVariableField>());
             Assert.That(field.Constant, Is.EqualTo(7));
         }
@@ -38,7 +38,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             field.ForceSetConstantValue(2.5f);
 
             Assert.That(field.Type, Is.EqualTo(VariableType.Float));
-            Assert.That(field.FieldObjectType, Is.Null);
+            Assert.That(field.DeclaredValueType, Is.EqualTo(typeof(object)));
             Assert.That(field, Is.InstanceOf<IDynamicVariableField>());
             Assert.That(field.FloatValue, Is.EqualTo(2.5f));
         }
@@ -72,7 +72,8 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         {
             Parameter parameter = new(VariableType.Int);
 
-            Assert.That(VariableFieldDrawers.ResolveConsumerType(parameter, typeof(ParameterEnum)), Is.EqualTo(typeof(ParameterEnum)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(parameter, typeof(ParameterEnum), out Type consumer), Is.True);
+            Assert.That(consumer, Is.EqualTo(typeof(ParameterEnum)));
         }
 
         [Test]
@@ -80,7 +81,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         {
             Parameter parameter = new(VariableType.Int);
 
-            Type resolved = VariableFieldDrawers.ResolveConsumerType(parameter, typeof(ParameterFlags));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(parameter, typeof(ParameterFlags), out Type resolved), Is.True);
 
             Assert.That(resolved, Is.EqualTo(typeof(ParameterFlags)));
             Assert.That(Attribute.IsDefined(resolved, typeof(FlagsAttribute)), Is.True);
@@ -91,15 +92,17 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         {
             Parameter parameter = new(VariableType.Int);
 
-            Assert.That(VariableFieldDrawers.ResolveConsumerType(parameter, typeof(LayerMask)), Is.EqualTo(typeof(LayerMask)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(parameter, typeof(LayerMask), out Type consumer), Is.True);
+            Assert.That(consumer, Is.EqualTo(typeof(LayerMask)));
         }
 
         [Test]
-        public void IntegerParameterWithoutOverride_UsesExistingObjectType()
+        public void IntegerParameterWithoutOverride_HasNoFixedConsumer()
         {
             Parameter parameter = new(VariableType.Int);
 
-            Assert.That(VariableFieldDrawers.ResolveConsumerType(parameter, null), Is.Null);
+            Assert.That(parameter.DeclaredValueType, Is.EqualTo(typeof(object)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(parameter, null, out _), Is.False);
         }
 
         [Test]
@@ -126,9 +129,9 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             VariableReference dynamicReference = new();
 
             Assert.That(fixedReference, Is.Not.InstanceOf<IDynamicVariableField>());
-            Assert.That(fixedReference.FieldObjectType, Is.EqualTo(typeof(int)));
+            Assert.That(fixedReference.DeclaredValueType, Is.EqualTo(typeof(int)));
             Assert.That(dynamicReference, Is.InstanceOf<IDynamicVariableField>());
-            Assert.That(dynamicReference.FieldObjectType, Is.Null);
+            Assert.That(dynamicReference.DeclaredValueType, Is.EqualTo(typeof(object)));
         }
 
         [Test]
@@ -167,11 +170,60 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             VariableField dynamicField = new(VariableType.Int);
             VariableReference dynamicReference = new();
 
-            Assert.That(objectField.FieldObjectType, Is.EqualTo(typeof(object)));
-            Assert.That(objectReference.FieldObjectType, Is.EqualTo(typeof(object)));
-            Assert.That(dynamicField.FieldObjectType, Is.Null);
-            Assert.That(dynamicReference.FieldObjectType, Is.Null);
+            Assert.That(objectField.DeclaredValueType, Is.EqualTo(typeof(object)));
+            Assert.That(objectReference.DeclaredValueType, Is.EqualTo(typeof(object)));
+            Assert.That(dynamicField.DeclaredValueType, Is.EqualTo(typeof(object)));
+            Assert.That(dynamicReference.DeclaredValueType, Is.EqualTo(typeof(object)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(objectField, null, out Type fieldConsumer), Is.True);
+            Assert.That(fieldConsumer, Is.EqualTo(typeof(object)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(objectReference, null, out Type referenceConsumer), Is.True);
+            Assert.That(referenceConsumer, Is.EqualTo(typeof(object)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(dynamicField, null, out _), Is.False);
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(dynamicReference, null, out _), Is.False);
         }
+
+        [Test]
+        public void ConsumerType_UsesFixedDeclarationUnlessExplicitContextWasSupplied()
+        {
+            VariableField<float> field = new();
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(field, null, out Type declared), Is.True);
+            Assert.That(declared, Is.EqualTo(typeof(float)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(field, typeof(int), out Type overridden), Is.True);
+            Assert.That(overridden, Is.EqualTo(typeof(int)));
+            Assert.That(VariableFieldDrawers.TryResolveConsumerType(new VariableField(), typeof(object), out Type explicitObject), Is.True);
+            Assert.That(explicitObject, Is.EqualTo(typeof(object)));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ParameterArguments_UseTheMethodSignatureWithoutInspectorMetadata(bool serialize)
+        {
+            List<Parameter> parameters = new()
+            {
+                new Parameter(ParameterEnum.B),
+                new Parameter(ParameterFlags.A | ParameterFlags.B),
+                new Parameter((LayerMask)1088),
+            };
+            if (serialize)
+            {
+                for (int i = 0; i < parameters.Count; i++)
+                    parameters[i] = JsonUtility.FromJson<Parameter>(JsonUtility.ToJson(parameters[i]));
+            }
+            MethodInfo signature = typeof(VariableFieldModelTests).GetMethod(nameof(ParameterSignature), BindingFlags.Static | BindingFlags.NonPublic);
+            object[] arguments = Parameter.ToValueArray(null, signature, parameters);
+            Assert.That(arguments[0], Is.TypeOf<ParameterEnum>().And.EqualTo(ParameterEnum.B));
+            Assert.That(arguments[1], Is.TypeOf<ParameterFlags>().And.EqualTo(ParameterFlags.A | ParameterFlags.B));
+            Assert.That(arguments[2], Is.TypeOf<LayerMask>());
+            Assert.That(((LayerMask)arguments[2]).value, Is.EqualTo(1088));
+            foreach (Parameter parameter in parameters)
+            {
+                Assert.That(parameter.DeclaredValueType, Is.EqualTo(typeof(object)));
+                Assert.That(VariableFieldDrawers.TryResolveConsumerType(parameter, null, out _), Is.False);
+            }
+        }
+
+        /// <summary>Provides a real reflected signature for parameter conversion tests.</summary>
+        private static void ParameterSignature(ParameterEnum value, ParameterFlags flags, LayerMask mask) { }
 
         [TestCase(nameof(MetadataHost.dynamicDefault), VariableAccessFlag.All)]
         [TestCase(nameof(MetadataHost.fixedValue), VariableAccessFlag.All)]

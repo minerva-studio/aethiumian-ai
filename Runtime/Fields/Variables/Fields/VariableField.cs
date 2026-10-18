@@ -13,7 +13,7 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] private T value;
 
-        public override Type FieldObjectType => typeof(T);
+        public override Type DeclaredValueType => typeof(T);
 
         /// <summary>
         /// Gets the authored constant value.
@@ -70,8 +70,8 @@ namespace Aethiumian.AI.Variables
         [SerializeField] protected VariableType type;
 
         /// <inheritdoc/>
-        /// <remarks>This dynamic field stores its category in <see cref="Type"/>; null reports that it has no fixed consumer CLR type.</remarks>
-        public override Type FieldObjectType => null;
+        /// <remarks>This dynamic field declares object; its stored category and usage context determine its value type and consumption respectively.</remarks>
+        public override Type DeclaredValueType => typeof(object);
         public override VariableType Type { get => type; }
 
         public VariableField() { }
