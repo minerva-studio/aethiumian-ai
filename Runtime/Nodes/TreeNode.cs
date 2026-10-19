@@ -155,7 +155,10 @@ namespace Aethiumian.AI.Nodes
         /// <br/>
         /// Note this is dangerous if you call the method outside the tree
         /// </summary>
-        public void Stop()
+        /// <param name="source">The node requesting cleanup, when stopped by a redirect.</param>
+        /// <param name="causeEventId">The redirect event identity propagated through this cleanup.</param>
+        /// <param name="executingStack">The stack performing cleanup, including nodes that have not executed yet.</param>
+        public void Stop(TreeNode? source = null, long causeEventId = 0, BehaviourTree.NodeCallStack? executingStack = null)
         {
             //execute event once only and then clear all registered event 
             if (OnInterrupted != null)
@@ -169,6 +172,7 @@ namespace Aethiumian.AI.Nodes
                     }
                     catch (Exception e)
                     {
+                        (executingStack ?? callStack)?.RecordException(this, e, "Stop callback", "Continue cleanup", source, causeEventId, BehaviourTree.NodeCallStack.EventSeverity.Warning);
                         Debug.LogError($"Exception occurred at node [{name}]", gameObject);
                         Debug.LogException(e, gameObject);
                     }
@@ -232,11 +236,19 @@ namespace Aethiumian.AI.Nodes
         /// Handle the exception catched by behaviour tree setting
         /// </summary>
         /// <param name="e"></param>
+        /// <param name="phase">The operation that observed the exception.</param>
+        /// <param name="executingStack">The owning stack for inline adapters that are not scheduled nodes.</param>
         /// <returns></returns>
-        public State HandleException(Exception e)
+        public State HandleException(Exception e, string phase = "Execute", BehaviourTree.NodeCallStack? executingStack = null)
         {
+            // Inline conditions may escape through ServiceUpdate, whose outer catch has no node/stack context.
+            if (behaviourTree.Prototype.nodeErrorHandle == NodeErrorSolution.Throw && executingStack != null)
+                executingStack.RecordException(this, e, phase, $"Throw; Tree: {behaviourTree.Prototype.treeErrorHandle}");
             if (behaviourTree.Prototype.nodeErrorHandle != NodeErrorSolution.Throw)
             {
+                string policy = behaviourTree.Prototype.nodeErrorHandle == NodeErrorSolution.False ? "ReturnFailed" : "Fault";
+                var severity = behaviourTree.Prototype.nodeErrorHandle == NodeErrorSolution.False ? BehaviourTree.NodeCallStack.EventSeverity.Warning : BehaviourTree.NodeCallStack.EventSeverity.Error;
+                (executingStack ?? callStack)?.RecordException(this, e, phase, policy, severity: severity);
                 Debug.LogError($"Exception occurred at node [{name}]", gameObject);
                 Debug.LogException(e, gameObject);
             }

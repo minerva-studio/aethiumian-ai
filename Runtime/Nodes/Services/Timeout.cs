@@ -83,7 +83,7 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
-            targetStack.Interrupt(host, result == ReturnResult.Success);
+            targetStack.Interrupt(host, result == ReturnResult.Success, this);
         }
 
         private void ResetTimer()

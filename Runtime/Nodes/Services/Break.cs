@@ -27,7 +27,7 @@ namespace Aethiumian.AI.Nodes
 
             TreeNode until = behaviourTree.GetNode(parent);
             if (returnTo == ReturnType.Parent) until = behaviourTree.GetNode(until?.parent);
-            targetStack?.Break(until);
+            targetStack?.Break(until, this);
         }
 
         public override State Execute()

@@ -18,7 +18,7 @@ namespace Aethiumian.AI.Nodes
                 return State.Failed;
             }
 
-            bool result = callStack.Break(until);
+            bool result = callStack.Break(until, this);
             if (!result) return State.Failed;
 
             // The current stack now points at another node, so this node should not continue in-place.

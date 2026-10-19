@@ -108,6 +108,7 @@ namespace Aethiumian.AI
         private const int stackEventCapacity = 512;
         private readonly Queue<StackEventRecord> stackEvents = new();
         private int nextStackDebugId;
+        private long nextStackEventSequenceId;
 #endif
 
         /// <summary> How long is current stage? </summary>
@@ -837,12 +838,18 @@ namespace Aethiumian.AI
 
         private void Try(System.Action action)
         {
+#if UNITY_EDITOR
+            long eventCursor = nextStackEventSequenceId;
+#endif
             try
             {
                 action?.Invoke();
             }
             catch (Exception e)
             {
+#if UNITY_EDITOR
+                RecordEscapingException(action?.Target as NodeCallStack ?? mainStack, e, action?.Method.Name, eventCursor);
+#endif
                 LatchRuntimeFault(e, "tree update");
                 Debug.LogException(e, gameObject);
                 switch (Prototype.treeErrorHandle)
@@ -860,12 +867,18 @@ namespace Aethiumian.AI
 
         private void Try<T>(System.Action<T> action, T arg)
         {
+#if UNITY_EDITOR
+            long eventCursor = nextStackEventSequenceId;
+#endif
             try
             {
                 action?.Invoke(arg);
             }
             catch (Exception e)
             {
+#if UNITY_EDITOR
+                RecordEscapingException(action?.Target as NodeCallStack ?? mainStack, e, action?.Method.Name, eventCursor);
+#endif
                 LatchRuntimeFault(e, "tree update");
                 Debug.LogException(e, gameObject);
                 switch (Prototype.treeErrorHandle)
@@ -1216,7 +1229,16 @@ namespace Aethiumian.AI
 
         #region Editor Debug Events
 
-        private void RecordStackEvent(NodeCallStack stack, NodeCallStack.EventType eventType, TreeNode node, State? result, string detail)
+        /// <summary>Records an escaping exception once per tree invocation, preserving later occurrences of the same object.</summary>
+        private void RecordEscapingException(NodeCallStack stack, Exception exception, string phase, long eventCursor)
+        {
+            foreach (var recorded in stackEvents)
+                if (recorded.SequenceId > eventCursor && ReferenceEquals(recorded.Context.Exception, exception) && recorded.Context.Severity == NodeCallStack.EventSeverity.Error) return;
+            stack?.RecordException(stack.Current, exception, phase, $"Tree: {Prototype.treeErrorHandle}");
+        }
+
+        /// <summary>Owns event identities and snapshots.</summary>
+        private long RecordStackEvent(NodeCallStack stack, NodeCallStack.EventType eventType, TreeNode node, State? result, string detail, NodeCallStack.EventContext context)
         {
             if (stackEvents.Count >= stackEventCapacity)
             {
@@ -1225,6 +1247,7 @@ namespace Aethiumian.AI
 
             activeStacks.TryGetValue(stack, out var metadata);
             stackEvents.Enqueue(new StackEventRecord(
+                ++nextStackEventSequenceId,
                 Time.frameCount,
                 Time.realtimeSinceStartup,
                 Prototype ? Prototype.name : "Behaviour Tree",
@@ -1235,7 +1258,9 @@ namespace Aethiumian.AI
                 node,
                 result,
                 stack?.State ?? NodeCallStack.StackState.Invalid,
-                detail));
+                detail,
+                context));
+            return nextStackEventSequenceId;
         }
 
         internal void ClearStackEvents()
@@ -1247,6 +1272,8 @@ namespace Aethiumian.AI
 
         internal readonly struct StackEventRecord
         {
+            /// <summary>Unique within the owning tree, including across history clears.</summary>
+            public readonly long SequenceId;
             public readonly int Frame;
             public readonly float Time;
             public readonly string TreeName;
@@ -1261,8 +1288,13 @@ namespace Aethiumian.AI
             public readonly State? Result;
             public readonly NodeCallStack.StackState StackState;
             public readonly string Detail;
+            public readonly NodeCallStack.EventContext Context;
+            public readonly string SourceName;
+            public readonly string SourceType;
+            public readonly UUID SourceUUID;
 
             public StackEventRecord(
+                long sequenceId,
                 int frame,
                 float time,
                 string treeName,
@@ -1273,8 +1305,10 @@ namespace Aethiumian.AI
                 TreeNode node,
                 State? result,
                 NodeCallStack.StackState stackState,
-                string detail)
+                string detail,
+                NodeCallStack.EventContext context)
             {
+                SequenceId = sequenceId;
                 Frame = frame;
                 Time = time;
                 TreeName = treeName;
@@ -1289,6 +1323,10 @@ namespace Aethiumian.AI
                 Result = result;
                 StackState = stackState;
                 Detail = detail ?? string.Empty;
+                Context = context;
+                SourceName = context.Source?.name ?? string.Empty;
+                SourceType = context.Source?.GetType().Name ?? string.Empty;
+                SourceUUID = context.Source?.uuid ?? UUID.Empty;
             }
         }
 #endif

@@ -57,7 +57,7 @@ namespace Aethiumian.AI.Nodes
                 iteration = 0;
             }
 
-            TargetStack.Break(until);
+            TargetStack.Break(until, this);
         }
     }
 }

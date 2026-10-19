@@ -82,7 +82,7 @@ namespace Aethiumian.AI.Nodes
         {
             if (completionException != null)
             {
-                return HandleException(completionException);
+                return HandleException(completionException, "Completion");
             }
 
             return completionState ?? State.WaitAction;

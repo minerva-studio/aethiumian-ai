@@ -29,10 +29,42 @@ namespace Aethiumian.AI
                 Start,
                 Push,
                 Pop,
-                Break,
-                Rollback,
+                Redirect,
                 End,
                 Exception,
+            }
+
+            /// <summary>Why a node physically left the stack; only returns carry a result.</summary>
+            public enum PopReason { Return, Unwind, ForcedReturn, Clear }
+
+            /// <summary>Diagnostic importance: scheduling is Debug; lifecycle and accepted redirects are Info. Boolean results do not set severity.</summary>
+            internal enum EventSeverity { Debug, Info, Warning, Error }
+
+            /// <summary>Structured diagnostic context. Cause IDs refer to the owning tree's retained event history.</summary>
+            internal readonly struct EventContext
+            {
+                public readonly string Reason;
+                public readonly TreeNode Source;
+                public readonly long CauseEventId;
+                public readonly bool? Accepted;
+                public readonly Nodes.State? RequestedResult;
+                public readonly string Phase;
+                public readonly string Policy;
+                public readonly Exception Exception;
+                public readonly EventSeverity Severity;
+
+                public EventContext(string reason = null, TreeNode source = null, long causeEventId = 0, bool? accepted = null, Nodes.State? requestedResult = null, string phase = null, string policy = null, Exception exception = null, EventSeverity severity = EventSeverity.Debug)
+                {
+                    Reason = reason;
+                    Source = source;
+                    CauseEventId = causeEventId;
+                    Accepted = accepted;
+                    RequestedResult = requestedResult;
+                    Phase = phase;
+                    Policy = policy;
+                    Exception = exception;
+                    Severity = severity;
+                }
             }
 
             public enum StackState
@@ -66,7 +98,7 @@ namespace Aethiumian.AI
 
             public event Action<TreeNode> OnNodePopStack;
 #if UNITY_EDITOR
-            internal event Action<NodeCallStack, EventType, TreeNode, State?, string> OnStackEvent;
+            internal event Func<NodeCallStack, EventType, TreeNode, State?, string, EventContext, long> OnStackEvent;
 #endif
             internal event Action<NodeCallStack> Ended;
 
@@ -104,7 +136,7 @@ namespace Aethiumian.AI
             public void Initialize()
             {
                 callStack ??= new Stack<TreeNode>();
-                callStack.Clear();
+                Clear();
                 head = null;
 
                 Current = null;
@@ -126,7 +158,7 @@ namespace Aethiumian.AI
                 if (State != StackState.Ready) throw new InvalidOperationException($"The behaviour tree is not in Ready state when start. Execution abort. ({State}),({Previous?.name}),({Current?.name})");
 
                 this.head = head;
-                Record(EventType.Start, head);
+                Record(EventType.Start, head, context: new EventContext(severity: EventSeverity.Info));
                 Push(head);
             }
 
@@ -140,26 +172,25 @@ namespace Aethiumian.AI
                     return;
                 }
 
-                Record(EventType.End, Current ?? Peek(), detail: "Forced");
+                var endingNode = Current ?? Peek();
                 // Mark the stack terminal before callbacks run. OnInterrupted and action
                 // cancellation callbacks may synchronously call End on the owning tree.
                 State = StackState.End;
                 BreakAll();
-                CompleteEnd();
+                CompleteEnd(endingNode, "Forced");
             }
 
             /// <summary>
             /// end this call stack
             /// </summary>
-            protected void End_Internal()
+            protected void End_Internal(string reason = "Complete")
             {
                 if (State == StackState.End)
                 {
                     return;
                 }
 
-                Record(EventType.End, Current ?? Previous ?? head, detail: "Complete");
-                CompleteEnd();
+                CompleteEnd(Current ?? Previous ?? head, reason);
             }
 
             /// <summary>
@@ -168,12 +199,13 @@ namespace Aethiumian.AI
             /// assigns it before BreakAll to make synchronous reentry harmless, while
             /// natural completion reaches this method with an already non-terminal state.
             /// </summary>
-            private void CompleteEnd()
+            private void CompleteEnd(TreeNode endingNode, string reason)
             {
-                callStack.Clear();
+                Clear();
                 Current = null;
                 Previous = null;
                 State = StackState.End;
+                Record(EventType.End, endingNode, context: new EventContext(reason, severity: EventSeverity.Info));
                 Ended?.Invoke(this);
                 //Debug.Log("Stack is ended");
             }
@@ -212,7 +244,7 @@ namespace Aethiumian.AI
                     // transform is missing now, destroyed already
                     if (!Current.transform)
                     {
-                        End_Internal();
+                        End_Internal("OwnerDestroyed");
                         return;
                     }
                     // if recurive executed
@@ -348,15 +380,15 @@ namespace Aethiumian.AI
                         break;
                     case Aethiumian.AI.Nodes.State.Success:
                         Result = true;
-                        Current.Stop();
-                        Pop();
+                        StopReturningNode();
+                        Pop(PopReason.Return, result, null, 0);
                         //Debug.Log($"{Current.name} return true to {Peek()?.name ?? "STACKBASE"}");
                         State = StackState.Receiving;
                         break;
                     case Aethiumian.AI.Nodes.State.Failed:
                         Result = false;
-                        Current.Stop();
-                        Pop();
+                        StopReturningNode();
+                        Pop(PopReason.Return, result, null, 0);
                         //Debug.Log($"{Current.name} return false to {Peek()?.name ?? "STACKBASE"}");
                         State = StackState.Receiving;
                         break;
@@ -380,9 +412,22 @@ namespace Aethiumian.AI
             {
                 Result = null;
                 var exception = new InvalidOperationException($"Node [{Current.name}] return invalid state '({result})'.");
+                if (Current.behaviourTree.RuntimeFault == null) RecordException(Current, exception, "Result", "Fault");
                 Current?.behaviourTree?.LatchRuntimeFault(exception, "node invalid state");
                 stopAfterCurrentNode = true;
                 Debug.LogException(exception);
+            }
+
+            /// <summary>Preserves normal-return stop failures while recording their actual phase.</summary>
+            private void StopReturningNode()
+            {
+                var returningNode = Current;
+                try { returningNode.Stop(executingStack: this); }
+                catch (Exception exception)
+                {
+                    RecordException(returningNode, exception, "Stop", $"Tree: {returningNode.behaviourTree.Prototype.treeErrorHandle}");
+                    throw;
+                }
             }
 
             /// <summary>
@@ -401,22 +446,24 @@ namespace Aethiumian.AI
             /// <summary>
             /// Roll back the stack to certain point
             /// </summary>
-            /// <param name="stopAt"></param>
-            public bool Break(TreeNode stopAt)
+            /// <param name="stopAt">The retained node to reenter, or null to unwind the entire stack.</param>
+            /// <param name="source">The node requesting this redirect, when invoked by a node.</param>
+            public bool Break(TreeNode stopAt, TreeNode source = null)
             {
+                bool accepted = stopAt == null || callStack.Contains(stopAt);
+                long causeId = Record(EventType.Redirect, stopAt, detail: accepted ? null : "Target is not in this stack.", context: new EventContext(stopAt == null ? "Unwind" : "Reenter", source, accepted: accepted, severity: accepted ? EventSeverity.Info : EventSeverity.Warning));
                 // stop at is not null and it is not a valid stop point, then it is invalid
-                if (stopAt != null && !callStack.Contains(stopAt))
+                if (!accepted)
                 {
                     return false;
                 }
 
-                Record(EventType.Break, stopAt, detail: stopAt ? $"Stop at {stopAt.name}" : "Break all");
                 Previous = null;
                 Current = null;
                 while (callStack.Count > 0)
                 {
                     if (callStack.Peek() == stopAt) break;
-                    RollBack();
+                    RollBack(source, causeId);
                 }
                 State = StackState.Ready;
                 return true;
@@ -427,22 +474,24 @@ namespace Aethiumian.AI
             /// </summary>
             /// <param name="node">The node to stop and return from.</param>
             /// <param name="result">The result received by the node's parent.</param>
+            /// <param name="source">The node requesting this redirect, when invoked by a node.</param>
             /// <returns>True if the node was found and interrupted; otherwise false.</returns>
-            public bool Interrupt(TreeNode node, bool result)
+            public bool Interrupt(TreeNode node, bool result, TreeNode source = null)
             {
-                if (node == null || !callStack.Contains(node))
+                var state = result ? Aethiumian.AI.Nodes.State.Success : Aethiumian.AI.Nodes.State.Failed;
+                bool accepted = node != null && callStack.Contains(node);
+                long causeId = Record(EventType.Redirect, node, detail: accepted ? null : "Target is not in this stack.", context: new EventContext("Return", source, accepted: accepted, requestedResult: state, severity: accepted ? EventSeverity.Info : EventSeverity.Warning));
+                if (!accepted)
                 {
                     return false;
                 }
 
-                var state = result ? Aethiumian.AI.Nodes.State.Success : Aethiumian.AI.Nodes.State.Failed;
-                Record(EventType.Break, node, state, $"Interrupt as {state}");
                 Previous = null;
                 Current = null;
                 while (callStack.Count > 0)
                 {
                     if (callStack.Peek() == node) break;
-                    RollBack();
+                    RollBack(source, causeId);
                 }
 
                 if (!callStack.TryPeek(out var target) || target != node)
@@ -451,9 +500,13 @@ namespace Aethiumian.AI
                 }
 
                 Result = result;
-                try { target.Stop(); }
-                catch (Exception e) { Debug.LogException(e); }
-                Pop();
+                try { target.Stop(source, causeId, this); }
+                catch (Exception e)
+                {
+                    RecordException(target, e, "Stop", "Continue cleanup", source, causeId, EventSeverity.Warning);
+                    Debug.LogException(e);
+                }
+                Pop(PopReason.ForcedReturn, state, source, causeId);
                 State = StackState.Receiving;
                 return true;
             }
@@ -491,7 +544,7 @@ namespace Aethiumian.AI
                 }
                 catch (Exception e)
                 {
-                    result = booleanNode.HandleException(e);
+                    result = booleanNode.HandleException(e, "Execute", this);
                 }
 
                 Result = result == Aethiumian.AI.Nodes.State.Success;
@@ -499,17 +552,25 @@ namespace Aethiumian.AI
             }
 
             /// <summary>
-            /// remove the first node from the stack
+            /// Removes the first node without assigning a return value; this is a manual discard.
             /// </summary>
             /// <returns></returns>
             public TreeNode Pop()
+            {
+                return Pop(PopReason.Clear, null, null, 0);
+            }
+
+            /// <summary>Records the physical removal with the result belonging to this exit only.</summary>
+            private TreeNode Pop(PopReason reason, State? result, TreeNode source, long causeEventId)
             {
                 if (!callStack.TryPop(out var node))
                 {
                     return null;
                 }
 
-                Record(EventType.Pop, node, Result.HasValue ? (Result.Value ? Aethiumian.AI.Nodes.State.Success : Aethiumian.AI.Nodes.State.Failed) : null);
+#if UNITY_EDITOR
+                Record(EventType.Pop, node, result, context: new EventContext(reason.ToString(), source, causeEventId));
+#endif
                 OnNodePopStack?.Invoke(node);
                 return node;
             }
@@ -520,12 +581,21 @@ namespace Aethiumian.AI
             /// <returns></returns>
             public TreeNode RollBack()
             {
+                return RollBack(null, 0);
+            }
+
+            /// <summary>Unwinds one node while retaining the originating redirect's identity.</summary>
+            private TreeNode RollBack(TreeNode source, long causeEventId)
+            {
                 //TreeNode treeNode = Pop();
                 TreeNode treeNode = Peek();
-                Record(EventType.Rollback, treeNode);
-                try { treeNode.Stop(); }
-                catch (Exception e) { Debug.LogException(e); }
-                Pop();
+                try { treeNode.Stop(source, causeEventId, this); }
+                catch (Exception e)
+                {
+                    RecordException(treeNode, e, "Stop", "Continue cleanup", source, causeEventId, EventSeverity.Warning);
+                    Debug.LogException(e);
+                }
+                Pop(PopReason.Unwind, null, source, causeEventId);
 
                 if (State != StackState.End)
                     State = StackState.Calling;
@@ -535,19 +605,29 @@ namespace Aethiumian.AI
             }
 
             /// <summary>
-            /// clear the stack
+            /// Discards all nodes without invoking Stop or node-pop callbacks.
             /// </summary>
             public void Clear()
             {
-                callStack.Clear();
+                while (callStack.TryPop(out var node))
+                    Record(EventType.Pop, node, context: new EventContext(nameof(PopReason.Clear)));
             }
 
-            [System.Diagnostics.Conditional("UNITY_EDITOR")]
-            private void Record(EventType eventType, TreeNode node, State? result = null, string detail = null)
+            /// <summary>Publishes a diagnostic event and returns its tree-owned identity, or zero outside the Editor.</summary>
+            private long Record(EventType eventType, TreeNode node, State? result = null, string detail = null, EventContext context = default)
             {
 #if UNITY_EDITOR
-                OnStackEvent?.Invoke(this, eventType, node, result, detail);
+                return OnStackEvent?.Invoke(this, eventType, node, result, detail, context) ?? 0;
+#else
+                return 0;
 #endif
+            }
+
+            /// <summary>Records a handled or escaping exception without changing its existing handling policy.</summary>
+            [System.Diagnostics.Conditional("UNITY_EDITOR")]
+            internal void RecordException(TreeNode node, Exception exception, string phase, string policy, TreeNode source = null, long causeEventId = 0, EventSeverity severity = EventSeverity.Error)
+            {
+                Record(EventType.Exception, node, detail: exception.ToString(), context: new EventContext(source: source, causeEventId: causeEventId, phase: phase, policy: policy, exception: exception, severity: severity));
             }
 
             /// <summary>

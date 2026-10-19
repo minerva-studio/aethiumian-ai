@@ -90,7 +90,7 @@ namespace Aethiumian.AI.Nodes
             }
             catch (Exception e)
             {
-                return booleanCondition.HandleException(e) == State.Success;
+                return booleanCondition.HandleException(e, "Condition", TargetStack) == State.Success;
             }
         }
 
@@ -108,7 +108,7 @@ namespace Aethiumian.AI.Nodes
                 End();
             }
 
-            triggered = targetStack.Interrupt(host, result == ReturnResult.Success);
+            triggered = targetStack.Interrupt(host, result == ReturnResult.Success, this);
         }
 
         private void ResetState()
