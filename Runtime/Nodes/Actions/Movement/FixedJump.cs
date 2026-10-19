@@ -1,4 +1,3 @@
-using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Variables;
 using System;
@@ -39,6 +38,12 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Allows this action to finish without launching when its target is already reached.</summary>
         [Readable]
         public VariableField<bool> skipReached = false;
+        /// <summary>Allows an impulse from an unsupported launch pose. False retains the grounded launch contract for existing assets.</summary>
+        [Readable, Tooltip("Allow launching from the current airborne pose. Disabled by default; launch support is required.")]
+        public VariableField<bool> allowAirborneLaunch = false;
+        /// <summary>Allows an unsupported endpoint, completed only after observing actual arrival. False retains physical landing for existing assets.</summary>
+        [Readable, Tooltip("Allow an airborne endpoint. Actual arrival is still required. Disabled by default; landing support is required.")]
+        public VariableField<bool> allowAirborneEndpoint = false;
         /// <summary>Selects collider AABB or transform-position measurement for PlannedStep.</summary>
         public TargetMeasurement targetMeasurement;
         /// <summary>Defines the navigation region relationship used for target completion.</summary>
@@ -76,7 +81,10 @@ namespace Aethiumian.AI.Nodes
 
         protected override void OnMissingRuntime() => CompleteAction(false);
 
-        protected override void InitializeAction()
+        protected override void InitializeAction() { }
+
+        /// <summary>Waits for the shared physical launch prerequisite, then prepares one jump from the current pose.</summary>
+        private void PrepareJump()
         {
             INavigationWorld world = NavigationWorld;
             AABB targetBounds = capturedTargetBounds;
@@ -97,10 +105,9 @@ namespace Aethiumian.AI.Nodes
             }
 
             NavigationGoalRequest completionGoal = CreateCompletionRequest(targetBounds, arrivalTolerance);
-            // Both jump modes check a ground-anchor destination: Direct uses its resolved landing
-            // point, while PlannedStep uses the target's lower center. The region gate takes the body
-            // center, matching every other NavigationAction; the jump itself stays lower-center based.
-            Vector2 destination = targetMode == JumpTargetMode.Direct ? directLanding : completionGoal.TargetBounds.LowerCenter;
+            // PlannedStep uses the same goal-center region gate as Simple Jump. Direct checks
+            // its explicit lower-center endpoint; trajectory geometry stays lower-center based.
+            Vector2 destination = targetMode == JumpTargetMode.Direct ? directLanding : completionGoal.TargetBounds.Center;
             if (!IsNavigationDestinationAllowed(startBody.Center, destination))
             {
                 CompleteAction(false);
@@ -119,17 +126,11 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
+            if (!jumpParameters.AllowAirborneLaunch && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _)) return;
+
             if (targetMode == JumpTargetMode.Direct)
             {
                 if (!TryStartDirectJump(world, start, directLanding)) CompleteAction(false);
-                return;
-            }
-
-            if (IsReached(completionGoal, startBody))
-            {
-                // PlannedStep is still an action command when skipReached is false. Use the
-                // current support as the landing so this does not enter the global search graph.
-                if (!TryStartDirectJump(world, start, start)) CompleteAction(false);
                 return;
             }
 
@@ -146,13 +147,21 @@ namespace Aethiumian.AI.Nodes
 
         private bool IsReached(NavigationGoalRequest completionGoal, AABB body)
         {
-            if (!NavigationRuntime.TryResolvePlanningGroundSupport(body, out _, out _)) return false;
-            return NavigationWorld.IsGoalComplete(completionGoal, body);
+            if (RigidBody.linearVelocityY > 0f || !NavigationWorld.IsGoalComplete(completionGoal, body)) return false;
+            if (!jumpParameters.AllowAirborneEndpoint
+                && (!NavigationRuntime.TryResolvePlanningGroundSupport(body, out _, out _)
+                    || !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _))) return false;
+            return true;
         }
 
         /// <summary>Advances planning or the committed single jump on the fixed-step path.</summary>
         protected override void TickAction()
         {
+            if (executor == null && planningOperation == null)
+            {
+                PrepareJump();
+                if (IsComplete || executor == null && planningOperation == null) return;
+            }
             if (planningOperation != null)
             {
                 if (!planningOperation.IsCompleted) return;
@@ -201,9 +210,10 @@ namespace Aethiumian.AI.Nodes
 
                 AABB plannedBody = NavigationBodyGeometry.GetMergedAabb(NavigationColliders);
                 Vector2 plannedStart = plannedBody.LowerCenter;
-                if (!NavigationRuntime.TryResolvePlanningGroundSupport(plannedBody, out _, out NavigationSupport currentSupport)
+                if (!jumpParameters.AllowAirborneLaunch
+                    && (!NavigationRuntime.TryResolvePlanningGroundSupport(plannedBody, out _, out NavigationSupport currentSupport)
                     || !NavigationRuntime.TryResolvePlanningGroundSupport(AABB.FromLowerCenter(jump.Start, bodySize), out _, out NavigationSupport plannedSupport)
-                    || currentSupport.Surface != plannedSupport.Surface)
+                    || currentSupport.Surface != plannedSupport.Surface))
                 {
                     CompleteAction(false);
                     return;
@@ -248,7 +258,7 @@ namespace Aethiumian.AI.Nodes
                 return false;
             }
 
-            parameters = new JumpNavigationParameters(Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, height, length, Time.fixedDeltaTime);
+            parameters = new JumpNavigationParameters(Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, height, length, Time.fixedDeltaTime, allowAirborneLaunch, allowAirborneEndpoint);
             return true;
         }
 
@@ -300,6 +310,16 @@ namespace Aethiumian.AI.Nodes
             Collider2D[] targetColliders = NavigationBodyGeometry.GetTargetColliders(target.GameObjectValue);
             if (targetColliders == null || targetColliders.Length == 0)
             {
+                if (targetMode == JumpTargetMode.PlannedStep)
+                {
+                    Vector2 point = (Vector2)target.PositionValue + targetOffset;
+                    if (NavigationNumeric.IsFinite(point))
+                    {
+                        targetBounds = AABB.Point(point);
+                        directLanding = point;
+                        return true;
+                    }
+                }
                 CompleteAction(false);
                 return false;
             }
@@ -333,7 +353,14 @@ namespace Aethiumian.AI.Nodes
                 return false;
             }
 
-            executor = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, NavigationRuntime.CreateTerrainFilter(), solved, lease);
+            executor = new BallisticJumpExecutor(RigidBody,
+                Collider,
+                NavigationColliders,
+                NavigationRuntime.CreateTerrainFilter(),
+                solved,
+                lease,
+                allowAirborneLaunch: jumpParameters.AllowAirborneLaunch,
+                allowAirborneEndpoint: jumpParameters.AllowAirborneEndpoint);
             ReportMovementState(MovementState.Jumping);
             return true;
         }
@@ -350,8 +377,6 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        private float GetArrivalTolerance()
-            => reachDistance == null || !reachDistance.HasValue ? 0f : reachDistance.NumericValue;
-
+        private float GetArrivalTolerance() => reachDistance == null || !reachDistance.HasValue ? 0f : reachDistance.NumericValue;
     }
 }

@@ -94,6 +94,91 @@ namespace Aethiumian.AI.Navigation.Tests
         public IEnumerator PlannedStepReachedTargetStillLaunchesWhenSkipDisabled()
             => ReachedTargetHonorsSkipContract(FixedJump.JumpTargetMode.PlannedStep, false, true, true);
 
+        /// <summary>PlannedStep accepts a transform-only target, matching Simple Jump's Trace geometry.</summary>
+        [UnityTest]
+        public IEnumerator PlannedStepAcceptsTransformOnlyTarget()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            GameObject target = CreateTraceTarget(MovementStart + Vector2.right * 2f);
+            Object.DestroyImmediate(target.GetComponent<Collider2D>());
+            FixedJump node = CreateSingleFixedJump(Vector2.zero, FixedJump.JumpTargetMode.PlannedStep);
+            node.target = new VariableField(target);
+            MovementHarness harness = CreateHarness(MovementStart, node);
+
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
+        }
+
+        /// <summary>FixedJump executes the same first endpoint selected by Simple Jump for a multi-step goal.</summary>
+        [UnityTest]
+        public IEnumerator PlannedStepMatchesSimpleJumpFirstEndpoint()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            Vector2 target = MovementStart + Vector2.right * 7f;
+            Jump simple = new()
+            {
+                uuid = UUID.NewUUID(),
+                path = Movement.PathMode.Simple,
+                type = Movement.Behaviour.FixedDestination,
+                destination = new VariableField(target),
+                jumpHeight = (VariableField<float>)3f,
+                jumpLength = (VariableField<float>)3f,
+                reachDistance = (VariableField<float>)0f,
+            };
+            MovementHarness simpleHarness = CreateHarness(MovementStart, simple);
+            yield return WaitForTreeCreated(simpleHarness);
+            Jump runtimeSimple = (Jump)simpleHarness.AI.BehaviourTree.Head;
+            for (int tick = 0; tick < RuntimeContractTickLimit && !runtimeSimple.Route.HasValue; tick++)
+                yield return new WaitForFixedUpdate();
+            Assert.That(runtimeSimple.Route.HasValue, Is.True, DescribeHarness(simpleHarness));
+            Vector2 firstEndpoint = runtimeSimple.Route[0].End;
+            Assert.That(runtimeSimple.Route.ReachesGoal, Is.False);
+            simpleHarness.AI.End(false);
+            simpleHarness.Host.SetActive(false);
+
+            MovementHarness fixedHarness = CreateHarness(MovementStart,
+                CreateSingleFixedJump(target, FixedJump.JumpTargetMode.PlannedStep));
+            yield return WaitForTreeCreated(fixedHarness);
+            yield return WaitForTerminal(fixedHarness, RuntimeContractTickLimit);
+            Assert.That(fixedHarness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(fixedHarness));
+            Assert.That(Vector2.Distance(NavigationBodyGeometry.GetGroundAnchor(fixedHarness.Collider), firstEndpoint),
+                Is.LessThan(0.2f), "FixedJump must land at Simple Jump's first endpoint, rather than the final target.");
+        }
+
+        [UnityTest]
+        public IEnumerator FixedJumpDirectAllowsAirborneEndpoint() => VerifyUnsupportedFixedJump(FixedJump.JumpTargetMode.Direct, false);
+
+        [UnityTest]
+        public IEnumerator FixedJumpPlannedStepAllowsAirborneEndpoint() => VerifyUnsupportedFixedJump(FixedJump.JumpTargetMode.PlannedStep, false);
+
+        [UnityTest]
+        public IEnumerator FixedJumpPlannedStepAllowsAirborneLaunch() => VerifyUnsupportedFixedJump(FixedJump.JumpTargetMode.PlannedStep, true);
+
+        /// <summary>Verifies node wiring for grounded-to-airborne and airborne-to-airborne jumps.</summary>
+        private IEnumerator VerifyUnsupportedFixedJump(FixedJump.JumpTargetMode mode, bool allowAirborneLaunch)
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            Vector2 start = MovementStart + (allowAirborneLaunch ? Vector2.up * 2f : Vector2.zero);
+            FixedJump node = CreateSingleFixedJump(start + Vector2.one, mode);
+            node.allowAirborneLaunch = (VariableField<bool>)allowAirborneLaunch;
+            node.allowAirborneEndpoint = (VariableField<bool>)true;
+            MovementHarness harness = CreateHarness(start, node);
+
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
+            Assert.That(harness.Collider.IsTouchingLayers(NavigationPhysicsTestLayers.GeometryMask), Is.False);
+        }
+
         private IEnumerator ReachedTargetHonorsSkipContract(
             FixedJump.JumpTargetMode mode, bool skipReached, bool expectedLaunch, bool expectedResult)
         {

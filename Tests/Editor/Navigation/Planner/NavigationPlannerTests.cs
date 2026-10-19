@@ -1079,6 +1079,90 @@ namespace Aethiumian.AI.Navigation.Tests
         private static TestNavigationWorld GroundWorld(int firstX, int count)
             => NavigationTestWorlds.Ground(firstX, count);
 
+        /// <summary>Old serialized nodes without airborne fields retain grounded planning behavior.</summary>
+        [Test]
+        public void LegacyJumpDataRetainsGroundedPlanning()
+        {
+            var fixedJump = JsonUtility.FromJson<Aethiumian.AI.Nodes.FixedJump>("{\"targetMode\":1}");
+            var jump = JsonUtility.FromJson<Aethiumian.AI.Nodes.Jump>("{\"path\":0}");
+            Assert.That((bool)fixedJump.allowAirborneLaunch, Is.False, "Missing launch data must preserve required support.");
+            Assert.That((bool)fixedJump.allowAirborneEndpoint, Is.False, "Missing endpoint data must preserve required support.");
+            Assert.That((bool)jump.allowAirborneLaunch, Is.False, "Missing launch data must preserve required support.");
+            Assert.That((bool)jump.allowAirborneEndpoint, Is.False, "Missing endpoint data must preserve required support.");
+            TestNavigationWorld world = new(new AABBInt(0, 0, 6, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            JumpNavigationPlanner planner = new(world, 128, new GroundJumpSolver(world));
+            JumpNavigationParameters[] profiles =
+            {
+                new(Gravity, 1f, 0f, 3f, 3f, 0.02f, fixedJump.allowAirborneLaunch, fixedJump.allowAirborneEndpoint),
+                new(Gravity, 1f, 0f, 3f, 3f, 0.02f, jump.allowAirborneLaunch, jump.allowAirborneEndpoint),
+            };
+            foreach (JumpNavigationParameters profile in profiles)
+                Assert.That(planner.PlanSingleStep(AABB.FromLowerCenter(new Vector2(0.5f, 2f), GroundBodySize),
+                    Goal(new Vector2(2.5f, 3f), 0.1f), profile).Route.HasValue, Is.False);
+        }
+
+        /// <summary>Support policies are independent, including cached rejections of the same endpoints.</summary>
+        [TestCase(true, true)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(false, false)]
+        public void JumpSolverSupportRequirementsAreIndependent(bool launchSupported, bool landingSupported)
+        {
+            List<Vector2Int> floor = new();
+            if (launchSupported) floor.Add(new Vector2Int(0, 0));
+            if (landingSupported) floor.Add(new Vector2Int(2, 0));
+            TestNavigationWorld world = new(new AABBInt(0, 0, 6, 8), floor, Array.Empty<Vector2Int>());
+            GroundJumpSolver solver = new(world);
+            Vector2 start = new(0.5f, launchSupported ? 1f : 2f);
+            Vector2 end = new(2.5f, landingSupported ? 1f : 2f);
+
+            GroundJumpParameters grounded = new(GroundBodySize, Gravity, 1f, 0f, 3f, 3f, 0.02f);
+            Assert.That(solver.TrySolve(start, end, grounded, out _), Is.EqualTo(launchSupported && landingSupported));
+            GroundJumpParameters launchOnly = new(GroundBodySize, Gravity, 1f, 0f, 3f, 3f, 0.02f, false, true);
+            Assert.That(solver.TrySolve(start, end, launchOnly, out _), Is.EqualTo(launchSupported));
+            GroundJumpParameters landingOnly = new(GroundBodySize, Gravity, 1f, 0f, 3f, 3f, 0.02f, true, false);
+            Assert.That(solver.TrySolve(start, end, landingOnly, out _), Is.EqualTo(landingSupported));
+            GroundJumpParameters airborne = new(GroundBodySize, Gravity, 1f, 0f, 3f, 3f, 0.02f, true, true);
+            Assert.That(solver.TrySolve(start, end, airborne, out JumpTrajectorySolution solved), Is.True);
+            Assert.That(solved.LandingPosition, Is.EqualTo(end));
+            Assert.That(solver.TrySolve(start, end, grounded, out _), Is.EqualTo(launchSupported && landingSupported));
+        }
+
+        /// <summary>Both planning horizons can reach an airborne goal only when endpoint support is optional.</summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void JumpPlannerHonorsAirborneEndpointPolicy(bool allowAirborneEndpoint)
+        {
+            TestNavigationWorld world = new(new AABBInt(0, 0, 6, 8), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
+            JumpNavigationPlanner planner = new(world, 128, new GroundJumpSolver(world));
+            AABB body = AABB.FromLowerCenter(new Vector2(0.5f, 2f), GroundBodySize);
+            NavigationGoalRequest goal = Goal(new Vector2(2.5f, 3f), 0.1f);
+            JumpNavigationParameters parameters = new(Gravity, 1f, 0f, 3f, 3f, 0.02f, true, allowAirborneEndpoint);
+
+            foreach (NavigationRoute route in new[] { planner.PlanSingleStep(body, goal, parameters).Route, planner.Plan(body, goal, parameters).Route })
+            {
+                Assert.That(route.HasValue, Is.EqualTo(allowAirborneEndpoint));
+                if (!route.HasValue) continue;
+                Assert.That(route.Count, Is.EqualTo(1));
+                Assert.That(route.Endpoint, Is.EqualTo(new Vector2(2.5f, 3f)));
+                Assert.That(route.ReachesGoal, Is.True);
+            }
+        }
+
+        /// <summary>Optional launch support permits an airborne start while retaining a grounded endpoint.</summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void SimpleJumpHonorsAirborneLaunchPolicy(bool allowAirborneLaunch)
+        {
+            TestNavigationWorld world = new(new AABBInt(0, 0, 6, 8), new[] { new Vector2Int(2, 0) }, Array.Empty<Vector2Int>());
+            JumpNavigationPlanner planner = new(world, 128, new GroundJumpSolver(world));
+            NavigationRoute route = planner.PlanSingleStep(AABB.FromLowerCenter(new Vector2(0.5f, 2f), GroundBodySize),
+                Goal(new Vector2(2.5f, 1f), 0.1f), new JumpNavigationParameters(Gravity, 1f, 0f, 3f, 3f, 0.02f, allowAirborneLaunch, false)).Route;
+
+            Assert.That(route.HasValue, Is.EqualTo(allowAirborneLaunch));
+            if (route.HasValue) Assert.That(world.IsGoalComplete(Goal(new Vector2(2.5f, 1f), 0.1f), route.ResolveEndpointBody(AABB.FromLowerCenter(new Vector2(0.5f, 2f), GroundBodySize))), Is.True);
+        }
+
         private static List<Vector2Int> Floor(int firstX, int count)
             => NavigationTestWorlds.Floor(firstX, count);
 

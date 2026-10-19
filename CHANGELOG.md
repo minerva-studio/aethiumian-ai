@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Independent `allowAirborneLaunch` and `allowAirborneEndpoint` options for `FixedJump` and `Jump`, defaulting to false to retain grounded behavior for existing data. PlannedStep shares Simple Jump's single-step planning and target fallback semantics.
 - A native Graph page in the AI Editor, including creation palettes, compatible-port connections, shared clipboard commands, multi-selection, grouped editing, alignment, distribution, and explicit Auto Layout.
 - Graph-specific presentation for control-flow branches, loops, parallel flows, probability flows, conditions, services, entrance and exit boundaries, and detached nodes.
 - Support for editing the behaviour-tree head and ordered flow children from the Graph page.

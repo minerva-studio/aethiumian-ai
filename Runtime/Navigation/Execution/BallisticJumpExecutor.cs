@@ -12,14 +12,14 @@ namespace Aethiumian.AI.Navigation
     {
         // Tick records action-specific progress; only the base consumes it and advances timeout.
         private ProgressObservation progress;
-        /// <summary>Reports this step's physical progress without exposing watchdog policy to nodes.</summary>
-        protected override ProgressObservation ObserveProgress() => progress;
 
         private readonly Collider2D bodyCollider;
         private readonly IReadOnlyList<Collider2D> navigationColliders;
         private readonly Rigidbody2D body;
         private readonly JumpTrajectorySolution trajectory;
         private readonly ContactFilter2D supportFilter;
+        private readonly bool allowAirborneLaunch;
+        private readonly bool allowAirborneEndpoint;
         private float elapsed;
         private OneWayPlatformCollisionLease collisionLease;
         private bool launched;
@@ -33,10 +33,18 @@ namespace Aethiumian.AI.Navigation
         /// <summary>
         /// Prepares one trajectory and owns the supplied collision lease. The optional timeout
         /// applies to monitored support/landing phases; zero preserves unmonitored FixedJump behavior.
+        /// Launch support can be disabled independently of landing support. Without landing support,
+        /// completion still requires observing the descending body at or crossing the endpoint.
         /// </summary>
-        public BallisticJumpExecutor(Rigidbody2D body, Collider2D bodyCollider,
-            IReadOnlyList<Collider2D> navigationColliders, ContactFilter2D supportFilter, in JumpTrajectorySolution trajectory,
-            OneWayPlatformCollisionLease collisionLease, float maximumIdleDuration = 0f) : base(maximumIdleDuration)
+        public BallisticJumpExecutor(Rigidbody2D body,
+            Collider2D bodyCollider,
+            IReadOnlyList<Collider2D> navigationColliders,
+            ContactFilter2D supportFilter,
+            in JumpTrajectorySolution trajectory,
+            OneWayPlatformCollisionLease collisionLease,
+            float maximumIdleDuration = 0f,
+            bool allowAirborneLaunch = false,
+            bool allowAirborneEndpoint = false) : base(maximumIdleDuration)
         {
             if (!body) throw new ArgumentNullException(nameof(body));
             this.bodyCollider = bodyCollider ? bodyCollider : throw new ArgumentNullException(nameof(bodyCollider));
@@ -45,6 +53,8 @@ namespace Aethiumian.AI.Navigation
             this.supportFilter = supportFilter;
             this.body = body;
             this.trajectory = trajectory;
+            this.allowAirborneLaunch = allowAirborneLaunch;
+            this.allowAirborneEndpoint = allowAirborneEndpoint;
             previousJumpAnchor = GetGroundAnchor();
             BeginExecution();
             this.collisionLease = collisionLease;
@@ -59,16 +69,19 @@ namespace Aethiumian.AI.Navigation
 
             if (!launched)
             {
-                if (!NavigationWorldQueries.TryGetGroundSupportPoint(bodyCollider, supportFilter, out Vector2 launchSupport))
+                if (!allowAirborneLaunch)
                 {
-                    progress = ProgressObservation.Waiting;
-                    return ExecutionResult.Running;
-                }
+                    if (!NavigationWorldQueries.TryGetGroundSupportPoint(bodyCollider, supportFilter, out Vector2 launchSupport))
+                    {
+                        progress = ProgressObservation.Waiting;
+                        return ExecutionResult.Running;
+                    }
 
-                if (Mathf.Abs(launchSupport.y - trajectory.StartPosition.y) > NavigationWorldQueries.SupportSnapDistance
-                    || Mathf.Abs(GetGroundAnchor().x - trajectory.StartPosition.x) > NavigationWorldQueries.SupportSnapDistance)
-                {
-                    return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+                    if (Mathf.Abs(launchSupport.y - trajectory.StartPosition.y) > NavigationWorldQueries.SupportSnapDistance
+                        || Mathf.Abs(GetGroundAnchor().x - trajectory.StartPosition.x) > NavigationWorldQueries.SupportSnapDistance)
+                    {
+                        return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+                    }
                 }
 
                 AdvanceBallistics(fixedDeltaTime);
@@ -85,6 +98,16 @@ namespace Aethiumian.AI.Navigation
             {
                 previousJumpAnchor = currentAnchor;
                 return ExecutionResult.Running;
+            }
+
+            if (allowAirborneEndpoint && body.linearVelocityY <= 0f
+                && currentAnchor.y <= trajectory.LandingPosition.y + GroundTraversalEndpointPolicy.VerticalSupportTolerance)
+            {
+                bool observedEndpoint = Mathf.Abs(currentAnchor.y - trajectory.LandingPosition.y) <= GroundTraversalEndpointPolicy.VerticalSupportTolerance
+                    || CrossedEndpoint(previousJumpAnchor, currentAnchor, trajectory.LandingPosition.y);
+                return observedEndpoint && IsLandingAtEndpoint(currentAnchor, fixedDeltaTime)
+                    ? ExecutionResult.Completed
+                    : ExecutionResult.Failure(ExecutionFailureReason.InvalidExecution);
             }
 
             if (!NavigationWorldQueries.TryGetGroundSupportPoint(bodyCollider, supportFilter, out Vector2 supportPoint))
@@ -129,7 +152,14 @@ namespace Aethiumian.AI.Navigation
             return ExecutionResult.Completed;
         }
 
-        /// <summary>Reinitializes progress measurement after an intentional movement pause.</summary>
+        /// <summary>
+        /// Reports this step's physical progress without exposing watchdog policy to nodes.
+        /// </summary>
+        protected override ProgressObservation ObserveProgress() => progress;
+
+        /// <summary>
+        /// Reinitializes progress measurement after an intentional movement pause.
+        /// </summary>
         protected override void ResetProgressBaselineCore()
         {
             ThrowIfDisposed();
@@ -137,7 +167,9 @@ namespace Aethiumian.AI.Navigation
             hasLandingProgressBaseline = false;
         }
 
-        /// <summary>Restores owned collision pairs on every terminal outcome, including base-detected stalls.</summary>
+        /// <summary>
+        /// Restores owned collision pairs on every terminal outcome, including base-detected stalls.
+        /// </summary>
         protected override void ReleaseExecutionResources()
         {
             collisionLease?.Restore();

@@ -87,6 +87,7 @@ namespace Aethiumian.AI.Navigation
         {
             private readonly int sx, sy, lx, ly, bx, by, gx, gy;
             private readonly int scale, damping, height, length, step;
+            private readonly bool allowAirborneLaunch, allowAirborneEndpoint;
 
             internal Key(Vector2 start, Vector2 landing, GroundJumpParameters parameters)
             {
@@ -97,18 +98,21 @@ namespace Aethiumian.AI.Navigation
                 scale = Bits(parameters.GravityScale); damping = Bits(parameters.LinearDamping);
                 height = Bits(parameters.JumpHeight); length = Bits(parameters.JumpLength);
                 step = Bits(parameters.SimulationTimeStep);
+                allowAirborneLaunch = parameters.AllowAirborneLaunch;
+                allowAirborneEndpoint = parameters.AllowAirborneEndpoint;
             }
 
             public bool Equals(Key other)
                 => sx == other.sx && sy == other.sy && lx == other.lx && ly == other.ly
                     && bx == other.bx && by == other.by && gx == other.gx && gy == other.gy
                     && scale == other.scale && damping == other.damping && height == other.height
-                    && length == other.length && step == other.step;
+                    && length == other.length && step == other.step
+                    && allowAirborneLaunch == other.allowAirborneLaunch && allowAirborneEndpoint == other.allowAirborneEndpoint;
 
             public override bool Equals(object obj) => obj is Key other && Equals(other);
             public override int GetHashCode()
                 => HashCode.Combine(HashCode.Combine(sx, sy, lx, ly, bx, by, gx, gy),
-                    HashCode.Combine(scale, damping, height, length, step));
+                    HashCode.Combine(scale, damping, height, length, step, allowAirborneLaunch, allowAirborneEndpoint));
         }
 
         private static int Bits(float value) => BitConverter.SingleToInt32Bits(value);

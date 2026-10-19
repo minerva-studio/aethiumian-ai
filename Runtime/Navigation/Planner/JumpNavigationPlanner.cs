@@ -32,14 +32,19 @@ namespace Aethiumian.AI.Navigation
             GroundJumpParameters jumpParameters = parameters.GetJumpParameters(bodySize);
 
             NavigationPlanResult result;
-            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport startSupport))
+            Vector2 resolvedStart = body.LowerCenter;
+            NavigationSupport startSupport = default;
+            if (!parameters.AllowAirborneLaunch
+                && !World.TryResolveGroundSupport(body, NavigationWorldQueries.SupportSnapDistance, out resolvedStart, out startSupport))
             {
                 result = NavigationPlanResult.NoResult;
             }
             else
             {
                 AABB startBody = AABB.FromLowerCenter(resolvedStart, bodySize);
-                if (World.IsGoalComplete(goal, startBody))
+                if (World.IsGoalComplete(goal, startBody)
+                    && (parameters.AllowAirborneEndpoint || !parameters.AllowAirborneLaunch
+                        || World.TryResolveSupport(startBody, NavigationWorldQueries.SupportSnapDistance, out _)))
                 {
                     var complete = NavigationRoute.Empty(resolvedStart, NavigationRouteCoordinateFrame.GroundAnchor, true);
                     result = NavigationPlanResult.ResultProduced(complete);
@@ -61,20 +66,25 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        /// <summary>Expands only the actual launch support and returns one validated landing action.</summary>
+        /// <summary>Expands only the current launch pose and returns one validated jump under the profile's support requirements.</summary>
         public override NavigationPlanResult PlanSingleStep(AABB body, NavigationGoalRequest goal, JumpNavigationParameters parameters, CancellationToken cancellationToken = default)
         {
             ValidatePlanInputs(body, cancellationToken);
             ValidateParameters(parameters);
             Vector2 bodySize = body.Size;
             GroundJumpParameters jumpParameters = parameters.GetJumpParameters(bodySize);
-            if (!World.TryResolveGroundSupport(AABB.FromLowerCenter(body.LowerCenter, bodySize), NavigationWorldQueries.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support))
+            Vector2 resolvedStart = body.LowerCenter;
+            NavigationSupport support = default;
+            if (!parameters.AllowAirborneLaunch
+                && !World.TryResolveGroundSupport(body, NavigationWorldQueries.SupportSnapDistance, out resolvedStart, out support))
             {
                 return NavigationPlanResult.NoResult;
             }
 
             AABB startBody = AABB.FromLowerCenter(resolvedStart, bodySize);
-            if (World.IsGoalComplete(goal, startBody))
+            if (World.IsGoalComplete(goal, startBody)
+                && (parameters.AllowAirborneEndpoint || !parameters.AllowAirborneLaunch
+                    || World.TryResolveSupport(startBody, NavigationWorldQueries.SupportSnapDistance, out _)))
             {
                 return NavigationPlanResult.ResultProduced(NavigationRoute.Empty(resolvedStart, NavigationRouteCoordinateFrame.GroundAnchor, true));
             }
@@ -167,9 +177,12 @@ namespace Aethiumian.AI.Navigation
         {
             successor = default;
             // A boundary-only landing turns ordinary physics contact error into another jump.
-            // Aim toward the goal itself; the normal search handles unsupported destinations.
-            Vector2 landing = new(start.x + Mathf.Clamp(goal.TargetBounds.CenterX - start.x, -parameters.JumpLength, parameters.JumpLength), start.y);
-            if (Mathf.Abs(landing.x - start.x) <= Tolerance
+            // Grounded goals retain the same-height shortcut; unsupported endpoints target the
+            // goal's lower center directly. Ordinary support candidates remain available in both cases.
+            Vector2 landing = !parameters.AllowAirborneEndpoint
+                ? new(start.x + Mathf.Clamp(goal.TargetBounds.CenterX - start.x, -parameters.JumpLength, parameters.JumpLength), start.y)
+                : goal.TargetBounds.LowerCenter;
+            if (Vector2.Distance(landing, start) <= Tolerance
                 || !jumpSolver.World.IsGoalComplete(goal, AABB.FromLowerCenter(landing, parameters.BodySize)))
                 return false;
             if (!jumpSolver.TrySolve(start, landing, parameters, out JumpTrajectorySolution trajectory))

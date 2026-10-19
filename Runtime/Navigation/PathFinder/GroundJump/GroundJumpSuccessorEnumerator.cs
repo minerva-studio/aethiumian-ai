@@ -84,7 +84,7 @@ namespace Aethiumian.AI.Navigation
                 NavigationSupport landingSupport = landingCandidate.Support;
                 diagnostics?.RecordJumpCandidateGenerated();
                 if (landingCandidate.Id == launchCandidateId && launchCandidateId >= 0
-                    || landingSupport.Surface == support.Surface && landingSupport.Position == support.Position)
+                    || !parameters.AllowAirborneLaunch && landingSupport.Surface == support.Surface && landingSupport.Position == support.Position)
                     diagnostics?.RecordJumpCandidatePruned();
                 yield return null;
             }
@@ -97,7 +97,7 @@ namespace Aethiumian.AI.Navigation
                 NavigationSupportCandidate landingCandidate = supportCandidates[i];
                 NavigationSupport landingSupport = landingCandidate.Support;
                 if (landingCandidate.Id == launchCandidateId && launchCandidateId >= 0
-                    || landingSupport.Surface == support.Surface && landingSupport.Position == support.Position)
+                    || !parameters.AllowAirborneLaunch && landingSupport.Surface == support.Surface && landingSupport.Position == support.Position)
                     continue;
                 if (excludeGroundAdjacent
                     && Mathf.Abs(landingSupport.Position.y - support.Position.y) <= GroundTraversalEndpointPolicy.VerticalSupportTolerance

@@ -8,6 +8,7 @@ Performs one ballistic jump toward a configured point or object. It can solve a 
 
 - Inputs: `target` (`VariableField` containing a `Vector2`, `Vector3`, or Unity object), `jumpHeight`, `jumpLength`, and optional `offset`.
 - Options: `targetMode` (`Direct` or `PlannedStep`), `targetMeasurement` for planned object targets, `goal`, `distanceMetric`, `reachDistance`, and `skipReached`.
+- Independent options: `allowAirborneLaunch` and `allowAirborneEndpoint`, both false by default, including for existing assets without these fields. Enabling them permits an airborne impulse and an airborne endpoint respectively; endpoint completion still requires observing the descending body reach that endpoint.
 - Outputs: none.
 
 ## Success / Failure semantics
@@ -17,8 +18,10 @@ Performs one ballistic jump toward a configured point or object. It can solve a 
 
 ## Important limitations
 
-- Requires the navigation runtime, a `Rigidbody2D`, and enabled navigation colliders. Object targets measured from collider bounds need target colliders.
-- `PlannedStep` uses the planner's next jump segment; `Direct` solves a ballistic trajectory to the resolved landing point.
+- Requires the navigation runtime, a published world, a `Rigidbody2D`, and enabled navigation colliders even when both airborne options are enabled. Direct object targets need target colliders; PlannedStep falls back to the transform position when no target colliders exist, matching Jump Trace.
+- `PlannedStep` uses the same single-step planner as `Jump` with `path = Simple`. Equivalent body, target geometry, goal, support policies, and physical inputs select the same step; FixedJump finishes after that step, while Jump continues toward its goal. The default collider measurement and zero offset match Jump Trace; explicit transform measurement or offset intentionally changes the goal geometry.
+- `Direct` validates a trajectory to the supplied lower-center endpoint without searching candidate landings. Both modes retain world/region checks, collision validation, jump limits, and one-way platform handling.
+- With `allowAirborneEndpoint` enabled, planning also tries the target's lower center as an airborne goal endpoint. Existing supported candidates remain available; this does not add a free-flight search lattice or guarantee a route to every airborne goal.
 
 ## Source code
 

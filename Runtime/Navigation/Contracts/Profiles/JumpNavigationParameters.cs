@@ -25,8 +25,17 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the fixed-step duration used by jump trajectory simulation.</summary>
         public float SimulationTimeStep { get; }
 
-        /// <summary>Creates and validates immutable jump-only navigation parameters.</summary>
-        public JumpNavigationParameters(Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float jumpLength, float simulationTimeStep)
+        /// <summary>Gets whether an unsupported launch anchor is allowed.</summary>
+        public bool AllowAirborneLaunch { get; }
+
+        /// <summary>Gets whether an unsupported endpoint and completion without physical landing are allowed.</summary>
+        public bool AllowAirborneEndpoint { get; }
+
+        /// <summary>
+        /// Creates and validates immutable jump-only navigation parameters. Both airborne options
+        /// default to false; enabling either permits its unsupported anchor without bypassing collision validation.
+        /// </summary>
+        public JumpNavigationParameters(Vector2 gravity, float gravityScale, float linearDamping, float jumpHeight, float jumpLength, float simulationTimeStep, bool allowAirborneLaunch = false, bool allowAirborneEndpoint = false)
         {
             if (!NavigationNumeric.IsFinite(gravity)) throw new ArgumentException("Gravity must be finite.", nameof(gravity));
             Validate.NonNegativeFinite(gravityScale, nameof(gravityScale));
@@ -40,13 +49,15 @@ namespace Aethiumian.AI.Navigation
             JumpHeight = jumpHeight;
             JumpLength = jumpLength;
             SimulationTimeStep = simulationTimeStep;
+            AllowAirborneLaunch = allowAirborneLaunch;
+            AllowAirborneEndpoint = allowAirborneEndpoint;
         }
 
         /// <summary>Creates grounded-jump solver inputs using the request body's size and this profile's physical inputs.</summary>
         /// <param name="bodySize">The size derived from the request's body AABB.</param>
         public GroundJumpParameters GetJumpParameters(Vector2 bodySize)
         {
-            return new(bodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep);
+            return new(bodySize, Gravity, GravityScale, LinearDamping, JumpHeight, JumpLength, SimulationTimeStep, AllowAirborneLaunch, AllowAirborneEndpoint);
         }
     }
 

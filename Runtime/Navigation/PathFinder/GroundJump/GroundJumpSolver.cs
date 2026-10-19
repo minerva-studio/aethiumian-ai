@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>
-    /// Solves collision-validated grounded jumps against one immutable world.
+    /// Solves collision-validated jumps against one immutable world under explicit endpoint support requirements.
     /// The solver is shareable by planners that use the same world and retains only derived trajectories.
     /// </summary>
     public sealed class GroundJumpSolver
@@ -49,13 +49,19 @@ namespace Aethiumian.AI.Navigation
         {
             cancellationToken.ThrowIfCancellationRequested();
             trajectory = default;
-            if (!World.TryResolveSupport(AABB.FromLowerCenter(start, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out NavigationSupport startSupport)
-                || !World.TryResolveSupport(AABB.FromLowerCenter(landing, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out NavigationSupport endSupport)
-                || Mathf.Abs(endSupport.Position.x - startSupport.Position.x) > parameters.JumpLength + Tolerance)
-                return false;
-
-            Vector2 snappedStart = startSupport.Position;
-            Vector2 snappedEnd = endSupport.Position;
+            Vector2 snappedStart = start;
+            Vector2 snappedEnd = landing;
+            if (!parameters.AllowAirborneLaunch)
+            {
+                if (!World.TryResolveSupport(AABB.FromLowerCenter(start, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out NavigationSupport startSupport)) return false;
+                snappedStart = startSupport.Position;
+            }
+            if (!parameters.AllowAirborneEndpoint)
+            {
+                if (!World.TryResolveSupport(AABB.FromLowerCenter(landing, parameters.BodySize), NavigationWorldQueries.SupportSnapDistance, out NavigationSupport endSupport)) return false;
+                snappedEnd = endSupport.Position;
+            }
+            if (Mathf.Abs(snappedEnd.x - snappedStart.x) > parameters.JumpLength + Tolerance) return false;
             float maximumApex = JumpTrajectory.GetMaximumAllowedApexHeight(parameters.JumpHeight);
             float minimumApex = JumpTrajectory.GetDefaultMinimumApexHeight(parameters.JumpHeight);
             if (snappedEnd.y > snappedStart.y + Tolerance)

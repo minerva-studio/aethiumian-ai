@@ -137,6 +137,77 @@ namespace Aethiumian.AI.Navigation.Tests
                 Assert.That(body.linearVelocity, Is.EqualTo(Vector2.zero), "Excluded support must not permit launch.");
         }
 
+        /// <summary>The launch requirement independently controls whether an airborne body receives its impulse.</summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void AirborneLaunchHonorsSupportRequirement(bool allowAirborneLaunch)
+        {
+            (Rigidbody2D body, Collider2D collider) = CreateBody(PhysicsOrigin + Vector2.up * 4f);
+            Physics2D.SyncTransforms();
+            Vector2 start = NavigationBodyGeometry.GetGroundAnchor(collider);
+            Assert.That(JumpTrajectory.TrySolve(new JumpTrajectoryInput(start, start + Vector2.right,
+                Physics2D.gravity, GravityScale, LinearDamping, 2f, Time.fixedDeltaTime), out JumpTrajectorySolution trajectory), Is.True);
+            ContactFilter2D filter = new NavigationPhysicsLayers(NavigationPhysicsTestLayers.GeometryMask, 0).CreateTerrainFilter();
+            using var executor = new BallisticJumpExecutor(body, collider, new[] { collider }, filter, trajectory, null,
+                allowAirborneLaunch: allowAirborneLaunch, allowAirborneEndpoint: true);
+
+            Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
+            AssertVector(body.linearVelocity, allowAirborneLaunch ? trajectory.InitialVelocity : Vector2.zero, PositionTolerance);
+        }
+
+        /// <summary>Elapsed flight time is insufficient: an unsupported endpoint still requires an observed arrival.</summary>
+        [Test]
+        public void AirborneEndpointRequiresObservedArrival()
+        {
+            (Rigidbody2D body, Collider2D collider) = CreateBody(PhysicsOrigin + Vector2.up * 4f);
+            Physics2D.SyncTransforms();
+            Vector2 start = NavigationBodyGeometry.GetGroundAnchor(collider);
+            Vector2 end = start + Vector2.one;
+            Assert.That(JumpTrajectory.TrySolve(new JumpTrajectoryInput(start, end,
+                Physics2D.gravity, GravityScale, LinearDamping, 2f, Time.fixedDeltaTime), out JumpTrajectorySolution trajectory), Is.True);
+            ContactFilter2D filter = new NavigationPhysicsLayers(NavigationPhysicsTestLayers.GeometryMask, 0).CreateTerrainFilter();
+            using var executor = new BallisticJumpExecutor(body, collider, new[] { collider }, filter, trajectory, null,
+                allowAirborneLaunch: true, allowAirborneEndpoint: true);
+            for (int tick = 0; tick < Mathf.CeilToInt(trajectory.FlightDuration / Time.fixedDeltaTime) + 3; tick++)
+                Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Running));
+
+            body.position += end - start;
+            body.linearVelocity = trajectory.LandingVelocity;
+            Physics2D.SyncTransforms();
+            Assert.That(executor.Tick(Time.fixedDeltaTime).Status, Is.EqualTo(ExecutionStatus.Completed));
+        }
+
+        [UnityTest]
+        public IEnumerator AirborneEndpointCompletesDuringPhysicalFlight() => VerifyAirborneEndpoint(true);
+
+        [UnityTest]
+        public IEnumerator RequiredLandingRejectsUnsupportedPhysicalEndpoint() => VerifyAirborneEndpoint(false);
+
+        /// <summary>Exercises real Unity flight with an endpoint above all terrain.</summary>
+        private IEnumerator VerifyAirborneEndpoint(bool allowAirborneEndpoint)
+        {
+            (Rigidbody2D body, Collider2D collider) = CreateBody(PhysicsOrigin + Vector2.up * 4f);
+            Physics2D.SyncTransforms();
+            Vector2 start = NavigationBodyGeometry.GetGroundAnchor(collider);
+            Vector2 end = start + Vector2.one;
+            Assert.That(JumpTrajectory.TrySolve(new JumpTrajectoryInput(start, end,
+                Physics2D.gravity, GravityScale, LinearDamping, 2f, Time.fixedDeltaTime), out JumpTrajectorySolution trajectory), Is.True);
+            ContactFilter2D filter = new NavigationPhysicsLayers(NavigationPhysicsTestLayers.GeometryMask, 0).CreateTerrainFilter();
+            using var executor = new BallisticJumpExecutor(body, collider, new[] { collider }, filter, trajectory, null, 1f,
+                allowAirborneLaunch: true, allowAirborneEndpoint: allowAirborneEndpoint);
+
+            ExecutionResult result = ExecutionResult.Running;
+            for (int tick = 0; tick < 200 && result.Status == ExecutionStatus.Running; tick++)
+            {
+                result = executor.Tick(Time.fixedDeltaTime);
+                if (result.Status == ExecutionStatus.Running) yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(result.Status, Is.EqualTo(allowAirborneEndpoint ? ExecutionStatus.Completed : ExecutionStatus.Failed));
+            if (allowAirborneEndpoint)
+                Assert.That(Vector2.Distance(NavigationBodyGeometry.GetGroundAnchor(collider), end), Is.LessThan(0.3f));
+        }
+
         private (Rigidbody2D body, Collider2D collider) CreateBody(Vector2 position)
         {
             GameObject host = new("ballistic-filter-body");
