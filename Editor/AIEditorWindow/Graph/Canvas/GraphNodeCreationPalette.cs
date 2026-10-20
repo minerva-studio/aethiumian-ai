@@ -306,8 +306,7 @@ namespace Aethiumian.AI.Editor
         private bool Matches(Type type, string query)
         {
             return menuCache.GetDisplayName(type).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0
-                || type.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0
-                || menuCache.GetMenuPath(type).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+                || type.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static NodeCreationMenuFolder FindParent(NodeCreationMenuFolder root, NodeCreationMenuFolder target)

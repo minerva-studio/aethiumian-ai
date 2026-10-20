@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 using RepeatDecorator = Aethiumian.AI.Nodes.Repeat;
 using RetryDecorator = Aethiumian.AI.Nodes.Retry;
@@ -132,6 +133,38 @@ namespace Aethiumian.AI.Editor.Tests.Window
             ListView results = palette.Q<ListView>("ai-editor-graph-node-creation-results");
             Assert.That(results.itemsSource, Is.Not.Null);
             Assert.That(results.itemsSource, Is.Not.Empty);
+        }
+
+        [Test]
+        public void CreationPaletteSearch_DoesNotMatchCategoryPaths()
+        {
+            Type[] results = SearchCreationPalette("extern");
+
+            Assert.That(results, Has.No.Member(typeof(FunctionCall)));
+            NodeCreationMenuFolder menu = NodeMenuCache.Shared.BuildCreationMenu(NodeCreationMenuContext.Nodes);
+            Assert.That(FindFolder(menu, "External").Types, Does.Contain(typeof(FunctionCall)));
+        }
+
+        [TestCase("static")]
+        [TestCase("STATIC CALL")]
+        [TestCase("CallStatic")]
+        [TestCase("  static call  ")]
+        public void CreationPaletteSearch_MatchesDisplayAndTypeNames(string query)
+        {
+            Assert.That(SearchCreationPalette(query), Does.Contain(typeof(CallStatic)));
+        }
+
+        /// <summary>Queries the actual palette and reads its result types without adding production test hooks.</summary>
+        private static Type[] SearchCreationPalette(string query)
+        {
+            GraphNodeCreationPalette palette = new(NodeCreationMenuContext.Nodes, _ => { }, () => { });
+            palette.Q<ToolbarSearchField>("ai-editor-graph-node-creation-search").value = query;
+            // An unattached UI Toolkit field does not dispatch change events; run the same rebuild explicitly.
+            typeof(GraphNodeCreationPalette).GetMethod("RebuildEntries", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(palette, null);
+            ListView results = palette.Q<ListView>("ai-editor-graph-node-creation-results");
+            return results.itemsSource.Cast<object>()
+                .Select(entry => (Type)entry.GetType().GetProperty("Type", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(entry))
+                .ToArray();
         }
 
         [Test]
