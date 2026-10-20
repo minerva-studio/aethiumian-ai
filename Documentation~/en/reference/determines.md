@@ -16,6 +16,12 @@
 - Read the currently executing node name.
 - [Details](determines/current-node-name/index.md)
 
+<a id="displacementto"></a>
+### [`DisplacementTo`](determines/displacement-to/index.md)
+
+- Check X/Y displacement to a target and optionally store the original signed vector.
+- [Details](determines/displacement-to/index.md)
+
 <a id="distanceto"></a>
 ### [`DistanceTo`](determines/distance-to/index.md)
 

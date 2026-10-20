@@ -15,6 +15,10 @@
 ### [`CurrentNodeName`](determines/current-node-name/index.md)
 - 用途：读取当前执行节点名。
 
+<a id="displacement-to"></a>
+### [`DisplacementTo`](determines/displacement-to/index.md)
+- 用途：判断目标相对自身的 X/Y 位移，并可选存储原始带符号向量。
+
 <a id="distance-to"></a>
 ### [`DistanceTo`](determines/distance-to/index.md)
 - 用途：计算实体与目标对象之间距离。

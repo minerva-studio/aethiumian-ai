@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `DisplacementTo` determines signed world-XY displacement with optional X/Y comparisons combined by AND and optional raw `Vector2` storage.
 - Independent `allowAirborneLaunch` and `allowAirborneEndpoint` options for `FixedJump` and `Jump`, defaulting to false to retain grounded behavior for existing data. PlannedStep shares Simple Jump's single-step planning and target fallback semantics.
 - A native Graph page in the AI Editor, including creation palettes, compatible-port connections, shared clipboard commands, multi-selection, grouped editing, alignment, distribution, and explicit Auto Layout.
 - Graph-specific presentation for control-flow branches, loops, parallel flows, probability flows, conditions, services, entrance and exit boundaries, and detached nodes.
