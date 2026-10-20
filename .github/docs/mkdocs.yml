@@ -195,6 +195,7 @@ nav:
           - Overview: reference/determines.md
           - BehaviourTreeStageName: reference/determines/behaviour-tree-stage-name/index.md
           - CurrentNodeName: reference/determines/current-node-name/index.md
+          - DisplacementTo: reference/determines/displacement-to/index.md
           - DistanceTo: reference/determines/distance-to/index.md
           - Equals: reference/determines/equals/index.md
           - IsComponent: reference/determines/is-component/index.md
