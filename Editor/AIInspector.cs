@@ -805,10 +805,11 @@ namespace Aethiumian.AI.Editor
         // Keep an immutable selection snapshot so queue eviction does not change the detail being read.
         private BehaviourTree.StackEventRecord? selectedEvent;
         private Vector2 eventDetailScrollPos;
-        private GUIStyle eventNodeStyle;
-        private GUIStyle eventMetadataStyle;
-        private GUIStyle eventBadgeStyle;
-        private GUIStyle eventDetailStyle;
+        // Rebuild theme-derived styles after reload instead of restoring serialized GUIStyle snapshots.
+        [NonSerialized] private GUIStyle eventNodeStyle;
+        [NonSerialized] private GUIStyle eventMetadataStyle;
+        [NonSerialized] private GUIStyle eventBadgeStyle;
+        [NonSerialized] private GUIStyle eventDetailStyle;
 
         /// <summary>Draws searchable recorded events; filters never change the tree's event history.</summary>
         private void DrawEventLog(BehaviourTree activeTree)
