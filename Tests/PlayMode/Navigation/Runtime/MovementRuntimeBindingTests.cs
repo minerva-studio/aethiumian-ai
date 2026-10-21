@@ -20,6 +20,165 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That((bool)new FixedJump().skipReached, Is.False);
         }
 
+        /// <summary>A failed strict solve must not launch unless best effort was requested.</summary>
+        [UnityTest]
+        public IEnumerator FixedJumpUnreachableDirectTargetFailsWithoutBestEffort()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            MovementHarness harness = CreateHarness(MovementStart, CreateSingleFixedJump(MovementStart + Vector2.right * 8f));
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            Assert.That(harness.Source.JumpCount, Is.Zero);
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false));
+        }
+
+        /// <summary>Best effort limits horizontal travel and substitutes launch height for an unreachable height.</summary>
+        [UnityTest]
+        public IEnumerator FixedJumpBestEffortClampsRangeAndFallsBackToLaunchHeight()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            FixedJump node = CreateSingleFixedJump(MovementStart + new Vector2(8f, 20f));
+            node.bestEffort = true;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
+            Assert.That(NavigationBodyGeometry.GetGroundAnchor(harness.Collider).x, Is.EqualTo(33.5f).Within(0.2f));
+        }
+
+        /// <summary>A planner with no supported endpoints still permits an explicitly requested best-effort impulse.</summary>
+        [UnityTest]
+        public IEnumerator FixedJumpBestEffortLaunchesWhenPlannedStepHasNoRoute()
+        {
+            using MapNavigationRuntime runtime = new(8, 4096, 4096,
+                new NavigationPhysicsLayers(NavigationPhysicsTestLayers.GeometryMask, NavigationPhysicsTestLayers.PlatformMask));
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Open());
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            FixedJump node = CreateSingleFixedJump(MovementStart + Vector2.right * 2f, FixedJump.JumpTargetMode.PlannedStep);
+            node.allowAirborneLaunch = true;
+            node.bestEffort = true;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
+        }
+
+        /// <summary>Attempting a jump does not manufacture success when its unsupported endpoint is missed.</summary>
+        [UnityTest]
+        public IEnumerator FixedJumpBestEffortStillFailsWithoutTheRequiredLanding()
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            FixedJump node = CreateSingleFixedJump(MovementStart + new Vector2(2f, 1f));
+            node.bestEffort = true;
+            MovementHarness harness = CreateHarness(MovementStart, node);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            Assert.That(harness.Source.JumpCount, Is.EqualTo(1), DescribeHarness(harness));
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false), DescribeHarness(harness));
+        }
+
+        /// <summary>An unavailable world returns false immediately; each later query observes current readiness and inputs.</summary>
+        [UnityTest]
+        public IEnumerator CanFixedJumpQueriesCurrentWorldAndInputsSynchronously()
+        {
+            using MapNavigationRuntime runtime = new(8, 4096, 4096,
+                new NavigationPhysicsLayers(NavigationPhysicsTestLayers.GeometryMask, NavigationPhysicsTestLayers.PlatformMask));
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            CanFixedJump query = new()
+            {
+                uuid = UUID.NewUUID(),
+                target = new VariableField(MovementStart + Vector2.right * 2f),
+                jumpHeight = 3f,
+            };
+            MovementHarness harness = CreateHarness(MovementStart, query, canMove: false);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false));
+            Assert.That(harness.Source.CurrentMovementState, Is.EqualTo(MovementState.Unspecified));
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.SolidGround(1f));
+            yield return WaitUntilGrounded(harness);
+            CanFixedJump runtimeQuery = (CanFixedJump)harness.AI.BehaviourTree.Head;
+            Assert.That(runtimeQuery.Execute(), Is.EqualTo(State.Success));
+            runtimeQuery.target = new VariableField(MovementStart + Vector2.right * 8f);
+            Assert.That(runtimeQuery.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(harness.Source.CurrentMovementState, Is.EqualTo(MovementState.Unspecified));
+        }
+
+        /// <summary>Feasibility remains strict when the planner cannot find any supported next action.</summary>
+        [UnityTest]
+        public IEnumerator CanFixedJumpRejectsPlannedStepWithoutLandingSupport()
+        {
+            using MapNavigationRuntime runtime = new(8, 4096, 4096,
+                new NavigationPhysicsLayers(NavigationPhysicsTestLayers.GeometryMask, NavigationPhysicsTestLayers.PlatformMask));
+            runtime.PublishWorld(NavigationWorldSnapshotFixtures.Open());
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            CanFixedJump query = new()
+            {
+                uuid = UUID.NewUUID(),
+                targetMode = FixedJump.JumpTargetMode.PlannedStep,
+                target = new VariableField(MovementStart + Vector2.right * 2f),
+                jumpHeight = 3f,
+                allowAirborneLaunch = true,
+            };
+            MovementHarness harness = CreateHarness(MovementStart, query, canMove: false);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false), DescribeHarness(harness));
+            Assert.That(harness.Source.CurrentMovementState, Is.EqualTo(MovementState.Unspecified));
+        }
+
+        /// <summary>Direct feasibility rejects an out-of-range target even though best-effort execution could launch.</summary>
+        [UnityTest]
+        public IEnumerator CanFixedJumpRejectsOutOfRangeDirectTarget()
+            => VerifyFixedJumpQuery(FixedJump.JumpTargetMode.Direct, 8f, false);
+
+        /// <summary>PlannedStep feasibility accepts a local jump toward a more distant goal.</summary>
+        [UnityTest]
+        public IEnumerator CanFixedJumpAcceptsPlannedStepWithoutMoving()
+            => VerifyFixedJumpQuery(FixedJump.JumpTargetMode.PlannedStep, 8f, true);
+
+        /// <summary>A feasible direct query completes without requiring movement permission or reporting locomotion.</summary>
+        [UnityTest]
+        public IEnumerator CanFixedJumpAcceptsDirectTargetWithoutMoving()
+            => VerifyFixedJumpQuery(FixedJump.JumpTargetMode.Direct, 2f, true);
+
+        /// <summary>Checks a strict query result and the absence of movement effects through the package runtime fixture.</summary>
+        private IEnumerator VerifyFixedJumpQuery(FixedJump.JumpTargetMode mode, float distance, bool expected)
+        {
+            using MapNavigationRuntime runtime = CreateGroundRuntime(1f);
+            using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
+            CanFixedJump query = new()
+            {
+                uuid = UUID.NewUUID(),
+                targetMode = mode,
+                target = new VariableField(MovementStart + Vector2.right * distance),
+                jumpHeight = 3f,
+                jumpLength = 3f,
+            };
+            MovementHarness harness = CreateHarness(MovementStart, query, canMove: false);
+            yield return WaitForTreeCreated(harness);
+            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(expected), DescribeHarness(harness));
+            CanFixedJump runtimeQuery = (CanFixedJump)harness.AI.BehaviourTree.Head;
+            Assert.That(runtimeQuery.Execute(), Is.EqualTo(expected ? State.Success : State.Failed));
+            Assert.That(harness.Source.JumpCount, Is.Zero);
+            Assert.That(harness.Source.WalkCount, Is.Zero);
+            Assert.That(harness.Source.CurrentMovementState, Is.EqualTo(MovementState.Unspecified));
+            Assert.That(harness.Body.position.x, Is.EqualTo(MovementStart.x).Within(0.01f));
+        }
+
         [UnityTest]
         public IEnumerator MissingOrDisposedRuntimeFails()
         {
@@ -74,6 +233,7 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(NavigationWorldSnapshotFixtures.SplitRegions());
             using RuntimeContextScope context = new(runtime);
             FixedJump node = CreateSingleFixedJump(new Vector2(70f, 1f));
+            node.bestEffort = true;
             MovementHarness harness = CreateHarness(MovementStart, node);
 
             yield return WaitForTreeCreated(harness);
@@ -176,7 +336,7 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return WaitForTreeCreated(harness);
             yield return WaitForTerminal(harness, RuntimeContractTickLimit);
             Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(true), DescribeHarness(harness));
-            Assert.That(harness.Collider.IsTouchingLayers(NavigationPhysicsTestLayers.GeometryMask), Is.False);
+            Assert.That(harness.Collider.IsTouchingLayers(NavigationPhysicsTestLayers.GeometryMask), Is.False, DescribeHarness(harness));
         }
 
         private IEnumerator ReachedTargetHonorsSkipContract(
